@@ -4,12 +4,17 @@ import { BotController } from './bot.controller';
 import { BotMiddleware } from './bot.middleware';
 import { AuthModule } from '../auth/auth.module';
 import { HttpModule } from '@nestjs/axios';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 
 @Module({
   imports: [
     AuthModule,
-    HttpModule.register({
-      baseURL: `https://api.telegram.org/bot${process.env.BOT_TOKEN}`,
+    HttpModule.registerAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        baseURL: `https://api.telegram.org/bot${configService.get<string>('BOT_TOKEN')}`,
+      }),
     }),
   ],
   providers: [BotService],

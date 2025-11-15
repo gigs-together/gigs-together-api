@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { MessageDto, SendMessageDto } from './dto/message.dto';
 import { HttpService } from '@nestjs/axios';
+import { firstValueFrom } from 'rxjs';
 
 enum Command {
   Start = 'start',
@@ -16,7 +17,13 @@ export class BotService {
       text,
     };
 
-    this.httpService.get('sendMessage', { params });
+    try {
+      const res$ = this.httpService.get('sendMessage', { params });
+      const res = await firstValueFrom(res$);
+      console.log(`sendMessage: ${JSON.stringify(res.data)}`);
+    } catch (e) {
+      console.error('sendMessage error:', e?.response?.data);
+    }
   }
 
   async handleMessage(message: MessageDto): Promise<void> {

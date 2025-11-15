@@ -13,6 +13,7 @@ import { CalendarModule } from './calendar/calendar.module';
 
 @Module({
   imports: [
+    /* remember to read config async */
     ConfigModule.forRoot({ isGlobal: true }),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],

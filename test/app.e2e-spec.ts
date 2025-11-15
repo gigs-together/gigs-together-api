@@ -5,11 +5,9 @@ import { AppModule } from '../src/app.module';
 import { Connection } from 'mongoose';
 import { getConnectionToken } from '@nestjs/mongoose';
 
-
 describe('AppController (e2e)', () => {
   let app: INestApplication;
   let connection: Connection;
-
 
   beforeEach(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
