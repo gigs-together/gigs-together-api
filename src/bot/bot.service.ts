@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { MessageDto, SendMessageDto } from './dto/message.dto';
+import type { MessageDto, SendMessageDto } from './dto/message.dto';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
-import type { CallbackQuery } from './dto/callbackQuery.dto';
+import type { CallbackQuery } from './dto/callback-query.dto';
 
 enum Command {
   Start = 'start',
@@ -12,14 +12,15 @@ enum Command {
 export class BotService {
   constructor(private readonly httpService: HttpService) {}
 
-  async sendMessage({ chatId, text }: SendMessageDto): Promise<void> {
-    const params = {
+  async sendMessage({ chatId, text, ...rest }: SendMessageDto): Promise<void> {
+    const body = {
       chat_id: chatId, // 1-4096 characters after entities parsing
       text,
+      ...rest,
     };
 
     try {
-      const res$ = this.httpService.get('sendMessage', { params });
+      const res$ = this.httpService.post('sendMessage', body);
       const res = await firstValueFrom(res$);
       console.log(`sendMessage: ${JSON.stringify(res.data)}`);
     } catch (e) {

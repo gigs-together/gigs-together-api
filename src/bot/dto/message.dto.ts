@@ -17,6 +17,8 @@ export interface MessageDto {
 export interface SendMessageDto {
   chatId: ChatId;
   text: string;
+
+  [key: string]: unknown;
 }
 
 export interface InaccessibleMessage {

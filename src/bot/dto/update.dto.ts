@@ -1,5 +1,5 @@
 import type { MessageDto } from './message.dto';
-import type { CallbackQuery } from './callbackQuery.dto';
+import type { CallbackQuery } from './callback-query.dto';
 
 export interface UpdateDto {
   update_id: number;
