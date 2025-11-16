@@ -19,6 +19,10 @@ export class TelegramModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     consumer
       .apply(TelegramCreateGigMiddleware)
-      .forRoutes({ path: 'telegram/v1/gig', method: RequestMethod.POST });
+      .forRoutes({
+        path: 'telegram/gig',
+        method: RequestMethod.POST,
+        version: '1',
+      });
   }
 }

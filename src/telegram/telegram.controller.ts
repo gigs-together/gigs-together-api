@@ -21,6 +21,7 @@ export class TelegramController {
   async createGig(
     @Body() data: V1TelegramCreateGigRequestBodyValidated,
   ): Promise<void> {
+    // TODO: validate the data still
     const mappedData = {
       gig: {
         title: data.gig.title,
@@ -28,7 +29,7 @@ export class TelegramController {
         location: data.gig.location,
         ticketsUrl: data.gig.ticketsUrl,
       },
-      isAdmin: data.user.isAdmin,
+      isAdmin: data.user?.isAdmin,
     };
     await this.gigService.handleGigSubmit(mappedData);
   }
