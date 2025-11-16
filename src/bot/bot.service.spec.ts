@@ -1,8 +1,9 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { BotService } from './bot.service';
 import { HttpService } from '@nestjs/axios';
 import { of } from 'rxjs';
-import { MessageDto } from './dto/message.dto';
+import type { MessageDto } from './dto/message.dto';
 
 describe('BotService', () => {
   let service: BotService;

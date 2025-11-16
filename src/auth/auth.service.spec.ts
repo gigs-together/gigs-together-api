@@ -1,8 +1,10 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { AuthService } from './auth.service';
 import { getModelToken } from '@nestjs/mongoose';
-import { Admin, AdminDocument } from '../schemas/admin.schema';
-import { Model } from 'mongoose';
+import type { AdminDocument } from '../schemas/admin.schema';
+import { Admin } from '../schemas/admin.schema';
+import type { Model } from 'mongoose';
 
 describe('AuthService', () => {
   let service: AuthService;

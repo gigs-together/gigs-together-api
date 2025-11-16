@@ -1,4 +1,4 @@
-import { UserDto } from '../../../common/dto/user.dto';
+import type { UserDto } from '../../../common/dto/user.dto';
 import type { GigId } from '../../../gig/dto/gig.dto';
 
 interface CreateGigDto {

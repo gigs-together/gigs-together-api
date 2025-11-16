@@ -1,4 +1,4 @@
-import { MessageDto } from './message.dto';
+import type { MessageDto } from './message.dto';
 
 export interface UpdateDto {
   update_id: number;

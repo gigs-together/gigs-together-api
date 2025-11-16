@@ -17,12 +17,10 @@ import { AuthModule } from '../auth/auth.module';
 })
 export class TelegramModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer
-      .apply(TelegramCreateGigMiddleware)
-      .forRoutes({
-        path: 'telegram/gig',
-        method: RequestMethod.POST,
-        version: '1',
-      });
+    consumer.apply(TelegramCreateGigMiddleware).forRoutes({
+      path: 'telegram/gig',
+      method: RequestMethod.POST,
+      version: '1',
+    });
   }
 }

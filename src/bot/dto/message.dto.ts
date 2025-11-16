@@ -1,5 +1,5 @@
-import { TelegramUserDto } from '../../common/dto/user.dto';
-import { ChatDto } from './chat.dto';
+import type { TelegramUserDto } from '../../common/dto/user.dto';
+import type { ChatDto } from './chat.dto';
 
 export type ChatId = string | number;
 

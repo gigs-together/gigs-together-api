@@ -41,7 +41,9 @@ export class TelegramController {
   @Version('1')
   @Post()
   @UseGuards(AdminGuard)
-  async approveGigV1(@Body() { gigId }: V1TelegramApproveGigRequestBody): Promise<void> {
+  async approveGigV1(
+    @Body() { gigId }: V1TelegramApproveGigRequestBody,
+  ): Promise<void> {
     await this.gigService.handleGigApprove(gigId);
   }
 }
