@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { MessageDto, SendMessageDto } from './dto/message.dto';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
+import type { CallbackQuery } from './dto/callbackQuery.dto';
 
 enum Command {
   Start = 'start',
@@ -61,5 +62,20 @@ export class BotService {
         });
       }
     }
+  }
+
+  async handleCallbackQuery(callbackQuery: CallbackQuery): Promise<void> {
+    if (callbackQuery) {
+      // await this.gigService.handleGigApprove(gigId);
+      console.log('callbackQuery', callbackQuery);
+    }
+
+    await firstValueFrom(
+      this.httpService.post('answerCallbackQuery', {
+        callback_query_id: callbackQuery.id,
+        // text,
+        // show_alert: showAlert,
+      }),
+    );
   }
 }

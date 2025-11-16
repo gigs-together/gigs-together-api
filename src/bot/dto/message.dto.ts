@@ -18,3 +18,9 @@ export interface SendMessageDto {
   chatId: ChatId;
   text: string;
 }
+
+export interface InaccessibleMessage {
+  chat: ChatDto;
+  message_id: number;
+  date: 0; // Always 0. The field can be used to differentiate regular and inaccessible messages.
+}

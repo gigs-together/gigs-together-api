@@ -15,7 +15,8 @@ export class AdminGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
     const update: UpdateDto = request.body;
-    const telegramId = update?.message?.from?.id;
+    const telegramId =
+      update?.message?.from?.id || update?.callback_query?.from?.id;
 
     const isAdmin = await this.authService.isAdmin(telegramId);
     if (isAdmin !== true) {

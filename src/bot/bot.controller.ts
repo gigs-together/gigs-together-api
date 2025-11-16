@@ -11,6 +11,10 @@ export class BotController {
   @HttpCode(200)
   @UseGuards(AdminGuard)
   async handleUpdate(@Body() update: UpdateDto): Promise<void> {
-    await this.botService.handleMessage(update.message);
+    if (update.callback_query) {
+      await this.botService.handleCallbackQuery(update.callback_query);
+      return;
+    }
+    // await this.botService.handleMessage(update.message);
   }
 }
