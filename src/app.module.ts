@@ -5,7 +5,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ScheduleModule } from '@nestjs/schedule';
 import { GigModule } from './gig/gig.module';
-import { BotModule } from './bot/bot.module';
+import { TelegramModule } from './telegram/telegram.module';
 import { AuthModule } from './auth/auth.module';
 import { CalendarModule } from './calendar/calendar.module';
 
@@ -22,7 +22,7 @@ import { CalendarModule } from './calendar/calendar.module';
     }),
     ScheduleModule.forRoot(),
     GigModule,
-    BotModule,
+    TelegramModule,
     AuthModule,
     CalendarModule,
   ],
