@@ -1,3 +1,7 @@
+import type { Types } from 'mongoose';
+
+export type GigId = string | Types.ObjectId;
+
 export interface GigDto {
   title: string;
   date: string;

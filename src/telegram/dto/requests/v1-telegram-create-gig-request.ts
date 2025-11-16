@@ -1,4 +1,5 @@
 import { UserDto } from '../../../common/dto/user.dto';
+import type { GigId } from '../../../gig/dto/gig.dto';
 
 interface CreateGigDto {
   title: string;
@@ -15,4 +16,8 @@ export interface V1TelegramCreateGigRequestBody {
 export interface V1TelegramCreateGigRequestBodyValidated {
   gig: CreateGigDto;
   user: UserDto;
+}
+
+export interface V1TelegramApproveGigRequestBody {
+  gigId: GigId;
 }

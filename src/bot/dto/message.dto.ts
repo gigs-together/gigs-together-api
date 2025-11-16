@@ -1,6 +1,8 @@
 import { TelegramUserDto } from '../../common/dto/user.dto';
 import { ChatDto } from './chat.dto';
 
+export type ChatId = string | number;
+
 export interface MessageDto {
   message_id: number;
   from?: TelegramUserDto;
@@ -13,6 +15,6 @@ export interface MessageDto {
 }
 
 export interface SendMessageDto {
-  chatId: string | number;
+  chatId: ChatId;
   text: string;
 }

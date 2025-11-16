@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { GetGigsDto, GigDto, SubmitGigDto } from './dto/gig.dto';
+import type { GetGigsDto, GigDto, GigId, SubmitGigDto } from './dto/gig.dto';
 import { Gig, GigDocument } from '../schemas/gig.schema';
 import { Status } from './enums/status.enum';
 import { PublisherService } from '../publisher/publisher.service';
@@ -19,10 +19,9 @@ export class GigService {
   ) {}
 
   async handleGigSubmit(data: SubmitGigDto): Promise<void> {
+    // TODO: add transaction?
     const savedGig = await this.saveGig(data.gig);
-    if (data.isAdmin) {
-      await this.handleGigApprove(savedGig._id);
-    }
+    await this.publisherService.publishDraft(savedGig);
   }
 
   private async saveGig(data: GigDto): Promise<GigDocument> {
@@ -36,14 +35,15 @@ export class GigService {
     return createdGig.save();
   }
 
-  async handleGigApprove(gigId: string | Types.ObjectId): Promise<void> {
+  async handleGigApprove(gigId: GigId): Promise<void> {
+    // TODO: add transaction?
     const updatedGig = await this.updateGigStatus(gigId, Status.approved);
     await this.publisherService.publish(updatedGig);
     await this.updateGigStatus(gigId, Status.published);
   }
 
   private async updateGigStatus(
-    gigId: string | Types.ObjectId,
+    gigId: GigId,
     status: Status,
   ): Promise<GigDocument> {
     if (!Types.ObjectId.isValid(gigId)) {

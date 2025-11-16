@@ -8,7 +8,11 @@ import {
 } from '@nestjs/common';
 import { AntiBotGuard } from './guards/anti-bot.guard';
 import { GigService } from '../gig/gig.service';
-import { V1TelegramCreateGigRequestBodyValidated } from './dto/requests/v1-telegram-create-gig-request';
+import {
+  V1TelegramApproveGigRequestBody,
+  V1TelegramCreateGigRequestBodyValidated,
+} from './dto/requests/v1-telegram-create-gig-request';
+import { AdminGuard } from '../bot/guards/admin.guard';
 
 @Controller('telegram')
 export class TelegramController {
@@ -32,5 +36,12 @@ export class TelegramController {
       isAdmin: data.user?.isAdmin,
     };
     await this.gigService.handleGigSubmit(mappedData);
+  }
+
+  @Version('1')
+  @Post()
+  @UseGuards(AdminGuard)
+  async approveGigV1(@Body() { gigId }: V1TelegramApproveGigRequestBody): Promise<void> {
+    await this.gigService.handleGigApprove(gigId);
   }
 }
