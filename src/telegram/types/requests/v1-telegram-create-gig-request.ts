@@ -1,4 +1,4 @@
-import { User } from '../user.types';
+import type { User } from '../user.types';
 
 interface CreateGigDto {
   title: string;

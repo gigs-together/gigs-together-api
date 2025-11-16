@@ -2,12 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { TGChatId, TGMessage, TGSendMessage } from './types/message.types';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
-import type { TGCallbackQuery } from './types/callback-query.types';
 import * as crypto from 'crypto';
 import { GigService } from '../gig/gig.service';
 import { GigDocument } from '../schemas/gig.schema';
 import type { GigId, SubmitGig } from '../gig/types/gig.types';
 import { Status } from '../gig/types/status.enum';
+import { TGCallbackQuery } from './types/update.types';
 
 enum Command {
   Start = 'start',
@@ -130,7 +130,11 @@ export class TelegramService {
     }
   }
 
-  async #publish(gig: GigDocument, chatId: TGChatId): Promise<void> {
+  async #publish(
+    gig: GigDocument,
+    chatId: TGChatId,
+    extra: any = {},
+  ): Promise<void> {
     // Set start time to 8:00 PM
     const startDateTime = new Date(gig.date);
     startDateTime.setHours(20, 0, 0, 0); // Set to 8:00 PM (20:00)
@@ -166,6 +170,18 @@ export class TelegramService {
     await this.sendMessage({
       chatId,
       text,
+      ...extra,
+    });
+  }
+
+  async publish(gig: GigDocument): Promise<void> {
+    const chatId = process.env.MAIN_CHANNEL_ID;
+    await this.#publish(gig, chatId);
+  }
+
+  async publishDraft(gig: GigDocument): Promise<void> {
+    const chatId = process.env.DRAFT_CHANNEL_ID;
+    const extra = {
       reply_markup: {
         inline_keyboard: [
           [
@@ -180,17 +196,8 @@ export class TelegramService {
           ],
         ],
       },
-    });
-  }
-
-  async publish(gig: GigDocument): Promise<void> {
-    const chatId = process.env.MAIN_CHANNEL_ID;
-    await this.#publish(gig, chatId);
-  }
-
-  async publishDraft(gig: GigDocument): Promise<void> {
-    const chatId = process.env.DRAFT_CHANNEL_ID;
-    await this.#publish(gig, chatId);
+    };
+    await this.#publish(gig, chatId, extra);
   }
 
   async handleGigSubmit(data: SubmitGig): Promise<void> {
