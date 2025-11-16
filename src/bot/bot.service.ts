@@ -1,8 +1,13 @@
 import { Injectable } from '@nestjs/common';
-import type { MessageDto, SendMessageDto } from './dto/message.dto';
+import { ChatId, MessageDto, SendMessageDto } from './dto/message.dto';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import type { CallbackQuery } from './dto/callback-query.dto';
+import * as crypto from 'crypto';
+import { GigService } from '../gig/gig.service';
+import { GigDocument } from '../schemas/gig.schema';
+import type { GigId, SubmitGigDto } from '../gig/dto/gig.dto';
+import { Status } from '../gig/enums/status.enum';
 
 enum Command {
   Start = 'start',
@@ -10,7 +15,10 @@ enum Command {
 
 @Injectable()
 export class BotService {
-  constructor(private readonly httpService: HttpService) {}
+  constructor(
+    private readonly httpService: HttpService,
+    private readonly gigService: GigService,
+  ) {}
 
   async sendMessage({ chatId, text, ...rest }: SendMessageDto): Promise<void> {
     const body = {
@@ -67,7 +75,9 @@ export class BotService {
 
   async handleCallbackQuery(callbackQuery: CallbackQuery): Promise<void> {
     if (callbackQuery) {
-      // await this.gigService.handleGigApprove(gigId);
+      // TODO
+      const gigId = callbackQuery.data.split(':')[1];
+      await this.handleGigApprove(gigId);
       console.log('callbackQuery', callbackQuery);
     }
 
@@ -78,5 +88,124 @@ export class BotService {
         // show_alert: showAlert,
       }),
     );
+  }
+
+  parseTelegramInitDataString(initData: string): {
+    parsedData: Record<string, string>;
+    dataCheckString: string;
+  } {
+    const pairs = initData.split('&');
+    const parsedData = {};
+
+    pairs.forEach((pair) => {
+      const [key, value] = pair.split('=');
+      parsedData[key] = decodeURIComponent(value);
+    });
+
+    const keys = Object.keys(parsedData)
+      .filter((key) => key !== 'hash')
+      .sort();
+
+    return {
+      dataCheckString: keys
+        .map((key) => `${key}=${parsedData[key]}`)
+        .join('\n'),
+      parsedData,
+    };
+  }
+
+  validateTelegramInitData(dataCheckString: string, receivedHash: string) {
+    const secretKey = crypto
+      .createHmac('sha256', 'WebAppData')
+      .update(process.env.BOT_TOKEN)
+      .digest();
+
+    const computedHash = crypto
+      .createHmac('sha256', secretKey)
+      .update(dataCheckString)
+      .digest('hex');
+
+    if (computedHash !== receivedHash) {
+      throw new Error('Invalid initData');
+    }
+  }
+
+  async #publish(gig: GigDocument, chatId: ChatId): Promise<void> {
+    // Set start time to 8:00 PM
+    const startDateTime = new Date(gig.date);
+    startDateTime.setHours(20, 0, 0, 0); // Set to 8:00 PM (20:00)
+
+    // Calculate end time (2 hours later)
+    const endDateTime = new Date(startDateTime);
+    endDateTime.setHours(startDateTime.getHours() + 2); // Add 2 hours
+
+    // await this.calendarService.addEvent({
+    //   title: gig.title,
+    //   ticketsUrl: gig.ticketsUrl,
+    //   location: gig.location,
+    //   startDate: startDateTime,
+    //   endDate: endDateTime,
+    // });
+
+    const dateFormatter = new Intl.DateTimeFormat('en-GB', {
+      year: 'numeric',
+      month: 'short', // e.g., "Nov"
+      day: '2-digit',
+    });
+    const formattedDate = dateFormatter.format(new Date(gig.date));
+
+    const text = [
+      gig.title,
+      '',
+      `🗓 ${formattedDate}`,
+      `📍 ${gig.location}`,
+      '',
+      `🎫 ${gig.ticketsUrl}`,
+    ].join('\n');
+
+    await this.sendMessage({
+      chatId,
+      text,
+      reply_markup: {
+        inline_keyboard: [
+          [
+            {
+              text: '✅ Approve',
+              callback_data: `approve:${gig._id}`,
+            },
+            {
+              text: '❌ Deny',
+              callback_data: `deny:${gig._id}`,
+            },
+          ],
+        ],
+      },
+    });
+  }
+
+  async publish(gig: GigDocument): Promise<void> {
+    const chatId = process.env.MAIN_CHANNEL_ID;
+    await this.#publish(gig, chatId);
+  }
+
+  async publishDraft(gig: GigDocument): Promise<void> {
+    const chatId = process.env.DRAFT_CHANNEL_ID;
+    await this.#publish(gig, chatId);
+  }
+
+  async handleGigSubmit(data: SubmitGigDto): Promise<void> {
+    // TODO: add transaction?
+    const savedGig = await this.gigService.saveGig(data.gig);
+    await this.publishDraft(savedGig);
+  }
+
+  async handleGigApprove(gigId: GigId): Promise<void> {
+    // TODO: add transaction?
+    const updatedGig = await this.gigService.updateGigStatus(
+      gigId,
+      Status.approved,
+    );
+    await this.publish(updatedGig);
+    await this.gigService.updateGigStatus(gigId, Status.published);
   }
 }
