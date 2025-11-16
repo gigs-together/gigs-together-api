@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common';
-import { ChatId, MessageDto, SendMessageDto } from './dto/message.dto';
+import { TGChatId, TGMessage, TGSendMessage } from './types/message.types';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
-import type { CallbackQuery } from './dto/callback-query.dto';
+import type { TGCallbackQuery } from './types/callback-query.types';
 import * as crypto from 'crypto';
 import { GigService } from '../gig/gig.service';
 import { GigDocument } from '../schemas/gig.schema';
-import type { GigId, SubmitGigDto } from '../gig/dto/gig.dto';
-import { Status } from '../gig/enums/status.enum';
+import type { GigId, SubmitGig } from '../gig/types/gig.types';
+import { Status } from '../gig/types/status.enum';
 
 enum Command {
   Start = 'start',
@@ -20,7 +20,7 @@ export class TelegramService {
     private readonly gigService: GigService,
   ) {}
 
-  async sendMessage({ chatId, text, ...rest }: SendMessageDto): Promise<void> {
+  async sendMessage({ chatId, text, ...rest }: TGSendMessage): Promise<void> {
     const body = {
       chat_id: chatId, // 1-4096 characters after entities parsing
       text,
@@ -36,7 +36,7 @@ export class TelegramService {
     }
   }
 
-  async handleMessage(message: MessageDto): Promise<void> {
+  async handleMessage(message: TGMessage): Promise<void> {
     if (!message?.chat?.id) {
       return;
     }
@@ -73,7 +73,7 @@ export class TelegramService {
     }
   }
 
-  async handleCallbackQuery(callbackQuery: CallbackQuery): Promise<void> {
+  async handleCallbackQuery(callbackQuery: TGCallbackQuery): Promise<void> {
     if (callbackQuery) {
       // TODO
       const gigId = callbackQuery.data.split(':')[1];
@@ -130,7 +130,7 @@ export class TelegramService {
     }
   }
 
-  async #publish(gig: GigDocument, chatId: ChatId): Promise<void> {
+  async #publish(gig: GigDocument, chatId: TGChatId): Promise<void> {
     // Set start time to 8:00 PM
     const startDateTime = new Date(gig.date);
     startDateTime.setHours(20, 0, 0, 0); // Set to 8:00 PM (20:00)
@@ -193,7 +193,7 @@ export class TelegramService {
     await this.#publish(gig, chatId);
   }
 
-  async handleGigSubmit(data: SubmitGigDto): Promise<void> {
+  async handleGigSubmit(data: SubmitGig): Promise<void> {
     // TODO: add transaction?
     const savedGig = await this.gigService.saveGig(data.gig);
     await this.publishDraft(savedGig);

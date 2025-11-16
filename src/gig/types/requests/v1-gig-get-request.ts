@@ -1,4 +1,4 @@
-import type { GigDto } from '../gig.dto';
+import type { GigDto } from '../gig.types';
 
 export interface V1GigGetRequestQuery {
   page: number;

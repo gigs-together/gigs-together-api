@@ -3,7 +3,7 @@ import { Test } from '@nestjs/testing';
 import { TelegramService } from './telegram.service';
 import { HttpService } from '@nestjs/axios';
 import { of } from 'rxjs';
-import type { MessageDto } from './dto/message.dto';
+import type { TGMessage } from './types/message.types';
 
 describe('TelegramService', () => {
   let service: TelegramService;
@@ -51,7 +51,7 @@ describe('TelegramService', () => {
 
   describe('handleMessage', () => {
     it('should respond to a non-command message', async () => {
-      const message: MessageDto = {
+      const message: TGMessage = {
         message_id: 123,
         date: Date.now(),
         text: 'Hello!',
@@ -71,7 +71,7 @@ describe('TelegramService', () => {
     });
 
     it('should handle the /start command', async () => {
-      const message: MessageDto = {
+      const message: TGMessage = {
         message_id: 123,
         date: Date.now(),
         text: '/start',
@@ -91,7 +91,7 @@ describe('TelegramService', () => {
     });
 
     it('should handle an unknown command', async () => {
-      const message: MessageDto = {
+      const message: TGMessage = {
         message_id: 123,
         date: Date.now(),
         text: '/unknown',
@@ -116,7 +116,7 @@ describe('TelegramService', () => {
         .mockResolvedValue();
 
       await service.handleMessage(null); // Simulate a null message
-      await service.handleMessage({} as MessageDto); // Simulate an invalid message
+      await service.handleMessage({} as TGMessage); // Simulate an invalid message
 
       expect(sendMessageSpy).not.toHaveBeenCalled();
     });

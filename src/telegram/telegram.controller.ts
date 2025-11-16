@@ -6,11 +6,11 @@ import {
   UseGuards,
   Version,
 } from '@nestjs/common';
-import { UpdateDto } from './dto/update.dto';
+import { TGUpdate } from './types/update.types';
 import { TelegramService } from './telegram.service';
 import { AdminGuard } from './guards/admin.guard';
 import { AntiBotGuard } from './guards/anti-bot.guard';
-import { V1TelegramCreateGigRequestBodyValidated } from './dto/requests/v1-telegram-create-gig-request';
+import { V1TelegramCreateGigRequestBodyValidated } from './types/requests/v1-telegram-create-gig-request';
 
 @Controller('telegram')
 export class TelegramController {
@@ -19,7 +19,7 @@ export class TelegramController {
   @Post('webhook')
   @HttpCode(200)
   @UseGuards(AdminGuard)
-  async handleUpdate(@Body() update: UpdateDto): Promise<void> {
+  async handleUpdate(@Body() update: TGUpdate): Promise<void> {
     if (update.callback_query) {
       await this.telegramService.handleCallbackQuery(update.callback_query);
       return;

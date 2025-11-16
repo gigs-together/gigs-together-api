@@ -1,4 +1,4 @@
-export interface TelegramUserDto {
+export interface TGUser {
   id: number;
   first_name: string;
   is_bot?: boolean;
@@ -8,7 +8,7 @@ export interface TelegramUserDto {
   [key: string]: unknown;
 }
 
-export interface UserDto {
-  telegramUser: TelegramUserDto;
+export interface User {
+  tgUser: TGUser;
   isAdmin: boolean;
 }

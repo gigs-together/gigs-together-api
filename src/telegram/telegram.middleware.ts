@@ -2,8 +2,8 @@ import { Injectable, NestMiddleware, ForbiddenException } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import { TelegramService } from './telegram.service';
 import { AuthService } from 'src/auth/auth.service';
-import { V1TelegramCreateGigRequestBody } from './dto/requests/v1-telegram-create-gig-request';
-import { TelegramUserDto, UserDto } from '../common/dto/user.dto';
+import { V1TelegramCreateGigRequestBody } from './types/requests/v1-telegram-create-gig-request';
+import { User, TGUser } from './types/user.types';
 
 @Injectable()
 export class TelegramMiddleware implements NestMiddleware {
@@ -46,14 +46,14 @@ export class TelegramCreateGigMiddleware implements NestMiddleware {
       );
 
       delete req.body.telegramInitDataString;
-      const telegramUser: TelegramUserDto = JSON.parse(parsedData.user);
+      const tgUser: TGUser = JSON.parse(parsedData.user);
 
-      const isAdmin = await this.authService.isAdmin(telegramUser.id);
+      const isAdmin = await this.authService.isAdmin(tgUser.id);
 
       req.body.user = {
-        telegramUser,
+        tgUser,
         isAdmin,
-      } as UserDto;
+      } as User;
     } catch (e) {
       throw new ForbiddenException(e);
     }

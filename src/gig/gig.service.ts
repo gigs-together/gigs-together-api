@@ -5,9 +5,9 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import type { GetGigsDto, GigDto, GigId } from './dto/gig.dto';
+import type { GetGigs, GigDto, GigId } from './types/gig.types';
 import { Gig, GigDocument } from '../schemas/gig.schema';
-import { Status } from './enums/status.enum';
+import { Status } from './types/status.enum';
 
 // TODO: add allowing only specific status transitions
 @Injectable()
@@ -42,7 +42,7 @@ export class GigService {
     return updatedGig;
   }
 
-  async getGigs(data: GetGigsDto): Promise<GigDocument[]> {
+  async getGigs(data: GetGigs): Promise<GigDocument[]> {
     const { page, size } = data;
 
     const MAX_SIZE = 100;

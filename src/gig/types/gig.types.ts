@@ -9,12 +9,12 @@ export interface GigDto {
   ticketsUrl: string;
 }
 
-export interface SubmitGigDto {
+export interface SubmitGig {
   gig: GigDto;
   isAdmin: boolean;
 }
 
-export interface GetGigsDto {
+export interface GetGigs {
   page: number;
   size: number;
 }

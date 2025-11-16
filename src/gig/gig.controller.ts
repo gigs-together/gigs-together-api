@@ -3,7 +3,7 @@ import { GigService } from './gig.service';
 import {
   V1GigGetRequestQuery,
   V1GigGetResponseBody,
-} from './dto/requests/v1-gig-get-request';
+} from './types/requests/v1-gig-get-request';
 
 @Controller('gig')
 export class GigController {
