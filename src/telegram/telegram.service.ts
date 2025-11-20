@@ -1,16 +1,26 @@
 import { Injectable } from '@nestjs/common';
-import { SendMessage, TGChatId, TGMessage, TGSendMessage } from './types/message.types';
+import type {
+  SendMessage,
+  TGChatId,
+  TGMessage,
+  TGSendMessage,
+} from './types/message.types';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import * as crypto from 'crypto';
 import { GigService } from '../gig/gig.service';
-import { GigDocument } from '../schemas/gig.schema';
+import type { GigDocument } from '../schemas/gig.schema';
 import type { GigId, SubmitGig } from '../gig/types/gig.types';
 import { Status } from '../gig/types/status.enum';
-import { TGCallbackQuery } from './types/update.types';
+import type { TGCallbackQuery } from './types/update.types';
 
 enum Command {
   Start = 'start',
+}
+
+enum Action {
+  Approve = 'approve',
+  Reject = 'reject',
 }
 
 @Injectable()
@@ -20,7 +30,11 @@ export class TelegramService {
     private readonly gigService: GigService,
   ) {}
 
-  async sendMessage({ chatId, text, ...rest }: SendMessage): Promise<TGMessage> {
+  async sendMessage({
+    chatId,
+    text,
+    ...rest
+  }: SendMessage): Promise<TGMessage> {
     const body: TGSendMessage = {
       chat_id: chatId, // 1-4096 characters after entities parsing
       text,
@@ -74,18 +88,25 @@ export class TelegramService {
   }
 
   async handleCallbackQuery(callbackQuery: TGCallbackQuery): Promise<void> {
-    if (callbackQuery) {
-      // TODO
-      const gigId = callbackQuery.data.split(':')[1];
-      await this.handleGigApprove(gigId);
-      console.log('callbackQuery', callbackQuery);
+    const [action, gigId] = callbackQuery.data.split(':');
+    // TODO: some more security?
+    switch (action) {
+      case Action.Approve: {
+        await this.handleGigApprove(gigId);
+        break;
+      }
+      case Action.Reject: {
+        await this.handleGigReject(gigId);
+        break;
+      }
     }
+    console.log('callbackQuery', callbackQuery);
 
     await firstValueFrom(
       this.httpService.post('answerCallbackQuery', {
         callback_query_id: callbackQuery.id,
-        // text,
-        // show_alert: showAlert,
+        // text: 'Done!',
+        // show_alert: 'Done?',
       }),
     );
   }
@@ -187,11 +208,11 @@ export class TelegramService {
           [
             {
               text: '✅ Approve',
-              callback_data: `approve:${gig._id}`,
+              callback_data: `${Action.Approve}:${gig._id}`,
             },
             {
-              text: '❌ Deny',
-              callback_data: `deny:${gig._id}`,
+              text: '❌ Reject',
+              callback_data: `${Action.Reject}:${gig._id}`,
             },
           ],
         ],
@@ -215,5 +236,10 @@ export class TelegramService {
     await this.publish(updatedGig);
     await this.gigService.updateGigStatus(gigId, Status.Published);
     console.log(`Gig #${gigId} approved`);
+  }
+
+  async handleGigReject(gigId: GigId): Promise<void> {
+    await this.gigService.updateGigStatus(gigId, Status.Rejected);
+    console.log(`Gig #${gigId} rejected`);
   }
 }
