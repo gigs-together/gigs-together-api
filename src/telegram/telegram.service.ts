@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { TGChatId, TGMessage, TGSendMessage } from './types/message.types';
+import { SendMessage, TGChatId, TGMessage, TGSendMessage } from './types/message.types';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import * as crypto from 'crypto';
@@ -20,8 +20,8 @@ export class TelegramService {
     private readonly gigService: GigService,
   ) {}
 
-  async sendMessage({ chatId, text, ...rest }: TGSendMessage): Promise<void> {
-    const body = {
+  async sendMessage({ chatId, text, ...rest }: SendMessage): Promise<TGMessage> {
+    const body: TGSendMessage = {
       chat_id: chatId, // 1-4096 characters after entities parsing
       text,
       ...rest,
@@ -30,7 +30,7 @@ export class TelegramService {
     try {
       const res$ = this.httpService.post('sendMessage', body);
       const res = await firstValueFrom(res$);
-      console.log(`sendMessage: ${JSON.stringify(res.data)}`);
+      return res.data.result;
     } catch (e) {
       console.error('sendMessage error:', e?.response?.data);
     }
@@ -134,7 +134,7 @@ export class TelegramService {
     gig: GigDocument,
     chatId: TGChatId,
     extra: any = {},
-  ): Promise<void> {
+  ): Promise<TGMessage> {
     // Set start time to 8:00 PM
     const startDateTime = new Date(gig.date);
     startDateTime.setHours(20, 0, 0, 0); // Set to 8:00 PM (20:00)
@@ -167,19 +167,19 @@ export class TelegramService {
       `🎫 ${gig.ticketsUrl}`,
     ].join('\n');
 
-    await this.sendMessage({
+    return this.sendMessage({
       chatId,
       text,
       ...extra,
     });
   }
 
-  async publish(gig: GigDocument): Promise<void> {
+  async publish(gig: GigDocument): Promise<TGMessage> {
     const chatId = process.env.MAIN_CHANNEL_ID;
-    await this.#publish(gig, chatId);
+    return this.#publish(gig, chatId);
   }
 
-  async publishDraft(gig: GigDocument): Promise<void> {
+  async publishDraft(gig: GigDocument): Promise<TGMessage> {
     const chatId = process.env.DRAFT_CHANNEL_ID;
     const extra = {
       reply_markup: {
@@ -197,7 +197,7 @@ export class TelegramService {
         ],
       },
     };
-    await this.#publish(gig, chatId, extra);
+    return this.#publish(gig, chatId, extra);
   }
 
   async handleGigSubmit(data: SubmitGig): Promise<void> {

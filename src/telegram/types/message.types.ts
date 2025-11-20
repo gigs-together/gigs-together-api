@@ -15,6 +15,13 @@ export interface TGMessage {
 }
 
 export interface TGSendMessage {
+  chat_id: TGChatId;
+  text: string;
+
+  [key: string]: unknown;
+}
+
+export interface SendMessage {
   chatId: TGChatId;
   text: string;
 
