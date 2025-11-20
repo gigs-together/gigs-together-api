@@ -210,9 +210,10 @@ export class TelegramService {
     // TODO: add transaction?
     const updatedGig = await this.gigService.updateGigStatus(
       gigId,
-      Status.approved,
+      Status.Approved,
     );
     await this.publish(updatedGig);
-    await this.gigService.updateGigStatus(gigId, Status.published);
+    await this.gigService.updateGigStatus(gigId, Status.Published);
+    console.log(`Gig #${gigId} approved`);
   }
 }

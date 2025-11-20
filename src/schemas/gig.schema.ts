@@ -16,7 +16,7 @@ export class Gig {
   @Prop()
   ticketsUrl: string;
 
-  @Prop({ default: Status.pending })
+  @Prop({ default: Status.Pending })
   status: Status;
 }
 

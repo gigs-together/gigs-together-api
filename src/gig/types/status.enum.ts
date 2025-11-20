@@ -1,6 +1,6 @@
 export enum Status {
-  pending = 'Pending',
-  approved = 'Approved',
-  rejected = 'Rejected',
-  published = 'Published',
+  Pending = 'Pending',
+  Approved = 'Approved',
+  Rejected = 'Rejected',
+  Published = 'Published',
 }
