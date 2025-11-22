@@ -10,7 +10,7 @@ import { Request } from 'express';
 export class AntiBotGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
-
+    // TODO: explicitly check if it's a user instead of if it's a bot
     if (request.body.user?.is_bot) {
       throw new ForbiddenException('Bots are not allowed');
     }

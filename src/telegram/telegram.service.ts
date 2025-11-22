@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import type {
+import {
   SendMessage,
   TGChatId,
+  TGEditMessageReplyMarkup,
   TGMessage,
   TGSendMessage,
 } from './types/message.types';
@@ -12,7 +13,11 @@ import { GigService } from '../gig/gig.service';
 import type { GigDocument } from '../schemas/gig.schema';
 import type { GigId, SubmitGig } from '../gig/types/gig.types';
 import { Status } from '../gig/types/status.enum';
-import type { TGCallbackQuery } from './types/update.types';
+import {
+  TGAnswerCallbackQuery,
+  TGCallbackQuery,
+  TGInlineKeyboardMarkup,
+} from './types/update.types';
 
 enum Command {
   Start = 'start',
@@ -21,6 +26,7 @@ enum Command {
 enum Action {
   Approve = 'approve',
   Reject = 'reject',
+  Rejected = 'rejected',
 }
 
 @Injectable()
@@ -30,14 +36,12 @@ export class TelegramService {
     private readonly gigService: GigService,
   ) {}
 
-  async sendMessage({
-    chatId,
-    text,
-    ...rest
-  }: SendMessage): Promise<TGMessage> {
+  async sendMessage(payload: SendMessage): Promise<TGMessage | undefined> {
+    const { chatId, text, replyMarkup, ...rest } = payload;
     const body: TGSendMessage = {
       chat_id: chatId, // 1-4096 characters after entities parsing
       text,
+      reply_markup: replyMarkup,
       ...rest,
     };
 
@@ -88,25 +92,75 @@ export class TelegramService {
   }
 
   async handleCallbackQuery(callbackQuery: TGCallbackQuery): Promise<void> {
+    console.log('callbackQuery', callbackQuery);
     const [action, gigId] = callbackQuery.data.split(':');
     // TODO: some more security?
     switch (action) {
       case Action.Approve: {
-        await this.handleGigApprove(gigId);
+        await this.handleGigApprove({
+          gigId,
+          messageId: callbackQuery.message.message_id,
+          chatId: callbackQuery.message.chat.id,
+        });
         break;
       }
       case Action.Reject: {
-        await this.handleGigReject(gigId);
+        await this.handleGigReject({
+          gigId,
+          messageId: callbackQuery.message.message_id,
+          chatId: callbackQuery.message.chat.id,
+        });
         break;
       }
+      case Action.Rejected: {
+        const text = "There's no action for Rejected yet.";
+        console.log(text);
+        await this.answerCallbackQuery({
+          callback_query_id: callbackQuery.id,
+          text,
+          show_alert: false,
+        });
+        return;
+      }
+      default: {
+        await this.answerCallbackQuery({
+          callback_query_id: callbackQuery.id,
+          text: 'Go write better code!',
+          show_alert: true,
+        });
+        return;
+      }
     }
-    console.log('callbackQuery', callbackQuery);
 
+    await this.answerCallbackQuery({
+      callback_query_id: callbackQuery.id,
+      text: 'Done!',
+      show_alert: false,
+    });
+  }
+
+  private async answerCallbackQuery(
+    payload: TGAnswerCallbackQuery,
+  ): Promise<void> {
+    const { callback_query_id, text, show_alert } = payload;
     await firstValueFrom(
       this.httpService.post('answerCallbackQuery', {
-        callback_query_id: callbackQuery.id,
-        // text: 'Done!',
-        // show_alert: 'Done?',
+        callback_query_id,
+        text,
+        show_alert,
+      }),
+    );
+  }
+
+  private async editMessageReplyMarkup(
+    payload: TGEditMessageReplyMarkup,
+  ): Promise<void> {
+    const { chatId, messageId, replyMarkup } = payload;
+    await firstValueFrom(
+      this.httpService.post('editMessageReplyMarkup', {
+        chat_id: chatId,
+        message_id: messageId,
+        reply_markup: replyMarkup,
       }),
     );
   }
@@ -151,12 +205,13 @@ export class TelegramService {
     }
   }
 
-  async #publish(
-    gig: GigDocument,
-    chatId: TGChatId,
-    extra: any = {},
-  ): Promise<TGMessage> {
+  private async publish(payload: {
+    gig: GigDocument;
+    chatId: TGChatId;
+    replyMarkup?: TGInlineKeyboardMarkup;
+  }): Promise<TGMessage> {
     // Set start time to 8:00 PM
+    const { gig, chatId, replyMarkup } = payload;
     const startDateTime = new Date(gig.date);
     startDateTime.setHours(20, 0, 0, 0); // Set to 8:00 PM (20:00)
 
@@ -191,34 +246,32 @@ export class TelegramService {
     return this.sendMessage({
       chatId,
       text,
-      ...extra,
+      replyMarkup,
     });
   }
 
-  async publish(gig: GigDocument): Promise<TGMessage> {
+  async publishMain(gig: GigDocument): Promise<TGMessage> {
     const chatId = process.env.MAIN_CHANNEL_ID;
-    return this.#publish(gig, chatId);
+    return this.publish({ gig, chatId });
   }
 
   async publishDraft(gig: GigDocument): Promise<TGMessage> {
     const chatId = process.env.DRAFT_CHANNEL_ID;
-    const extra = {
-      reply_markup: {
-        inline_keyboard: [
-          [
-            {
-              text: '✅ Approve',
-              callback_data: `${Action.Approve}:${gig._id}`,
-            },
-            {
-              text: '❌ Reject',
-              callback_data: `${Action.Reject}:${gig._id}`,
-            },
-          ],
+    const replyMarkup = {
+      inline_keyboard: [
+        [
+          {
+            text: '✅ Approve',
+            callback_data: `${Action.Approve}:${gig._id}`,
+          },
+          {
+            text: '❌ Reject',
+            callback_data: `${Action.Reject}:${gig._id}`,
+          },
         ],
-      },
+      ],
     };
-    return this.#publish(gig, chatId, extra);
+    return this.publish({ gig, chatId, replyMarkup });
   }
 
   async handleGigSubmit(data: SubmitGig): Promise<void> {
@@ -227,19 +280,47 @@ export class TelegramService {
     await this.publishDraft(savedGig);
   }
 
-  async handleGigApprove(gigId: GigId): Promise<void> {
+  async handleGigApprove(payload: {
+    gigId: GigId;
+    chatId: TGChatId;
+    messageId: number;
+  }): Promise<void> {
     // TODO: add transaction?
+    const { gigId, chatId, messageId } = payload;
     const updatedGig = await this.gigService.updateGigStatus(
       gigId,
       Status.Approved,
     );
-    await this.publish(updatedGig);
+    await this.publishMain(updatedGig);
     await this.gigService.updateGigStatus(gigId, Status.Published);
     console.log(`Gig #${gigId} approved`);
+    const replyMarkup = {
+      inline_keyboard: [],
+    };
+    await this.editMessageReplyMarkup({ chatId, messageId, replyMarkup });
   }
 
-  async handleGigReject(gigId: GigId): Promise<void> {
+  async handleGigReject(payload: {
+    gigId: GigId;
+    chatId: TGChatId;
+    messageId: number;
+  }): Promise<void> {
+    const { gigId, chatId, messageId } = payload;
     await this.gigService.updateGigStatus(gigId, Status.Rejected);
     console.log(`Gig #${gigId} rejected`);
+    const replyMarkup = {
+      inline_keyboard: [
+        [
+          {
+            text: '❌ Rejected',
+            callback_data: `${Action.Rejected}:${gigId}`,
+          },
+        ],
+      ],
+      // TODO: reason for rejection
+      // force_reply: true,
+      // input_field_placeholder: 'Reason?',
+    };
+    await this.editMessageReplyMarkup({ chatId, messageId, replyMarkup });
   }
 }

@@ -20,9 +20,26 @@ export interface TGCallbackQuery {
   data?: string;
 }
 
+export interface TGAnswerCallbackQuery {
+  callback_query_id: string;
+  text?: string;
+  show_alert?: boolean;
+  url?: string;
+}
+
 interface TGChannelPost {
   message_id: number;
   sender_chat: TGChat;
   chat: TGChat;
   text: string;
+}
+
+export interface TGInlineKeyboardMarkup {
+  inline_keyboard: TGInlineKeyboardButton[][];
+}
+
+interface TGInlineKeyboardButton {
+  text: string;
+  url?: string;
+  callback_data?: string;
 }
