@@ -4,19 +4,19 @@ import { Status } from '../gig/types/status.enum';
 
 @Schema()
 export class Gig {
-  @Prop({ default: 'Unknown Gig' })
+  @Prop({ type: String, default: 'Unknown Gig' })
   title: string;
 
-  @Prop()
+  @Prop({ type: Number })
   date: number;
 
-  @Prop()
+  @Prop({ type: String })
   location: string;
 
-  @Prop()
+  @Prop({ type: String })
   ticketsUrl: string;
 
-  @Prop({ default: Status.Pending })
+  @Prop({ type: String, enum: Status, default: Status.Pending })
   status: Status;
 }
 

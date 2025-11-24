@@ -3,13 +3,13 @@ import { HydratedDocument } from 'mongoose';
 
 @Schema()
 export class Admin {
-  @Prop()
+  @Prop({ type: String, required: false })
   username?: string;
 
-  @Prop({ unique: true })
+  @Prop({ type: Number, unique: true, required: true })
   telegramId: number;
 
-  @Prop({ default: true })
+  @Prop({ type: Boolean, default: true })
   isActive: boolean;
 }
 
