@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import {
-  SendMessage,
+import type {
   TGChatId,
   TGEditMessageReplyMarkup,
   TGMessage,
   TGSendMessage,
+  TGSendPhoto,
 } from './types/message.types';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
@@ -36,17 +36,9 @@ export class TelegramService {
     private readonly gigService: GigService,
   ) {}
 
-  async sendMessage(payload: SendMessage): Promise<TGMessage | undefined> {
-    const { chatId, text, replyMarkup, ...rest } = payload;
-    const body: TGSendMessage = {
-      chat_id: chatId, // 1-4096 characters after entities parsing
-      text,
-      reply_markup: replyMarkup,
-      ...rest,
-    };
-
+  async sendMessage(payload: TGSendMessage): Promise<TGMessage | undefined> {
     try {
-      const res$ = this.httpService.post('sendMessage', body);
+      const res$ = this.httpService.post('sendMessage', payload);
       const res = await firstValueFrom(res$);
       return res.data.result;
     } catch (e) {
@@ -55,21 +47,22 @@ export class TelegramService {
   }
 
   async handleMessage(message: TGMessage): Promise<void> {
-    if (!message?.chat?.id) {
+    const chatId = message?.chat?.id;
+    if (!chatId) {
       return;
     }
-    const messageText = message.text || '';
-    const chatId = message.chat.id;
 
-    if (messageText.charAt(0) !== '/') {
+    const text = message.text || '';
+
+    if (text.charAt(0) !== '/') {
       await this.sendMessage({
-        chatId,
-        text: `You said: "${messageText}"`,
+        chat_id: chatId,
+        text: `You said: "${text}"`,
       });
       return;
     }
 
-    const command = messageText.substring(1).toLowerCase();
+    const command = text.substring(1).toLowerCase();
     await this.handleCommand(command, chatId);
   }
 
@@ -77,14 +70,14 @@ export class TelegramService {
     switch (command) {
       case Command.Start: {
         await this.sendMessage({
-          chatId,
+          chat_id: chatId,
           text: `Hi! I'm a Gigs Together bot. I am still in development...`,
         });
         break;
       }
       default: {
         await this.sendMessage({
-          chatId,
+          chat_id: chatId,
           text: `Hey there, I don't know that command.`,
         });
       }
@@ -244,9 +237,9 @@ export class TelegramService {
     ].join('\n');
 
     return this.sendMessage({
-      chatId,
+      chat_id: chatId,
       text,
-      replyMarkup,
+      reply_markup: replyMarkup,
     });
   }
 

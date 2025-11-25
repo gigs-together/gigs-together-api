@@ -23,14 +23,6 @@ export interface TGSendMessage {
   [key: string]: unknown;
 }
 
-export interface SendMessage {
-  chatId: TGChatId;
-  text: string;
-  replyMarkup?: TGInlineKeyboardMarkup;
-
-  [key: string]: unknown;
-}
-
 export interface TGInaccessibleMessage {
   chat: TGChat;
   message_id: number;
