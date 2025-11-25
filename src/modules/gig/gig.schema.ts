@@ -16,6 +16,9 @@ export class Gig {
   @Prop({ type: String })
   ticketsUrl: string;
 
+  @Prop({ type: String, optional: true })
+  photo?: string;
+
   @Prop({ type: String, enum: Status, default: Status.Pending })
   status: Status;
 }

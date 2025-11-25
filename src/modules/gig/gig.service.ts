@@ -20,6 +20,7 @@ export class GigService {
       date: new Date(data.date).getTime(),
       location: data.location,
       ticketsUrl: data.ticketsUrl,
+      photo: data.photo,
     };
     const createdGig = new this.gigModel(mappedData);
     return createdGig.save();

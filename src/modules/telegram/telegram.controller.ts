@@ -41,6 +41,7 @@ export class TelegramController {
         date: data.gig.date,
         location: data.gig.location,
         ticketsUrl: data.gig.ticketsUrl,
+        photo: data.gig.photo,
       },
       isAdmin: data.user?.isAdmin,
     };

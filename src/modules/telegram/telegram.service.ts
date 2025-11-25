@@ -13,10 +13,9 @@ import { GigService } from '../gig/gig.service';
 import type { GigDocument } from '../gig/gig.schema';
 import type { GigId, SubmitGig } from '../gig/types/gig.types';
 import { Status } from '../gig/types/status.enum';
-import {
+import type {
   TGAnswerCallbackQuery,
   TGCallbackQuery,
-  TGInlineKeyboardMarkup,
 } from './types/update.types';
 
 enum Command {
@@ -36,14 +35,40 @@ export class TelegramService {
     private readonly gigService: GigService,
   ) {}
 
-  async sendMessage(payload: TGSendMessage): Promise<TGMessage | undefined> {
+  async send(
+    payload: TGSendMessage | TGSendPhoto,
+  ): Promise<TGMessage | undefined> {
     try {
-      const res$ = this.httpService.post('sendMessage', payload);
+      if (this.isPhotoPayload(payload)) {
+        return await this.sendPhoto(payload);
+      }
+      return await this.sendMessage(payload);
+    } catch (e) {
+      console.error('send error:', e?.response?.data ?? e);
+    }
+  }
+
+  private async sendMessage(payload: TGSendMessage): Promise<TGMessage> {
+    const res$ = this.httpService.post('sendMessage', payload);
+    const res = await firstValueFrom(res$);
+    return res.data.result;
+  }
+
+  private async sendPhoto(
+    payload: TGSendPhoto,
+  ): Promise<TGMessage | undefined> {
+    if (typeof payload.photo === 'string') {
+      const res$ = this.httpService.post('sendPhoto', payload);
       const res = await firstValueFrom(res$);
       return res.data.result;
-    } catch (e) {
-      console.error('sendMessage error:', e?.response?.data);
     }
+    // TODO
+  }
+
+  private isPhotoPayload(
+    payload: TGSendPhoto | TGSendMessage,
+  ): payload is TGSendPhoto {
+    return 'photo' in payload;
   }
 
   async handleMessage(message: TGMessage): Promise<void> {
@@ -198,13 +223,11 @@ export class TelegramService {
     }
   }
 
-  private async publish(payload: {
-    gig: GigDocument;
-    chatId: TGChatId;
-    replyMarkup?: TGInlineKeyboardMarkup;
-  }): Promise<TGMessage> {
+  private async publish(
+    gig: GigDocument,
+    messagePayload: Omit<TGSendPhoto, 'photo'>,
+  ): Promise<TGMessage> {
     // Set start time to 8:00 PM
-    const { gig, chatId, replyMarkup } = payload;
     const startDateTime = new Date(gig.date);
     startDateTime.setHours(20, 0, 0, 0); // Set to 8:00 PM (20:00)
 
@@ -236,16 +259,16 @@ export class TelegramService {
       `🎫 ${gig.ticketsUrl}`,
     ].join('\n');
 
-    return this.sendMessage({
-      chat_id: chatId,
+    return this.send({
       text,
-      reply_markup: replyMarkup,
+      photo: gig.photo,
+      ...messagePayload,
     });
   }
 
   async publishMain(gig: GigDocument): Promise<TGMessage> {
     const chatId = process.env.MAIN_CHANNEL_ID;
-    return this.publish({ gig, chatId });
+    return this.publish(gig, { chat_id: chatId });
   }
 
   async publishDraft(gig: GigDocument): Promise<TGMessage> {
@@ -264,7 +287,7 @@ export class TelegramService {
         ],
       ],
     };
-    return this.publish({ gig, chatId, replyMarkup });
+    return this.publish(gig, { chat_id: chatId, reply_markup: replyMarkup });
   }
 
   async handleGigSubmit(data: SubmitGig): Promise<void> {

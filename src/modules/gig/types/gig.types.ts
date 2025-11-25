@@ -7,6 +7,7 @@ export interface GigDto {
   date: string;
   location: string;
   ticketsUrl: string;
+  photo?: string;
 }
 
 export interface SubmitGig {

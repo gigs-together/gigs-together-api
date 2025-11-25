@@ -5,6 +5,7 @@ interface CreateGigDto {
   date: string;
   location: string;
   ticketsUrl: string;
+  photo?: string;
 }
 
 export interface V1TelegramCreateGigRequestBody {

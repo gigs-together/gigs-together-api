@@ -25,6 +25,7 @@ export class GigController {
         location: gig.location,
         ticketsUrl: gig.ticketsUrl,
         status: gig.status,
+        photo: gig.photo,
       })),
       // TODO
       isLastPage: true,
