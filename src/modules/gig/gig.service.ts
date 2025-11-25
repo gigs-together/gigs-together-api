@@ -6,7 +6,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import type { GetGigs, GigDto, GigId } from './types/gig.types';
-import { Gig, GigDocument } from '../schemas/gig.schema';
+import { Gig, GigDocument } from './gig.schema';
 import { Status } from './types/status.enum';
 
 // TODO: add allowing only specific status transitions

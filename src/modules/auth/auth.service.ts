@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Admin, AdminDocument } from '../schemas/admin.schema';
+import { Admin, AdminDocument } from '../../shared/schemas/admin.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 

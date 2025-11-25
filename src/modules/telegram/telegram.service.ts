@@ -10,7 +10,7 @@ import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import * as crypto from 'crypto';
 import { GigService } from '../gig/gig.service';
-import type { GigDocument } from '../schemas/gig.schema';
+import type { GigDocument } from '../gig/gig.schema';
 import type { GigId, SubmitGig } from '../gig/types/gig.types';
 import { Status } from '../gig/types/status.enum';
 import {

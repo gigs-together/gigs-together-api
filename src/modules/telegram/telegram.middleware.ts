@@ -1,7 +1,7 @@
 import { Injectable, NestMiddleware, ForbiddenException } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import { TelegramService } from './telegram.service';
-import { AuthService } from 'src/auth/auth.service';
+import { AuthService } from 'src/modules/auth/auth.service';
 import { V1TelegramCreateGigRequestBody } from './types/requests/v1-telegram-create-gig-request';
 import { User, TGUser } from './types/user.types';
 

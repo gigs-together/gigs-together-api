@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { GigService } from './gig.service';
 import { MongooseModule } from '@nestjs/mongoose';
-import { Gig, GigSchema } from '../schemas/gig.schema';
+import { Gig, GigSchema } from './gig.schema';
 import { GigController } from './gig.controller';
 
 @Module({

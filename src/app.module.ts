@@ -4,10 +4,10 @@ import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ScheduleModule } from '@nestjs/schedule';
-import { GigModule } from './gig/gig.module';
-import { TelegramModule } from './telegram/telegram.module';
-import { AuthModule } from './auth/auth.module';
-import { CalendarModule } from './calendar/calendar.module';
+import { GigModule } from './modules/gig/gig.module';
+import { TelegramModule } from './modules/telegram/telegram.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { CalendarModule } from './modules/calendar/calendar.module';
 
 @Module({
   imports: [

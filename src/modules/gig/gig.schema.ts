@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
-import { Status } from '../gig/types/status.enum';
+import { Status } from './types/status.enum';
 
 @Schema()
 export class Gig {
