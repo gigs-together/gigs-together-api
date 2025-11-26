@@ -261,6 +261,7 @@ export class TelegramService {
 
     return this.send({
       text,
+      caption: text,
       photo: gig.photo,
       ...messagePayload,
     });
