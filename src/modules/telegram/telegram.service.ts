@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type {
+  InputFile,
   TGChatId,
   TGEditMessageReplyMarkup,
   TGMessage,
@@ -17,6 +18,7 @@ import type {
   TGAnswerCallbackQuery,
   TGCallbackQuery,
 } from './types/update.types';
+import * as FormData from 'form-data';
 
 enum Command {
   Start = 'start',
@@ -37,10 +39,11 @@ export class TelegramService {
 
   async send(
     payload: TGSendMessage | TGSendPhoto,
+    gig?: GigDocument,
   ): Promise<TGMessage | undefined> {
     try {
       if (this.isPhotoPayload(payload)) {
-        return await this.sendPhoto(payload);
+        return await this.sendPhoto(payload, gig);
       }
       return await this.sendMessage(payload);
     } catch (e) {
@@ -56,19 +59,60 @@ export class TelegramService {
 
   private async sendPhoto(
     payload: TGSendPhoto,
+    gig?: GigDocument,
   ): Promise<TGMessage | undefined> {
-    if (typeof payload.photo === 'string') {
+    if (!payload) {
+      throw new Error('No payload in sendPhoto');
+    }
+    const { photo, reply_markup, ...rest } = payload;
+    if (this.isPhotoString(photo)) {
       const res$ = this.httpService.post('sendPhoto', payload);
       const res = await firstValueFrom(res$);
       return res.data.result;
     }
-    // TODO
+
+    // Buffer/Stream — multipart/form-data
+    const form = new FormData();
+    // form.append('chat_id', String(payload.chat_id));
+    if (reply_markup) form.append('reply_markup', JSON.stringify(reply_markup));
+
+    for (const [k, v] of Object.entries(rest)) {
+      if (v !== undefined && v !== null) form.append(k, String(v));
+    }
+
+    // TODO: jpg ?
+    const filename = `poster${gig?._id}.jpg`;
+    if (Buffer.isBuffer(photo)) {
+      form.append('photo', photo, { filename });
+      return;
+    }
+    if (typeof photo.buffer !== 'undefined') {
+      form.append('photo', photo.buffer, {
+        filename: photo.filename,
+        contentType: photo.contentType,
+      });
+      return;
+    }
+    form.append('photo', photo, { filename });
+
+    const res$ = this.httpService.post('sendPhoto', form, {
+      headers: form.getHeaders(),
+      maxBodyLength: Infinity,
+      maxContentLength: Infinity,
+    });
+
+    const res = await firstValueFrom(res$);
+    return res.data.result;
   }
 
   private isPhotoPayload(
     payload: TGSendPhoto | TGSendMessage,
   ): payload is TGSendPhoto {
     return 'photo' in payload;
+  }
+
+  private isPhotoString(photo: string | InputFile): photo is string {
+    return typeof photo === 'string';
   }
 
   async handleMessage(message: TGMessage): Promise<void> {
@@ -259,12 +303,15 @@ export class TelegramService {
       `🎫 ${gig.ticketsUrl}`,
     ].join('\n');
 
-    return this.send({
-      text,
-      caption: text,
-      photo: gig.photo,
-      ...messagePayload,
-    });
+    return this.send(
+      {
+        text,
+        caption: text,
+        photo: gig.photo,
+        ...messagePayload,
+      },
+      gig,
+    );
   }
 
   async publishMain(gig: GigDocument): Promise<TGMessage> {

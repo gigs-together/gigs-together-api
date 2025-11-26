@@ -36,9 +36,9 @@ export interface TGEditMessageReplyMarkup {
   replyMarkup?: TGInlineKeyboardMarkup;
 }
 
-type InputFile =
+export type InputFile =
   | Buffer
-  | Readable
+  // | Readable
   | { buffer: Buffer; filename: string; contentType?: string };
 
 export interface TGSendPhoto {
