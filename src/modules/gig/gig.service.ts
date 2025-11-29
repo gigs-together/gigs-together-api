@@ -26,21 +26,23 @@ export class GigService {
     return createdGig.save();
   }
 
-  async updateGigStatus(gigId: GigId, status: Status): Promise<GigDocument> {
+  async updateGig(gigId: GigId, data: any): Promise<GigDocument> {
     if (!Types.ObjectId.isValid(gigId)) {
       throw new BadRequestException(`Invalid MongoDB ID: ${gigId}`);
     }
-    const updatedGig = await this.gigModel.findByIdAndUpdate(
-      gigId,
-      { status },
-      { new: true },
-    );
+    const updatedGig = await this.gigModel.findByIdAndUpdate(gigId, data, {
+      new: true,
+    });
 
     if (!updatedGig) {
       throw new NotFoundException(`Gig with ID ${gigId} not found`);
     }
 
     return updatedGig;
+  }
+
+  updateGigStatus(gigId: GigId, status: Status): Promise<GigDocument> {
+    return this.updateGig(gigId, { status });
   }
 
   async getGigs(data: GetGigs): Promise<GigDocument[]> {

@@ -1,7 +1,6 @@
 import type { TGChat } from './chat.types';
 import type { TGUser } from './user.types';
 import type { TGInlineKeyboardMarkup } from './update.types';
-import type { Readable } from 'stream';
 
 export type TGChatId = string | number;
 
@@ -13,6 +12,7 @@ export interface TGMessage {
   date: number;
   reply_to_message?: TGMessage;
   sender_chat?: TGChat;
+  photo?: TGPhotoSize[];
 
   [key: string]: unknown;
 }
@@ -53,4 +53,16 @@ export interface TGSendPhoto {
   protect_content?: boolean;
   has_spoiler?: boolean;
   show_caption_above_media?: boolean;
+}
+
+// This object represents one size of a photo or a file / sticker thumbnail.
+export interface TGPhotoSize {
+  // Identifier for this file, which can be used to download or reuse the file
+  file_id: string;
+  // Unique identifier for this file, which is supposed to be the same over time
+  // and for different bots. Can't be used to download or reuse the file.
+  file_unique_id: string;
+  width: number;
+  height: number;
+  file_size?: number;
 }
