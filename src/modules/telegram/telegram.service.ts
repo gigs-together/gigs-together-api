@@ -307,7 +307,7 @@ export class TelegramService {
       {
         text,
         caption: text,
-        photo: gig.photo.url,
+        photo: gig.photo.tgFileId || gig.photo.url,
         ...messagePayload,
       },
       gig,
