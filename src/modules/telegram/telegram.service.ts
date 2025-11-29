@@ -307,7 +307,7 @@ export class TelegramService {
       {
         text,
         caption: text,
-        photo: gig.photo,
+        photo: gig.photo.url,
         ...messagePayload,
       },
       gig,
@@ -341,7 +341,16 @@ export class TelegramService {
   async handleGigSubmit(data: SubmitGig): Promise<void> {
     // TODO: add transaction?
     const savedGig = await this.gigService.saveGig(data.gig);
-    await this.publishDraft(savedGig);
+    const res = await this.publishDraft(savedGig);
+    const _data = {
+      photo: { url: data.gig.photo.url, tgFileId: res.photo?.[0].file_id },
+      status: Status.Pending,
+    };
+    try {
+      await this.gigService.updateGig(savedGig._id, _data);
+    } catch (e) {
+      console.error('updateGig', e);
+    }
   }
 
   async handleGigApprove(payload: {
