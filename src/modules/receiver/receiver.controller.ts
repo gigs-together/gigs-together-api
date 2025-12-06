@@ -49,4 +49,3 @@ export class ReceiverController {
     await this.receiverService.handleGigSubmit(mappedData);
   }
 }
-
