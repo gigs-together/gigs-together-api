@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Admin, AdminDocument } from '../../shared/schemas/admin.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -6,6 +6,7 @@ import { Model } from 'mongoose';
 @Injectable()
 export class AuthService {
   private adminsCache: AdminDocument[];
+  private readonly logger = new Logger(AuthService.name);
 
   constructor(
     @InjectModel(Admin.name) private adminModel: Model<AdminDocument>,
@@ -14,7 +15,7 @@ export class AuthService {
   private async pullAdmins(): Promise<void> {
     const admins = await this.adminModel.find({ isActive: true }).exec();
     this.adminsCache = admins;
-    console.log(`Admins cache refreshed: ${admins.length} admin(s) found.`);
+    this.logger.log(`Admins cache refreshed: ${admins.length} admin(s) found.`);
   }
 
   async isAdmin(telegramId: number): Promise<boolean> {

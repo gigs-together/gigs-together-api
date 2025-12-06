@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import type { TGChatId, TGMessage } from '../telegram/types/message.types';
 import { GigService } from '../gig/gig.service';
 import type { GigId, SubmitGig } from '../gig/types/gig.types';
@@ -17,6 +17,7 @@ export class ReceiverService {
     private readonly telegramService: TelegramService,
     private readonly gigService: GigService,
   ) {}
+  private readonly logger = new Logger(ReceiverService.name);
   async handleMessage(message: TGMessage): Promise<void> {
     const chatId = message?.chat?.id;
     if (!chatId) {
@@ -56,7 +57,6 @@ export class ReceiverService {
   }
 
   async handleCallbackQuery(callbackQuery: TGCallbackQuery): Promise<void> {
-    console.log('callbackQuery', callbackQuery);
     const [action, gigId] = callbackQuery.data.split(':');
     // TODO: some more security?
     switch (action) {
@@ -78,7 +78,6 @@ export class ReceiverService {
       }
       case Action.Rejected: {
         const text = "There's no action for Rejected yet.";
-        console.log(text);
         await this.telegramService.answerCallbackQuery({
           callback_query_id: callbackQuery.id,
           text,
@@ -115,7 +114,10 @@ export class ReceiverService {
     try {
       await this.gigService.updateGig(savedGig._id, _data);
     } catch (e) {
-      console.error('updateGig', e);
+      this.logger.error(
+        'updateGig failed',
+        e instanceof Error ? e.stack : undefined,
+      );
     }
   }
 
@@ -132,7 +134,7 @@ export class ReceiverService {
     );
     await this.telegramService.publishMain(updatedGig);
     await this.gigService.updateGigStatus(gigId, Status.Published);
-    console.log(`Gig #${gigId} approved`);
+    this.logger.log(`Gig #${gigId} approved`);
     const replyMarkup = {
       inline_keyboard: [],
     };
@@ -150,7 +152,7 @@ export class ReceiverService {
   }): Promise<void> {
     const { gigId, chatId, messageId } = payload;
     await this.gigService.updateGigStatus(gigId, Status.Rejected);
-    console.log(`Gig #${gigId} rejected`);
+    this.logger.log(`Gig #${gigId} rejected`);
     const replyMarkup = {
       inline_keyboard: [
         [

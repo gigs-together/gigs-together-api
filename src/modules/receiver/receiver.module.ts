@@ -15,11 +15,19 @@ import { TelegramModule } from '../telegram/telegram.module';
 import { AuthModule } from '../auth/auth.module';
 import { AdminGuard } from './guards/admin.guard';
 import { AntiBotGuard } from './guards/anti-bot.guard';
+import { ReceiverExceptionFilter } from './filters/receiver-exception.filter';
+import { ConsoleLogger } from '@nestjs/common';
 
 @Module({
   imports: [GigModule, TelegramModule, AuthModule],
   controllers: [ReceiverController],
-  providers: [ReceiverService, AdminGuard, AntiBotGuard],
+  providers: [
+    ReceiverService,
+    AdminGuard,
+    AntiBotGuard,
+    ReceiverExceptionFilter,
+    ConsoleLogger,
+  ],
   exports: [ReceiverService],
 })
 export class ReceiverModule implements NestModule {

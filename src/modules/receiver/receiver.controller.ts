@@ -3,6 +3,7 @@ import {
   Controller,
   HttpCode,
   Post,
+  UseFilters,
   UseGuards,
   Version,
 } from '@nestjs/common';
@@ -11,8 +12,10 @@ import { AdminGuard } from './guards/admin.guard';
 import { TGUpdate } from '../telegram/types/update.types';
 import { AntiBotGuard } from './guards/anti-bot.guard';
 import { V1ReceiverCreateGigRequestBodyValidated } from './requests/v1-receiver-create-gig-request';
+import { ReceiverExceptionFilter } from './filters/receiver-exception.filter';
 
 @Controller('receiver')
+@UseFilters(ReceiverExceptionFilter)
 export class ReceiverController {
   constructor(private readonly receiverService: ReceiverService) {}
 

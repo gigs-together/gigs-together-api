@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, ConsoleLogger } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -29,6 +29,6 @@ import { ReceiverModule } from './modules/receiver/receiver.module';
     ReceiverModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, ConsoleLogger],
 })
 export class AppModule {}

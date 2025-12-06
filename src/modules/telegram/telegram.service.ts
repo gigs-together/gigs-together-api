@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import type {
   InputFile,
   TGEditMessageReplyMarkup,
@@ -18,6 +18,8 @@ import { Action } from './types/action.enum';
 export class TelegramService {
   constructor(private readonly httpService: HttpService) {}
 
+  private readonly logger = new Logger(TelegramService.name);
+
   async send(
     payload: TGSendMessage | TGSendPhoto,
     gig?: GigDocument,
@@ -28,7 +30,10 @@ export class TelegramService {
       }
       return await this.sendMessage(payload);
     } catch (e) {
-      console.error('send error:', e?.response?.data ?? e);
+      this.logger.error(
+        `send error: ${JSON.stringify(e?.response?.data ?? e)}`,
+        e instanceof Error ? e.stack : undefined,
+      );
     }
   }
 

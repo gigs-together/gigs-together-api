@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { google, calendar_v3 } from 'googleapis';
 
 interface AddEventDto {
@@ -12,6 +12,7 @@ interface AddEventDto {
 @Injectable()
 export class CalendarService {
   private readonly calendar: calendar_v3.Calendar;
+  private readonly logger = new Logger(CalendarService.name);
 
   constructor() {
     const auth = new google.auth.GoogleAuth({
@@ -53,7 +54,10 @@ export class CalendarService {
       });
       return response.data;
     } catch (e) {
-      console.error('Error creating event:', e.message);
+      this.logger.error(
+        `Error creating event: ${e instanceof Error ? e.message : e}`,
+        e instanceof Error ? e.stack : undefined,
+      );
       throw new Error('Failed to create event.');
     }
   }
