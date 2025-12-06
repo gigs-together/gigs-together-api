@@ -17,9 +17,10 @@ import { AdminGuard } from './guards/admin.guard';
 import { AntiBotGuard } from './guards/anti-bot.guard';
 import { ReceiverExceptionFilter } from './filters/receiver-exception.filter';
 import { ConsoleLogger } from '@nestjs/common';
+import { HttpModule } from '@nestjs/axios';
 
 @Module({
-  imports: [GigModule, TelegramModule, AuthModule],
+  imports: [GigModule, TelegramModule, AuthModule, HttpModule],
   controllers: [ReceiverController],
   providers: [
     ReceiverService,

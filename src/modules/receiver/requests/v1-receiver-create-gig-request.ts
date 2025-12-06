@@ -6,6 +6,7 @@ interface CreateGigDto {
   location: string;
   ticketsUrl: string;
   photo?: string;
+  photoUrl?: string;
 }
 
 export interface V1ReceiverCreateGigRequestBody {

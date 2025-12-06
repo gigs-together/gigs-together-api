@@ -7,6 +7,10 @@ export class GigPhoto {
   @Prop({ type: String, required: false })
   url?: string;
 
+  // Original external URL (if uploaded from a remote source)
+  @Prop({ type: String, required: false })
+  externalUrl?: string;
+
   @Prop({ type: String, required: false })
   tgFileId?: string;
 }

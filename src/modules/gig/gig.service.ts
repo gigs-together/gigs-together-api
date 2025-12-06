@@ -59,4 +59,10 @@ export class GigService {
 
     return this.gigModel.find({}).skip(skip).limit(size);
   }
+
+  async findByExternalPhotoUrl(
+    externalUrl: string,
+  ): Promise<GigDocument | null> {
+    return this.gigModel.findOne({ 'photo.externalUrl': externalUrl });
+  }
 }

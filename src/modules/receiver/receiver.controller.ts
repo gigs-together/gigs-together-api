@@ -1,18 +1,23 @@
 import {
+  BadRequestException,
   Body,
   Controller,
+  Get,
   HttpCode,
   Post,
+  UploadedFile,
   UseFilters,
   UseGuards,
+  UseInterceptors,
   Version,
 } from '@nestjs/common';
 import { ReceiverService } from './receiver.service';
 import { AdminGuard } from './guards/admin.guard';
 import { TGUpdate } from '../telegram/types/update.types';
 import { AntiBotGuard } from './guards/anti-bot.guard';
-import { V1ReceiverCreateGigRequestBodyValidated } from './requests/v1-receiver-create-gig-request';
 import { ReceiverExceptionFilter } from './filters/receiver-exception.filter';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 
 @Controller('receiver')
 @UseFilters(ReceiverExceptionFilter)
@@ -35,20 +40,30 @@ export class ReceiverController {
   @Post('gig')
   @HttpCode(201)
   @UseGuards(AntiBotGuard)
-  async createGig(
-    @Body() data: V1ReceiverCreateGigRequestBodyValidated,
-  ): Promise<void> {
-    // TODO: validate the data still
-    const mappedData = {
-      gig: {
-        title: data.gig.title,
-        date: data.gig.date,
-        location: data.gig.location,
-        ticketsUrl: data.gig.ticketsUrl,
-        photo: { url: data.gig.photo },
+  @UseInterceptors(
+    FileInterceptor('photo', {
+      storage: memoryStorage(),
+      limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+      fileFilter: (_req, file, cb) => {
+        if (!file.mimetype?.startsWith('image/')) {
+          return cb(new BadRequestException('photo must be an image'), false);
+        }
+        cb(null, true);
       },
-      isAdmin: data.user?.isAdmin,
-    };
-    await this.receiverService.handleGigSubmit(mappedData);
+    }),
+  )
+  async createGig(
+    @UploadedFile() photoFile: Express.Multer.File | undefined,
+    @Body() body: any, // JSON object (application/json) or strings (multipart/form-data)
+  ): Promise<void> {
+    await this.receiverService.handleGigSubmit(body, photoFile);
+  }
+
+  @Version('1')
+  @Get('gig/photos')
+  // @UseGuards(AdminGuard)
+  async listGigPhotos(): Promise<{ photos: string[] }> {
+    const photos = await this.receiverService.listGigPhotos();
+    return { photos };
   }
 }
