@@ -1,12 +1,12 @@
 import { Injectable, NestMiddleware, ForbiddenException } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
-import { TelegramService } from './telegram.service';
 import { AuthService } from 'src/modules/auth/auth.service';
-import { V1TelegramCreateGigRequestBody } from './types/requests/v1-telegram-create-gig-request';
-import { User, TGUser } from './types/user.types';
+import { TelegramService } from '../telegram/telegram.service';
+import { TGUser, User } from '../telegram/types/user.types';
+import { V1ReceiverCreateGigRequestBody } from './requests/v1-receiver-create-gig-request';
 
 @Injectable()
-export class TelegramMiddleware implements NestMiddleware {
+export class ReceiverMiddleware implements NestMiddleware {
   use(req: Request, res: Response, next: NextFunction): void {
     const secretHeader = req.headers[
       'x-telegram-bot-api-secret-token'
@@ -21,7 +21,7 @@ export class TelegramMiddleware implements NestMiddleware {
 }
 
 @Injectable()
-export class TelegramCreateGigMiddleware implements NestMiddleware {
+export class ReceiverCreateGigMiddleware implements NestMiddleware {
   constructor(
     private readonly telegramService: TelegramService,
     private readonly authService: AuthService,
@@ -29,7 +29,7 @@ export class TelegramCreateGigMiddleware implements NestMiddleware {
 
   async use(req: Request, res: Response, next: NextFunction): Promise<void> {
     const { telegramInitDataString } =
-      req.body as V1TelegramCreateGigRequestBody;
+      req.body as V1ReceiverCreateGigRequestBody;
 
     if (!telegramInitDataString) {
       throw new ForbiddenException('Missing Telegram user data');

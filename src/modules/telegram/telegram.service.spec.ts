@@ -9,7 +9,8 @@ describe('TelegramService', () => {
   let service: TelegramService;
 
   const mockHttpService = {
-    get: jest.fn(), // Mock the `get` method of `HttpService`
+    post: jest.fn(),
+    get: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -18,7 +19,7 @@ describe('TelegramService', () => {
         TelegramService,
         {
           provide: HttpService,
-          useValue: mockHttpService, // Provide the mocked HttpService
+          useValue: mockHttpService,
         },
       ],
     }).compile();
@@ -27,7 +28,7 @@ describe('TelegramService', () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks(); // Clear mocks after each test
+    jest.clearAllMocks();
   });
 
   it('should be defined', () => {
@@ -36,89 +37,30 @@ describe('TelegramService', () => {
 
   describe('sendMessage', () => {
     it('should send the correct HTTP request', async () => {
-      const chatId = 12345;
+      const chat_id = 12345;
       const text = 'Hello, World!';
-
-      mockHttpService.get.mockReturnValue(of({})); // Mock a successful response
-
-      await service.sendMessage({ chatId, text });
-
-      expect(mockHttpService.get).toHaveBeenCalledWith('sendMessage', {
-        params: { chat_id: chatId, text },
-      });
-    });
-  });
-
-  describe('handleMessage', () => {
-    it('should respond to a non-command message', async () => {
-      const message: TGMessage = {
-        message_id: 123,
+      const mockMessage: TGMessage = {
+        message_id: 1,
         date: Date.now(),
-        text: 'Hello!',
-        chat: { id: 12345, type: 'private' },
+        chat: { id: chat_id, type: 'private' },
+        text,
       };
 
-      const sendMessageSpy = jest
-        .spyOn(service, 'sendMessage')
-        .mockResolvedValue();
+      mockHttpService.post.mockReturnValue(
+        of({
+          data: {
+            result: mockMessage,
+          },
+        }),
+      );
 
-      await service.handleMessage(message);
+      const result = await service.sendMessage({ chat_id, text });
 
-      expect(sendMessageSpy).toHaveBeenCalledWith({
-        chatId: 12345,
-        text: `You said: "Hello!"`,
+      expect(mockHttpService.post).toHaveBeenCalledWith('sendMessage', {
+        chat_id,
+        text,
       });
-    });
-
-    it('should handle the /start command', async () => {
-      const message: TGMessage = {
-        message_id: 123,
-        date: Date.now(),
-        text: '/start',
-        chat: { id: 12345, type: 'private' },
-      };
-
-      const sendMessageSpy = jest
-        .spyOn(service, 'sendMessage')
-        .mockResolvedValue();
-
-      await service.handleMessage(message);
-
-      expect(sendMessageSpy).toHaveBeenCalledWith({
-        chatId: 12345,
-        text: `Hi! I'm a Gigs Together bot. I am still in development...`,
-      });
-    });
-
-    it('should handle an unknown command', async () => {
-      const message: TGMessage = {
-        message_id: 123,
-        date: Date.now(),
-        text: '/unknown',
-        chat: { id: 12345, type: 'private' },
-      };
-
-      const sendMessageSpy = jest
-        .spyOn(service, 'sendMessage')
-        .mockResolvedValue();
-
-      await service.handleMessage(message);
-
-      expect(sendMessageSpy).toHaveBeenCalledWith({
-        chatId: 12345,
-        text: `Hey there, I don't know that command.`,
-      });
-    });
-
-    it('should ignore empty messages', async () => {
-      const sendMessageSpy = jest
-        .spyOn(service, 'sendMessage')
-        .mockResolvedValue();
-
-      await service.handleMessage(null); // Simulate a null message
-      await service.handleMessage({} as TGMessage); // Simulate an invalid message
-
-      expect(sendMessageSpy).not.toHaveBeenCalled();
+      expect(result).toEqual(mockMessage);
     });
   });
 });

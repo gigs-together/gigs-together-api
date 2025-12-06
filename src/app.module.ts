@@ -8,6 +8,7 @@ import { GigModule } from './modules/gig/gig.module';
 import { TelegramModule } from './modules/telegram/telegram.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { CalendarModule } from './modules/calendar/calendar.module';
+import { ReceiverModule } from './modules/receiver/receiver.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { CalendarModule } from './modules/calendar/calendar.module';
     TelegramModule,
     AuthModule,
     CalendarModule,
+    ReceiverModule,
   ],
   controllers: [AppController],
   providers: [AppService],

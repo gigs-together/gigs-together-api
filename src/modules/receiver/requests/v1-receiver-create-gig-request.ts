@@ -1,4 +1,4 @@
-import type { User } from '../user.types';
+import type { User } from '../../telegram/types/user.types';
 
 interface CreateGigDto {
   title: string;
@@ -8,12 +8,12 @@ interface CreateGigDto {
   photo?: string;
 }
 
-export interface V1TelegramCreateGigRequestBody {
+export interface V1ReceiverCreateGigRequestBody {
   gig: CreateGigDto;
   telegramInitDataString: string;
 }
 
-export interface V1TelegramCreateGigRequestBodyValidated {
+export interface V1ReceiverCreateGigRequestBodyValidated {
   gig: CreateGigDto;
   user: User;
 }

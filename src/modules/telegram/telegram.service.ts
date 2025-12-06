@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type {
   InputFile,
-  TGChatId,
   TGEditMessageReplyMarkup,
   TGMessage,
   TGSendMessage,
@@ -10,32 +9,14 @@ import type {
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import * as crypto from 'crypto';
-import { GigService } from '../gig/gig.service';
 import type { GigDocument } from '../gig/gig.schema';
-import type { GigId, SubmitGig } from '../gig/types/gig.types';
-import { Status } from '../gig/types/status.enum';
-import type {
-  TGAnswerCallbackQuery,
-  TGCallbackQuery,
-} from './types/update.types';
+import type { TGAnswerCallbackQuery } from './types/update.types';
 import * as FormData from 'form-data';
-
-enum Command {
-  Start = 'start',
-}
-
-enum Action {
-  Approve = 'approve',
-  Reject = 'reject',
-  Rejected = 'rejected',
-}
+import { Action } from './types/action.enum';
 
 @Injectable()
 export class TelegramService {
-  constructor(
-    private readonly httpService: HttpService,
-    private readonly gigService: GigService,
-  ) {}
+  constructor(private readonly httpService: HttpService) {}
 
   async send(
     payload: TGSendMessage | TGSendPhoto,
@@ -51,7 +32,7 @@ export class TelegramService {
     }
   }
 
-  private async sendMessage(payload: TGSendMessage): Promise<TGMessage> {
+  async sendMessage(payload: TGSendMessage): Promise<TGMessage> {
     const res$ = this.httpService.post('sendMessage', payload);
     const res = await firstValueFrom(res$);
     return res.data.result;
@@ -115,95 +96,7 @@ export class TelegramService {
     return typeof photo === 'string';
   }
 
-  async handleMessage(message: TGMessage): Promise<void> {
-    const chatId = message?.chat?.id;
-    if (!chatId) {
-      return;
-    }
-
-    const text = message.text || '';
-
-    if (text.charAt(0) !== '/') {
-      await this.sendMessage({
-        chat_id: chatId,
-        text: `You said: "${text}"`,
-      });
-      return;
-    }
-
-    const command = text.substring(1).toLowerCase();
-    await this.handleCommand(command, chatId);
-  }
-
-  private async handleCommand(command: string, chatId: number) {
-    switch (command) {
-      case Command.Start: {
-        await this.sendMessage({
-          chat_id: chatId,
-          text: `Hi! I'm a Gigs Together bot. I am still in development...`,
-        });
-        break;
-      }
-      default: {
-        await this.sendMessage({
-          chat_id: chatId,
-          text: `Hey there, I don't know that command.`,
-        });
-      }
-    }
-  }
-
-  async handleCallbackQuery(callbackQuery: TGCallbackQuery): Promise<void> {
-    console.log('callbackQuery', callbackQuery);
-    const [action, gigId] = callbackQuery.data.split(':');
-    // TODO: some more security?
-    switch (action) {
-      case Action.Approve: {
-        await this.handleGigApprove({
-          gigId,
-          messageId: callbackQuery.message.message_id,
-          chatId: callbackQuery.message.chat.id,
-        });
-        break;
-      }
-      case Action.Reject: {
-        await this.handleGigReject({
-          gigId,
-          messageId: callbackQuery.message.message_id,
-          chatId: callbackQuery.message.chat.id,
-        });
-        break;
-      }
-      case Action.Rejected: {
-        const text = "There's no action for Rejected yet.";
-        console.log(text);
-        await this.answerCallbackQuery({
-          callback_query_id: callbackQuery.id,
-          text,
-          show_alert: false,
-        });
-        return;
-      }
-      default: {
-        await this.answerCallbackQuery({
-          callback_query_id: callbackQuery.id,
-          text: 'Go write better code!',
-          show_alert: true,
-        });
-        return;
-      }
-    }
-
-    await this.answerCallbackQuery({
-      callback_query_id: callbackQuery.id,
-      text: 'Done!',
-      show_alert: false,
-    });
-  }
-
-  private async answerCallbackQuery(
-    payload: TGAnswerCallbackQuery,
-  ): Promise<void> {
+  async answerCallbackQuery(payload: TGAnswerCallbackQuery): Promise<void> {
     const { callback_query_id, text, show_alert } = payload;
     await firstValueFrom(
       this.httpService.post('answerCallbackQuery', {
@@ -214,7 +107,7 @@ export class TelegramService {
     );
   }
 
-  private async editMessageReplyMarkup(
+  async editMessageReplyMarkup(
     payload: TGEditMessageReplyMarkup,
   ): Promise<void> {
     const { chatId, messageId, replyMarkup } = payload;
@@ -336,64 +229,5 @@ export class TelegramService {
       ],
     };
     return this.publish(gig, { chat_id: chatId, reply_markup: replyMarkup });
-  }
-
-  async handleGigSubmit(data: SubmitGig): Promise<void> {
-    // TODO: add transaction?
-    const savedGig = await this.gigService.saveGig(data.gig);
-    const res = await this.publishDraft(savedGig);
-    const _data = {
-      photo: { url: data.gig.photo.url, tgFileId: res.photo?.[0].file_id },
-      status: Status.Pending,
-    };
-    try {
-      await this.gigService.updateGig(savedGig._id, _data);
-    } catch (e) {
-      console.error('updateGig', e);
-    }
-  }
-
-  async handleGigApprove(payload: {
-    gigId: GigId;
-    chatId: TGChatId;
-    messageId: number;
-  }): Promise<void> {
-    // TODO: add transaction?
-    const { gigId, chatId, messageId } = payload;
-    const updatedGig = await this.gigService.updateGigStatus(
-      gigId,
-      Status.Approved,
-    );
-    await this.publishMain(updatedGig);
-    await this.gigService.updateGigStatus(gigId, Status.Published);
-    console.log(`Gig #${gigId} approved`);
-    const replyMarkup = {
-      inline_keyboard: [],
-    };
-    await this.editMessageReplyMarkup({ chatId, messageId, replyMarkup });
-  }
-
-  async handleGigReject(payload: {
-    gigId: GigId;
-    chatId: TGChatId;
-    messageId: number;
-  }): Promise<void> {
-    const { gigId, chatId, messageId } = payload;
-    await this.gigService.updateGigStatus(gigId, Status.Rejected);
-    console.log(`Gig #${gigId} rejected`);
-    const replyMarkup = {
-      inline_keyboard: [
-        [
-          {
-            text: '❌ Rejected',
-            callback_data: `${Action.Rejected}:${gigId}`,
-          },
-        ],
-      ],
-      // TODO: reason for rejection
-      // force_reply: true,
-      // input_field_placeholder: 'Reason?',
-    };
-    await this.editMessageReplyMarkup({ chatId, messageId, replyMarkup });
   }
 }

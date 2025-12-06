@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { Request } from 'express';
 import { AuthService } from '../../auth/auth.service';
-import { TGUpdate } from '../types/update.types';
+import { TGUpdate } from '../../telegram/types/update.types';
 
 @Injectable()
 export class AdminGuard implements CanActivate {
