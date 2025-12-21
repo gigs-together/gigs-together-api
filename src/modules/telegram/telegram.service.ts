@@ -52,9 +52,28 @@ export class TelegramService {
     }
     const { photo, reply_markup, ...rest } = payload;
     if (this.isPhotoString(photo)) {
-      const res$ = this.httpService.post('sendPhoto', payload);
-      const res = await firstValueFrom(res$);
-      return res.data.result;
+      try {
+        const res$ = this.httpService.post('sendPhoto', payload);
+        const res = await firstValueFrom(res$);
+        return res.data.result;
+      } catch (e) {
+        // Telegram can't fetch the file from provided URL (often HTML/redirect/webp/etc).
+        if (this.isWrongWebPageContentError(e) && this.isHttpUrl(photo)) {
+          const downloaded = await this.downloadRemoteFileAsInputFile(photo, gig);
+          if (downloaded) {
+            return await this.sendPhoto(
+              { ...payload, photo: downloaded },
+              gig,
+            );
+          }
+
+          // Last resort: send text-only message so publish doesn't silently fail.
+          const text =
+            payload.caption ?? (payload as unknown as { text?: string }).text ?? photo;
+          return await this.sendMessage({ chat_id: payload.chat_id, text });
+        }
+        throw e;
+      }
     }
 
     // Buffer/Stream — multipart/form-data
@@ -70,16 +89,14 @@ export class TelegramService {
     const filename = `poster${gig?._id}.jpg`;
     if (Buffer.isBuffer(photo)) {
       form.append('photo', photo, { filename });
-      return;
-    }
-    if (typeof photo.buffer !== 'undefined') {
+    } else if (typeof photo.buffer !== 'undefined') {
       form.append('photo', photo.buffer, {
         filename: photo.filename,
         contentType: photo.contentType,
       });
-      return;
+    } else {
+      form.append('photo', photo, { filename });
     }
-    form.append('photo', photo, { filename });
 
     const res$ = this.httpService.post('sendPhoto', form, {
       headers: form.getHeaders(),
@@ -99,6 +116,89 @@ export class TelegramService {
 
   private isPhotoString(photo: string | InputFile): photo is string {
     return typeof photo === 'string';
+  }
+
+  private isHttpUrl(value: string): boolean {
+    return /^https?:\/\//i.test(value);
+  }
+
+  private toAbsolutePublicUrlForTelegram(value: string): string {
+    if (!value) return value;
+    if (this.isHttpUrl(value)) return value;
+    if (value.startsWith('/')) {
+      const base =
+        (process.env.APP_PUBLIC_BASE_URL ?? process.env.PUBLIC_BASE_URL ?? '')
+          .trim()
+          .replace(/\/$/, '');
+      if (!base) {
+        // Telegram rejects relative URLs with: "URL host is empty"
+        throw new Error(
+          'Telegram photo URL is relative; set APP_PUBLIC_BASE_URL (or PUBLIC_BASE_URL) to make it absolute',
+        );
+      }
+      return `${base}${value}`;
+    }
+    return value;
+  }
+
+  private isWrongWebPageContentError(e: unknown): boolean {
+    const data = (e as any)?.response?.data;
+    const description: string | undefined = data?.description;
+    const errorCode: number | undefined = data?.error_code;
+    return (
+      errorCode === 400 &&
+      typeof description === 'string' &&
+      /wrong type of the web page content/i.test(description)
+    );
+  }
+
+  private async downloadRemoteFileAsInputFile(
+    url: string,
+    gig?: GigDocument,
+  ): Promise<InputFile | undefined> {
+    try {
+      const res$ = this.httpService.get<ArrayBuffer>(url, {
+        responseType: 'arraybuffer',
+        maxContentLength: Infinity,
+      });
+      const res = await firstValueFrom(res$);
+
+      const contentType = (res.headers?.['content-type'] ??
+        res.headers?.['Content-Type']) as string | undefined;
+
+      // If it's clearly not an image, don't try to upload it as a photo.
+      if (contentType && !contentType.toLowerCase().startsWith('image/')) {
+        this.logger.warn(
+          `downloadRemoteFileAsInputFile: non-image content-type (${contentType}) for ${url}`,
+        );
+        return;
+      }
+
+      const buffer = Buffer.from(res.data as any);
+      const filename =
+        this.guessFilenameFromUrl(url) ?? `poster${gig?._id ?? ''}.jpg`;
+
+      return { buffer, filename, contentType };
+    } catch (e) {
+      this.logger.warn(
+        `downloadRemoteFileAsInputFile error: ${JSON.stringify(
+          (e as any)?.response?.data ?? e,
+        )}`,
+      );
+      return;
+    }
+  }
+
+  private guessFilenameFromUrl(url: string): string | undefined {
+    try {
+      const u = new URL(url);
+      const last = u.pathname.split('/').filter(Boolean).pop();
+      if (!last) return;
+      // Avoid super-long filenames / query-ish blobs.
+      return last.length > 200 ? undefined : last;
+    } catch {
+      return;
+    }
   }
 
   async answerCallbackQuery(payload: TGAnswerCallbackQuery): Promise<void> {
@@ -201,11 +301,15 @@ export class TelegramService {
       `🎫 ${gig.ticketsUrl}`,
     ].join('\n');
 
+    const photo =
+      gig.photo.tgFileId ||
+      (gig.photo.url ? this.toAbsolutePublicUrlForTelegram(gig.photo.url) : gig.photo.externalUrl);
+
     return this.send(
       {
         text,
         caption: text,
-        photo: gig.photo.tgFileId || gig.photo.url,
+        photo,
         ...messagePayload,
       },
       gig,
