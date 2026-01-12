@@ -1,14 +1,10 @@
 import { Controller, Get, NotFoundException, Param, Res } from '@nestjs/common';
-import { AppService } from './app.service';
 import { ReceiverService } from './modules/receiver/receiver.service';
 import type { Response } from 'express';
 
 @Controller()
 export class AppController {
-  constructor(
-    private readonly appService: AppService,
-    private readonly receiverService: ReceiverService,
-  ) {}
+  constructor(private readonly receiverService: ReceiverService) {}
 
   @Get()
   async getHello(): Promise<string> {
@@ -16,7 +12,7 @@ export class AppController {
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Gigs Together Photos</title>
+  <title>Gigs Together</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 0; padding: 16px; background: #f7f7f7; }
     h1 { margin: 0 0 12px; }
@@ -29,8 +25,8 @@ export class AppController {
   </style>
 </head>
 <body>
-  <h1>Gigs Together Photos</h1>
-  <p id="status" class="muted">Loading photos…</p>
+  <h1>Gigs Together</h1>
+  <p id="status" class="muted">Loading…</p>
   <div id="grid" class="grid"></div>
   <script>
     (async function () {
@@ -57,7 +53,6 @@ export class AppController {
         gridEl.innerHTML = photos.map(function (url) {
           return '<div class="item">' +
             '<img src="' + url + '" loading="lazy" />' +
-            '<div class="caption">' + url + '</div>' +
           '</div>';
         }).join('');
       } catch (e) {
@@ -77,7 +72,10 @@ export class AppController {
     } catch (e) {
       // Should be rare (ReceiverService already tries hard to not throw),
       // but keep the endpoint stable.
-      return { photos: [], error: (e as any)?.message ?? 'Failed to load photos' };
+      return {
+        photos: [],
+        error: (e as any)?.message ?? 'Failed to load photos',
+      };
     }
   }
 
