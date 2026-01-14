@@ -1,6 +1,44 @@
 # Gigs Together
 [@GigsTogetherBot](https://t.me/GigsTogetherBot)
 
+## Local development (frontend on subdomain in prod)
+
+In production you’ll typically run:
+
+- **Frontend**: `https://app.your-domain.tld`
+- **API**: `https://api.your-domain.tld`
+
+Locally, the simplest and most common approach is to run **frontend and backend on different ports**.
+
+### Option A (recommended): different ports + CORS
+
+- **API**: `http://localhost:3000`
+- **Frontend**: `http://localhost:5173` (or whatever your frontend dev server uses)
+
+Set API env:
+
+- `CORS_ORIGINS="http://localhost:5173"`
+
+Then in the frontend configure the API base URL as:
+
+- `http://localhost:3000` (and call versioned endpoints like `/v1/...`)
+
+### Option B: simulate subdomains locally (optional)
+
+If you want URLs closer to production:
+
+- **Frontend**: `http://app.localhost:5173`
+- **API**: `http://api.localhost:3000`
+
+On some systems `*.localhost` resolves automatically. If not, add to your hosts file:
+
+- `127.0.0.1 app.localhost`
+- `127.0.0.1 api.localhost`
+
+Then set:
+
+- `CORS_ORIGINS="http://app.localhost:5173"`
+
 ## Railway Bucket: public access via presigned URLs (and CORS)
 
 Railway Storage Buckets are **private**. To display uploaded images to unauthenticated users, this API exposes:
@@ -27,13 +65,21 @@ Optional:
 
 ### CORS for the API
 
-If your frontend is on another domain, set:
+If your frontend is on another domain (e.g. `https://app.your-domain.tld`) and the API is on a subdomain (e.g. `https://api.your-domain.tld`), set:
 
 - `CORS_ORIGINS="https://your-frontend.tld,https://another.tld"`
 
 Or:
 
 - `CORS_ORIGINS="*"` (no credentials)
+
+#### Recommended setup (frontend on subdomain)
+
+- **Frontend**: `https://app.your-domain.tld`
+- **API**: `https://api.your-domain.tld`
+- **Env**:
+  - `CORS_ORIGINS="https://app.your-domain.tld"`
+  - `APP_PUBLIC_BASE_URL="https://api.your-domain.tld"` (so stored URLs point to the API domain when needed)
 
 ### CORS for the Bucket (only needed for browser uploads / fetch)
 

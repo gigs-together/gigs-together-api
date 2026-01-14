@@ -63,61 +63,13 @@ export class AppController {
   }
 
   @Get()
-  async getHello(): Promise<string> {
-    return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>Gigs Together</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 0; padding: 16px; background: #f7f7f7; }
-    h1 { margin: 0 0 12px; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
-    .item { background: #fff; border: 1px solid #e5e5e5; border-radius: 8px; padding: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
-    .item img { width: 100%; height: 200px; object-fit: cover; border-radius: 6px; }
-    .caption { font-size: 12px; color: #555; margin-top: 6px; word-break: break-all; }
-    .muted { color: #666; }
-    .error { color: #b00020; }
-  </style>
-</head>
-<body>
-  <h1>Gigs Together</h1>
-  <p id="status" class="muted">Loading…</p>
-  <div id="grid" class="grid"></div>
-  <script>
-    (async function () {
-      const statusEl = document.getElementById('status');
-      const gridEl = document.getElementById('grid');
-      function setStatus(text, cls) {
-        statusEl.textContent = text;
-        statusEl.className = cls || 'muted';
-      }
-      try {
-        const res = await fetch('/photos', { headers: { 'Accept': 'application/json' } });
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        const data = await res.json();
-        const photos = (data && data.photos) || [];
-        if (data && data.error) {
-          setStatus('Failed to load photos: ' + data.error, 'error');
-          return;
-        }
-        if (!photos.length) {
-          setStatus('No photos found.', 'muted');
-          return;
-        }
-        setStatus('Loaded ' + photos.length + ' photos.', 'muted');
-        gridEl.innerHTML = photos.map(function (url) {
-          return '<div class="item">' +
-            '<img src="' + url + '" loading="lazy" />' +
-          '</div>';
-        }).join('');
-      } catch (e) {
-        setStatus('Failed to load photos.', 'error');
-      }
-    })();
-  </script>
-</body>
-</html>`;
+  getRoot(): { ok: true; service: string } {
+    return { ok: true, service: 'gigs-together-api' };
+  }
+
+  @Get('health')
+  getHealth(): { ok: true } {
+    return { ok: true };
   }
 
   @Get('photos')

@@ -23,9 +23,9 @@ describe('AppController', () => {
   });
 
   describe('root', () => {
-    it('should return html page', async () => {
-      const res = await appController.getHello();
-      expect(res).toContain('<html');
+    it('should return api info', () => {
+      const res = appController.getRoot();
+      expect(res).toEqual({ ok: true, service: 'gigs-together-api' });
     });
   });
 
