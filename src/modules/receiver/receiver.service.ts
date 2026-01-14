@@ -373,12 +373,9 @@ export class ReceiverService {
         .filter((k): k is string => Boolean(k))
         .filter((k) => !k.endsWith('/')) ?? [];
 
-    // Private bucket: return presigned GET URLs so the client can load images.
-    return await Promise.all(
-      keys.map((Key) =>
-        this.presignGetObjectUrl({ bucket, key: Key, expiresIn }),
-      ),
-    );
+    // Return stable public URLs on our API. The browser will follow the 302 redirect
+    // to a presigned URL, keeping the bucket private while avoiding proxying bytes.
+    return keys.map((Key) => this.getPublicFileRedirectUrl(Key));
   }
 
   private normalizePresignExpiresIn(expiresIn: number): number {
@@ -512,6 +509,13 @@ export class ReceiverService {
     // encode each segment, keep slashes
     const encoded = this.encodeS3KeyForPath(safeKey);
     return `${base}/public/files-proxy/${encoded}`;
+  }
+
+  private getPublicFileRedirectUrl(key: string): string {
+    const safeKey = this.ensureGigPhotoKey(key);
+    const base = this.getApiPublicBase();
+    const encoded = this.encodeS3KeyForPath(safeKey);
+    return `${base}/public/files/${encoded}`;
   }
 
   async getPresignedGigPhotoUrlByKey(key: string): Promise<string> {

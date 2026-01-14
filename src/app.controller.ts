@@ -142,11 +142,12 @@ export class AppController {
    *   so the browser downloads directly from the bucket (no service egress).
    * - Use when you want a stable, shareable URL that still keeps the bucket private.
    */
-  @Get('public/files/*key')
+  @Get('public/files/*keys')
   async getPublicFileRedirect(
-    @Param('key') key: string,
+    @Param('keys') keys: string[],
     @Res() res: Response,
   ): Promise<void> {
+    const key = keys.join('/');
     try {
       const url = await this.receiverService.getPresignedGigPhotoUrlByKey(key);
       res.redirect(302, url);
@@ -159,9 +160,9 @@ export class AppController {
    * Same as `/public/files/...` but proxies bytes through the service.
    * Useful for clients that don't like redirects (some bots / scrapers).
    */
-  @Get('public/files-proxy/*key')
+  @Get('public/files-proxy/*keys')
   async getPublicFileProxy(
-    @Param('key') keys: string[],
+    @Param('keys') keys: string[],
     @Res() res: Response,
   ): Promise<void> {
     let obj: any;
