@@ -1,10 +1,66 @@
-import { Controller, Get, NotFoundException, Param, Res } from '@nestjs/common';
+import {
+  Controller,
+  ForbiddenException,
+  Get,
+  InternalServerErrorException,
+  Logger,
+  NotFoundException,
+  Param,
+  Res,
+} from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { ReceiverService } from './modules/receiver/receiver.service';
 import type { Response } from 'express';
 
 @Controller()
 export class AppController {
   constructor(private readonly receiverService: ReceiverService) {}
+
+  private readonly logger = new Logger(AppController.name);
+
+  private rethrowPublicFileError(
+    route: string,
+    key: string,
+    e: unknown,
+  ): never {
+    const name = (e as any)?.name;
+    const code = (e as any)?.Code ?? (e as any)?.code;
+    const status = (e as any)?.$metadata?.httpStatusCode;
+    const message = String((e as any)?.message ?? '');
+
+    // Normalize the most common S3 errors.
+    if (
+      name === 'NoSuchKey' ||
+      code === 'NoSuchKey' ||
+      status === 404 ||
+      /nosuchkey/i.test(message)
+    ) {
+      throw new NotFoundException();
+    }
+    if (
+      name === 'AccessDenied' ||
+      code === 'AccessDenied' ||
+      status === 403 ||
+      /accessdenied/i.test(message)
+    ) {
+      throw new ForbiddenException();
+    }
+
+    // Any other failure: log with an id so it's easy to find in server logs.
+    const errorId = randomUUID();
+    this.logger.error(
+      `[${errorId}] ${route} failed for key="${String(key)}": ${JSON.stringify({
+        name,
+        code,
+        status,
+        message,
+      })}`,
+      (e as any)?.stack,
+    );
+    throw new InternalServerErrorException(
+      `Internal server error (ref: ${errorId})`,
+    );
+  }
 
   @Get()
   async getHello(): Promise<string> {
@@ -91,8 +147,12 @@ export class AppController {
     @Param('key') key: string,
     @Res() res: Response,
   ): Promise<void> {
-    const url = await this.receiverService.getPresignedGigPhotoUrlByKey(key);
-    res.redirect(302, url);
+    try {
+      const url = await this.receiverService.getPresignedGigPhotoUrlByKey(key);
+      res.redirect(302, url);
+    } catch (e) {
+      return this.rethrowPublicFileError('public/files', key, e);
+    }
   }
 
   /**
@@ -101,10 +161,16 @@ export class AppController {
    */
   @Get('public/files-proxy/*key')
   async getPublicFileProxy(
-    @Param('key') key: string,
+    @Param('key') keys: string[],
     @Res() res: Response,
   ): Promise<void> {
-    const obj = await this.receiverService.getGigPhotoObjectByKey(key);
+    let obj: any;
+    const key = keys.join('/');
+    try {
+      obj = await this.receiverService.getGigPhotoObjectByKey(key);
+    } catch (e) {
+      return this.rethrowPublicFileError('public/files-proxy', key, e);
+    }
     if (!obj?.Body) throw new NotFoundException();
 
     if (obj.ContentType) res.setHeader('Content-Type', obj.ContentType);

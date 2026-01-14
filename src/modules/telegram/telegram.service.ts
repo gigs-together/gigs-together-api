@@ -59,17 +59,19 @@ export class TelegramService {
       } catch (e) {
         // Telegram can't fetch the file from provided URL (often HTML/redirect/webp/etc).
         if (this.isWrongWebPageContentError(e) && this.isHttpUrl(photo)) {
-          const downloaded = await this.downloadRemoteFileAsInputFile(photo, gig);
+          const downloaded = await this.downloadRemoteFileAsInputFile(
+            photo,
+            gig,
+          );
           if (downloaded) {
-            return await this.sendPhoto(
-              { ...payload, photo: downloaded },
-              gig,
-            );
+            return await this.sendPhoto({ ...payload, photo: downloaded }, gig);
           }
 
           // Last resort: send text-only message so publish doesn't silently fail.
           const text =
-            payload.caption ?? (payload as unknown as { text?: string }).text ?? photo;
+            payload.caption ??
+            (payload as unknown as { text?: string }).text ??
+            photo;
           return await this.sendMessage({ chat_id: payload.chat_id, text });
         }
         throw e;
@@ -124,21 +126,37 @@ export class TelegramService {
 
   private toAbsolutePublicUrlForTelegram(value: string): string {
     if (!value) return value;
-    if (this.isHttpUrl(value)) return value;
-    if (value.startsWith('/')) {
-      const base =
-        (process.env.APP_PUBLIC_BASE_URL ?? process.env.PUBLIC_BASE_URL ?? '')
-          .trim()
-          .replace(/\/$/, '');
-      if (!base) {
+    const trimmed = value.trim();
+    if (!trimmed) return trimmed;
+    if (this.isHttpUrl(trimmed)) return trimmed;
+    if (trimmed.startsWith('/')) {
+      const baseRaw = (
+        process.env.APP_PUBLIC_BASE_URL ??
+        process.env.PUBLIC_BASE_URL ??
+        ''
+      ).trim();
+      if (!baseRaw) {
         // Telegram rejects relative URLs with: "URL host is empty"
         throw new Error(
           'Telegram photo URL is relative; set APP_PUBLIC_BASE_URL (or PUBLIC_BASE_URL) to make it absolute',
         );
       }
-      return `${base}${value}`;
+      // IMPORTANT:
+      // - Use URL resolution (not string concat) so if base contains a path like
+      //   "https://host/api", "/public/..." still resolves to "https://host/public/...".
+      // - Be forgiving if the base is provided without a scheme.
+      const base = /^[a-z][a-z0-9+.-]*:\/\//i.test(baseRaw)
+        ? baseRaw
+        : `https://${baseRaw}`;
+      try {
+        return new URL(trimmed, base).toString();
+      } catch {
+        throw new Error(
+          `Invalid APP_PUBLIC_BASE_URL/PUBLIC_BASE_URL: "${baseRaw}"`,
+        );
+      }
     }
-    return value;
+    return trimmed;
   }
 
   private isWrongWebPageContentError(e: unknown): boolean {
@@ -303,7 +321,9 @@ export class TelegramService {
 
     const photo =
       gig.photo.tgFileId ||
-      (gig.photo.url ? this.toAbsolutePublicUrlForTelegram(gig.photo.url) : gig.photo.externalUrl);
+      (gig.photo.url
+        ? this.toAbsolutePublicUrlForTelegram(gig.photo.url)
+        : gig.photo.externalUrl);
 
     return this.send(
       {

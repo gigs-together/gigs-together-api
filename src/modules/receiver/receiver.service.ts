@@ -179,6 +179,7 @@ export class ReceiverService {
       // Reuse already downloaded photo if exists
       const existing =
         await this.gigService.findByExternalPhotoUrl(urlFromBody);
+      // TODO: also look by photo equality
       if (existing?.photo?.url) {
         photoUrl = existing.photo.url;
         externalUrl = urlFromBody;
@@ -482,16 +483,24 @@ export class ReceiverService {
   }
 
   private ensureGigPhotoKey(key: string): string {
-    if (!key) throw new BadRequestException('key is required');
+    const trimmed = key?.trim?.() ?? key;
+    if (!trimmed) {
+      throw new BadRequestException('key is required');
+    }
     // Avoid exposing arbitrary objects; homepage uses gigs/* only.
-    if (!key.startsWith('gigs/')) throw new NotFoundException();
+    if (!trimmed.startsWith('gigs/')) {
+      throw new NotFoundException();
+    }
     // Hardening: avoid weird traversal-ish keys.
-    if (key.includes('..')) throw new NotFoundException();
-    return key;
+    if (trimmed.includes('..')) {
+      throw new NotFoundException();
+    }
+    return trimmed;
   }
 
   private getApiPublicBase(): string {
-    const explicit = process.env.APP_PUBLIC_BASE_URL ?? process.env.PUBLIC_BASE_URL;
+    const explicit =
+      process.env.APP_PUBLIC_BASE_URL ?? process.env.PUBLIC_BASE_URL;
     if (explicit) return explicit.replace(/\/$/, '');
     // Fallback: relative URLs still work for same-origin clients.
     return '';

@@ -29,6 +29,8 @@ describe('TelegramService', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+    delete process.env.APP_PUBLIC_BASE_URL;
+    delete process.env.PUBLIC_BASE_URL;
   });
 
   it('should be defined', () => {
@@ -61,6 +63,36 @@ describe('TelegramService', () => {
         text,
       });
       expect(result).toEqual(mockMessage);
+    });
+  });
+
+  describe('toAbsolutePublicUrlForTelegram (private)', () => {
+    it('should keep absolute http(s) URL unchanged', () => {
+      const fn = (service as any).toAbsolutePublicUrlForTelegram.bind(service);
+      expect(fn('https://example.com/a.png')).toBe('https://example.com/a.png');
+      expect(fn('http://example.com/a.png')).toBe('http://example.com/a.png');
+    });
+
+    it('should trim whitespace', () => {
+      const fn = (service as any).toAbsolutePublicUrlForTelegram.bind(service);
+      expect(fn(' https://example.com/a.png ')).toBe(
+        'https://example.com/a.png',
+      );
+    });
+
+    it('should resolve "/public/..." against base origin (ignoring base path)', () => {
+      process.env.APP_PUBLIC_BASE_URL = 'https://example.com/api';
+      const fn = (service as any).toAbsolutePublicUrlForTelegram.bind(service);
+      expect(fn('/public/files-proxy/gigs/a%20b.jpg')).toBe(
+        'https://example.com/public/files-proxy/gigs/a%20b.jpg',
+      );
+    });
+
+    it('should throw when base is missing for relative URLs', () => {
+      const fn = (service as any).toAbsolutePublicUrlForTelegram.bind(service);
+      expect(() => fn('/public/files-proxy/gigs/x.jpg')).toThrow(
+        /set APP_PUBLIC_BASE_URL/i,
+      );
     });
   });
 });
