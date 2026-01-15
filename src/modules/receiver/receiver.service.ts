@@ -207,7 +207,16 @@ export class ReceiverService {
 
     // TODO: add transaction?
     const savedGig = await this.gigService.saveGig(data.gig);
-    const res = await this.telegramService.publishDraft(savedGig);
+    let res: TGMessage | undefined;
+    try {
+      res = await this.telegramService.publishDraft(savedGig);
+    } catch (e) {
+      // Publishing to Telegram shouldn't block gig creation.
+      this.logger.warn(
+        `publishDraft failed: ${JSON.stringify((e as any)?.response?.data ?? (e as any)?.message ?? e)}`,
+      );
+      res = undefined;
+    }
     // TODO: find the biggest photo and get its id
     const _data: any = {
       status: Status.Pending,

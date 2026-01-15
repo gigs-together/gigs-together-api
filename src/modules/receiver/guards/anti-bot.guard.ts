@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { Request } from 'express';
 
+// unused
 @Injectable()
 export class AntiBotGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
