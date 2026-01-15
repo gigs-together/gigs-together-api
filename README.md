@@ -39,6 +39,35 @@ Then set:
 
 - `CORS_ORIGINS="http://app.localhost:5173"`
 
+#### Windows note (hosts file)
+
+On Windows the hosts file is:
+
+- `C:\Windows\System32\drivers\etc\hosts`
+
+You’ll need admin privileges to edit it.
+
+#### Do I need different ports?
+
+By default, yes — you still run two processes, so they listen on different ports (e.g. `5173` and `3000`).
+
+If you want *no ports* (closer to prod), run a local reverse proxy (optional), for example Caddy:
+
+```
+app.localhost {
+  reverse_proxy 127.0.0.1:5173
+}
+
+api.localhost {
+  reverse_proxy 127.0.0.1:3000
+}
+```
+
+Then you can use:
+
+- Frontend: `http://app.localhost`
+- API: `http://api.localhost`
+
 ## Railway Bucket: public access via presigned URLs (and CORS)
 
 Railway Storage Buckets are **private**. To display uploaded images to unauthenticated users, this API exposes:

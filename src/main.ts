@@ -7,11 +7,18 @@ async function bootstrap() {
   const port = process.env.PORT ?? 3000;
 
   // CORS (needed when a separate frontend domain calls this API or uses presigned URLs).
-  // - If CORS_ORIGINS="*" → allow all origins, no credentials
-  // - If CORS_ORIGINS is a comma-separated list → allow those origins, with credentials
-  // - If unset → keep permissive (reflect request origin) so public pages work out of the box
+  //
+  // Config:
+  // - If CORS_ORIGINS="reflect" (or "all") → allow all origins (reflect request origin), with credentials
+  // - Else if CORS_ORIGINS="*" → allow all origins, no credentials
+  // - Else if CORS_ORIGINS is a comma-separated list → allow those origins, with credentials
+  // - Else (unset) → keep permissive (reflect request origin) so public pages work out of the box
   const corsOriginsRaw = (process.env.CORS_ORIGINS ?? '').trim();
-  if (corsOriginsRaw === '*') {
+  const corsOriginsMode = corsOriginsRaw.toLowerCase();
+
+  if (corsOriginsMode === 'reflect' || corsOriginsMode === 'all') {
+    app.enableCors({ origin: true, credentials: true });
+  } else if (corsOriginsRaw === '*') {
     app.enableCors({ origin: '*', credentials: false });
   } else if (corsOriginsRaw) {
     const origins = corsOriginsRaw
