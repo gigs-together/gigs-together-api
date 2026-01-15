@@ -166,11 +166,11 @@ export class ReceiverService {
 
     const urlFromBody = gigBody.gig.photoUrl ?? gigBody.gig.photo;
 
-    let photoUrl: string | undefined;
+    let photoPath: string | undefined;
     let externalUrl: string | undefined;
 
     if (photoFile) {
-      photoUrl = await this.uploadGigPhoto({
+      photoPath = await this.uploadGigPhoto({
         buffer: photoFile.buffer,
         filename: photoFile.originalname,
         mimetype: photoFile.mimetype,
@@ -181,11 +181,11 @@ export class ReceiverService {
         await this.gigService.findByExternalPhotoUrl(urlFromBody);
       // TODO: also look by photo equality
       if (existing?.photo?.url) {
-        photoUrl = existing.photo.url;
+        photoPath = this.toStoredGigPhotoPath(existing.photo.url);
         externalUrl = urlFromBody;
       } else {
         const downloaded = await this.downloadPhoto(urlFromBody);
-        photoUrl = await this.uploadGigPhoto(downloaded);
+        photoPath = await this.uploadGigPhoto(downloaded);
         externalUrl = urlFromBody;
       }
     }
@@ -196,8 +196,8 @@ export class ReceiverService {
         date: gigBody.gig.date,
         location: gigBody.gig.location,
         ticketsUrl: gigBody.gig.ticketsUrl,
-        ...(photoUrl
-          ? { photo: { url: photoUrl, externalUrl } }
+        ...(photoPath
+          ? { photo: { url: photoPath, externalUrl } }
           : externalUrl
             ? { photo: { externalUrl } }
             : {}),
@@ -212,9 +212,9 @@ export class ReceiverService {
     const _data: any = {
       status: Status.Pending,
     };
-    if (photoUrl || externalUrl) {
+    if (photoPath || externalUrl) {
       _data.photo = {
-        ...(photoUrl ? { url: photoUrl } : {}),
+        ...(photoPath ? { url: photoPath } : {}),
         ...(externalUrl ? { externalUrl } : {}),
         tgFileId: res?.photo?.[0]?.file_id,
       };
@@ -300,9 +300,9 @@ export class ReceiverService {
     });
     await this.s3.send(command);
 
-    // Bucket is private on Railway. Store a stable, publicly reachable URL on our API
-    // which either redirects to a presigned URL or proxies bytes.
-    return this.getPublicFileProxyUrl(key);
+    // Store only the bucket path + key (relative), e.g. "/gigs/<uuid>-file.jpg".
+    // A full public URL can be derived later using APP_PUBLIC_BASE_URL/PUBLIC_BASE_URL.
+    return `/${key}`;
   }
 
   async listGigPhotos(): Promise<string[]> {
@@ -493,6 +493,40 @@ export class ReceiverService {
       throw new NotFoundException();
     }
     return trimmed;
+  }
+
+  private toStoredGigPhotoPath(value: string): string {
+    const trimmed = (value ?? '').trim();
+    if (!trimmed) return trimmed;
+
+    const normalizeFromPathname = (pathname: string): string => {
+      let p = (pathname ?? '').trim();
+      if (!p) return p;
+
+      // If stored as a public route, extract the S3 key part.
+      const proxyPrefix = '/public/files-proxy/';
+      const redirectPrefix = '/public/files/';
+      if (p.startsWith(proxyPrefix)) p = `/${p.slice(proxyPrefix.length)}`;
+      else if (p.startsWith(redirectPrefix))
+        p = `/${p.slice(redirectPrefix.length)}`;
+
+      // Accept both "gigs/..." and "/gigs/..."
+      if (p.startsWith('gigs/')) return `/${p}`;
+      if (p.startsWith('/gigs/')) return p;
+
+      return p;
+    };
+
+    // Absolute URL -> use pathname.
+    if (/^https?:\/\//i.test(trimmed)) {
+      try {
+        return normalizeFromPathname(new URL(trimmed).pathname);
+      } catch {
+        return trimmed;
+      }
+    }
+
+    return normalizeFromPathname(trimmed);
   }
 
   private getApiPublicBase(): string {

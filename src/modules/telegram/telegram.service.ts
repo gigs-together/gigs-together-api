@@ -124,6 +124,19 @@ export class TelegramService {
     return /^https?:\/\//i.test(value);
   }
 
+  private toPublicFilesProxyPath(value: string): string {
+    if (!value) return value;
+    const trimmed = value.trim();
+    if (!trimmed) return trimmed;
+    if (this.isHttpUrl(trimmed)) return trimmed;
+
+    // If we store only the S3 key path ("/gigs/..."), convert it to our public proxy route.
+    if (trimmed.startsWith('/gigs/')) return `/public/files-proxy${trimmed}`;
+    if (trimmed.startsWith('gigs/')) return `/public/files-proxy/${trimmed}`;
+
+    return trimmed;
+  }
+
   private toAbsolutePublicUrlForTelegram(value: string): string {
     if (!value) return value;
     const trimmed = value.trim();
@@ -323,7 +336,9 @@ export class TelegramService {
       gig.photo &&
       (gig.photo.tgFileId ||
         (gig.photo.url
-          ? this.toAbsolutePublicUrlForTelegram(gig.photo.url)
+          ? this.toAbsolutePublicUrlForTelegram(
+              this.toPublicFilesProxyPath(gig.photo.url),
+            )
           : gig.photo.externalUrl));
 
     return this.send(
