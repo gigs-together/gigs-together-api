@@ -113,7 +113,7 @@ export class TelegramService {
   private isPhotoPayload(
     payload: TGSendPhoto | TGSendMessage,
   ): payload is TGSendPhoto {
-    return 'photo' in payload;
+    return 'photo' in payload && !!payload.photo;
   }
 
   private isPhotoString(photo: string | InputFile): photo is string {
@@ -320,10 +320,11 @@ export class TelegramService {
     ].join('\n');
 
     const photo =
-      gig.photo.tgFileId ||
-      (gig.photo.url
-        ? this.toAbsolutePublicUrlForTelegram(gig.photo.url)
-        : gig.photo.externalUrl);
+      gig.photo &&
+      (gig.photo.tgFileId ||
+        (gig.photo.url
+          ? this.toAbsolutePublicUrlForTelegram(gig.photo.url)
+          : gig.photo.externalUrl));
 
     return this.send(
       {
