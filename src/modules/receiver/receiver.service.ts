@@ -436,24 +436,37 @@ export class ReceiverService {
       const last = parsed.pathname.split('/').filter(Boolean).pop();
       if (last) filename = last;
     } catch {
-      console.error('parse error');
-      // ignore parse errors, keep default
+      throw new BadRequestException('photoUrl must be a valid URL');
     }
 
-    const res = await firstValueFrom(
-      this.httpService.get<ArrayBuffer>(url, {
-        responseType: 'arraybuffer',
-        timeout: 15_000,
-      }),
-    );
-    const contentType =
-      (res.headers['content-type'] as string | string[] | undefined) ||
-      (res.headers['Content-Type'] as string | string[] | undefined);
-    return {
-      buffer: Buffer.from(res.data),
-      filename,
-      mimetype: Array.isArray(contentType) ? contentType[0] : contentType,
-    };
+    try {
+      const res = await firstValueFrom(
+        this.httpService.get<ArrayBuffer>(url, {
+          responseType: 'arraybuffer',
+          timeout: 15_000,
+        }),
+      );
+      const contentType =
+        (res.headers['content-type'] as string | string[] | undefined) ||
+        (res.headers['Content-Type'] as string | string[] | undefined);
+      const ct = Array.isArray(contentType) ? contentType[0] : contentType;
+
+      if (ct && !ct.toLowerCase().startsWith('image/')) {
+        throw new BadRequestException(
+          `photoUrl must point to an image (content-type: "${ct}")`,
+        );
+      }
+
+      return {
+        buffer: Buffer.from(res.data),
+        filename,
+        mimetype: ct,
+      };
+    } catch (e) {
+      // Keep message user-friendly; don't leak internals.
+      const msg = String((e as any)?.message ?? 'unknown error');
+      throw new BadRequestException(`Failed to download photo: ${msg}`);
+    }
   }
 
   private getPublicBase(bucket: string, region: string) {
