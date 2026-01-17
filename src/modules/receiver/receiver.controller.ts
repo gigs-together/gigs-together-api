@@ -31,7 +31,7 @@ export class ReceiverController {
   @HttpCode(200)
   @UseFilters(ReceiverWebhookExceptionFilter)
   @UseGuards(ReceiverWebhookGuard)
-  async handleUpdate(
+  handleUpdate(
     @Req() req: ReceiverWebhookRequest,
     @Body() update: TGUpdate,
   ): Promise<void> {
@@ -43,10 +43,9 @@ export class ReceiverController {
     }
 
     if (update.callback_query) {
-      await this.receiverService.handleCallbackQuery(update.callback_query);
-      return;
+      return this.receiverService.handleCallbackQuery(update.callback_query);
     }
-    await this.receiverService.handleMessage(update.message);
+    return this.receiverService.handleMessage(update.message);
   }
 
   @Version('1')
@@ -64,10 +63,10 @@ export class ReceiverController {
       },
     }),
   )
-  async createGig(
+  createGig(
     @UploadedFile() photoFile: Express.Multer.File | undefined,
     @Body(TelegramInitDataPipe) body: any, // JSON object (application/json) or strings (multipart/form-data)
   ): Promise<void> {
-    await this.receiverService.handleGigSubmit(body, photoFile);
+    return this.receiverService.handleGigSubmit(body, photoFile);
   }
 }
