@@ -9,7 +9,6 @@ import {
   UseFilters,
   UseGuards,
   UseInterceptors,
-  UsePipes,
   Version,
 } from '@nestjs/common';
 import { ReceiverService } from './receiver.service';
@@ -53,7 +52,6 @@ export class ReceiverController {
   @Version('1')
   @Post('gig')
   @HttpCode(201)
-  @UsePipes(TelegramInitDataPipe)
   @UseInterceptors(
     FileInterceptor('photo', {
       storage: memoryStorage(),
@@ -68,7 +66,7 @@ export class ReceiverController {
   )
   async createGig(
     @UploadedFile() photoFile: Express.Multer.File | undefined,
-    @Body() body: any, // JSON object (application/json) or strings (multipart/form-data)
+    @Body(TelegramInitDataPipe) body: any, // JSON object (application/json) or strings (multipart/form-data)
   ): Promise<void> {
     await this.receiverService.handleGigSubmit(body, photoFile);
   }

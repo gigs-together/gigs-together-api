@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   type PipeTransform,
@@ -23,7 +24,10 @@ export class TelegramInitDataPipe implements PipeTransform<any, Promise<any>> {
 
   async transform(value: any): Promise<any> {
     const body =
-      value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+      value && typeof value === 'object' && !Array.isArray(value) ? value : null;
+    if (!body) {
+      throw new BadRequestException('Body must be an object');
+    }
 
     const telegramInitDataString = String(
       (body as Partial<V1ReceiverCreateGigRequestBody>)
