@@ -7,6 +7,7 @@ import {
 import { randomUUID } from 'crypto';
 import type { TGChatId, TGMessage } from '../telegram/types/message.types';
 import { GigService } from '../gig/gig.service';
+import type { Gig } from '../gig/gig.schema';
 import type { GigId } from '../gig/types/gig.types';
 import { Status } from '../gig/types/status.enum';
 import type { TGCallbackQuery } from '../telegram/types/update.types';
@@ -23,6 +24,8 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 // import { NodeHttpHandler } from '@smithy/node-http-handler';
+
+type UpdateGigPayload = Pick<Gig, 'status'> & Partial<Pick<Gig, 'photo'>>;
 
 enum Command {
   Start = 'start',
@@ -201,18 +204,22 @@ export class ReceiverService {
       res = undefined;
     }
     // TODO: find the biggest photo and get its id
-    const _data: any = {
+    const updateGigPayload: UpdateGigPayload = {
       status: Status.Pending,
     };
     if (photoPath || externalUrl) {
-      _data.photo = {
-        ...(photoPath ? { url: photoPath } : {}),
-        ...(externalUrl ? { externalUrl } : {}),
+      updateGigPayload.photo = {
         tgFileId: res?.photo?.[0]?.file_id,
       };
+      if (externalUrl) {
+        updateGigPayload.photo.externalUrl = externalUrl;
+      }
+      if (photoPath) {
+        updateGigPayload.photo.url = photoPath;
+      }
     }
     try {
-      await this.gigService.updateGig(savedGig._id, _data);
+      await this.gigService.updateGig(savedGig._id, updateGigPayload);
     } catch (e) {
       this.logger.error(
         'updateGig failed',

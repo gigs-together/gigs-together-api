@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+import type { UpdateQuery } from 'mongoose';
 import type { GetGigs, GigDto, GigId } from './types/gig.types';
 import { Gig, GigDocument } from './gig.schema';
 import { Status } from './types/status.enum';
@@ -31,7 +32,7 @@ export class GigService {
     return createdGig.save();
   }
 
-  async updateGig(gigId: GigId, data: any): Promise<GigDocument> {
+  async updateGig(gigId: GigId, data: UpdateQuery<Gig>): Promise<GigDocument> {
     if (!Types.ObjectId.isValid(gigId)) {
       throw new BadRequestException(`Invalid MongoDB ID: ${gigId}`);
     }
