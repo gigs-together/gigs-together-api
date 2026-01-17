@@ -9,6 +9,7 @@ import { ConsoleLogger } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
 import { ReceiverWebhookGuard } from './guards/receiver-webhook.guard';
 import { ReceiverWebhookExceptionFilter } from './filters/receiver-webhook-exception.filter';
+import { TelegramInitDataPipe } from './pipes/telegram-init-data.pipe';
 
 @Module({
   imports: [GigModule, TelegramModule, AuthModule, HttpModule],
@@ -18,6 +19,7 @@ import { ReceiverWebhookExceptionFilter } from './filters/receiver-webhook-excep
     ReceiverWebhookGuard,
     ReceiverExceptionFilter,
     ReceiverWebhookExceptionFilter,
+    TelegramInitDataPipe,
     ConsoleLogger,
   ],
   exports: [ReceiverService],
