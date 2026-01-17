@@ -7,7 +7,10 @@ import {
 import { TelegramService } from '../../telegram/telegram.service';
 import { AuthService } from '../../auth/auth.service';
 import type { TGUser, User } from '../../telegram/types/user.types';
-import type { V1ReceiverCreateGigRequestBody } from '../types/requests/v1-receiver-create-gig-request';
+import {
+  V1ReceiverCreateGigRequestBody,
+  V1ReceiverCreateGigRequestBodyValidated,
+} from '../types/requests/v1-receiver-create-gig-request';
 
 /**
  * Validates Telegram WebApp initData (`telegramInitDataString`) and attaches `user`
@@ -16,34 +19,37 @@ import type { V1ReceiverCreateGigRequestBody } from '../types/requests/v1-receiv
  * Throws 403 on invalid/missing initData (this is a regular client endpoint, not a webhook).
  */
 @Injectable()
-export class TelegramInitDataPipe implements PipeTransform<any, Promise<any>> {
+export class TelegramInitDataPipe
+  implements
+    PipeTransform<
+      V1ReceiverCreateGigRequestBody,
+      Promise<V1ReceiverCreateGigRequestBodyValidated>
+    >
+{
   constructor(
     private readonly telegramService: TelegramService,
     private readonly authService: AuthService,
   ) {}
 
-  async transform(value: any): Promise<any> {
+  async transform(
+    bodyRaw: V1ReceiverCreateGigRequestBody,
+  ): Promise<V1ReceiverCreateGigRequestBodyValidated> {
     const body =
-      value && typeof value === 'object' && !Array.isArray(value)
-        ? value
+      bodyRaw && typeof bodyRaw === 'object' && !Array.isArray(bodyRaw)
+        ? bodyRaw
         : null;
     if (!body) {
       throw new BadRequestException('Body must be an object');
     }
 
-    const telegramInitDataString = String(
-      (body as Partial<V1ReceiverCreateGigRequestBody>)
-        ?.telegramInitDataString ?? '',
-    );
-
-    if (!telegramInitDataString) {
+    if (!body.telegramInitDataString) {
       throw new ForbiddenException('Missing Telegram user data');
     }
 
     try {
       const { parsedData, dataCheckString } =
         this.telegramService.parseTelegramInitDataString(
-          telegramInitDataString,
+          body.telegramInitDataString,
         );
       this.telegramService.validateTelegramInitData(
         dataCheckString,
@@ -58,17 +64,15 @@ export class TelegramInitDataPipe implements PipeTransform<any, Promise<any>> {
       }
 
       const isAdmin = await this.authService.isAdmin(tgUser.id);
-      const nextBody: any = { ...body };
-
-      // Remove raw init data after validation so it won't be persisted/logged accidentally.
-      delete nextBody.telegramInitDataString;
-
-      nextBody.user = {
+      const user: User = {
         tgUser,
         isAdmin,
-      } as User;
+      };
 
-      return nextBody;
+      return {
+        gig: body.gig,
+        user,
+      };
     } catch {
       // Keep the error stable for the client.
       throw new ForbiddenException('Invalid Telegram user data');

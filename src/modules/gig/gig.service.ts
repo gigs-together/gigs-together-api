@@ -66,7 +66,7 @@ export class GigService {
   }
 
   async getGigsV1(query: V1GigGetRequestQuery): Promise<V1GigGetResponseBody> {
-    const { page = 1, size = 10 } = query as any;
+    const { page = 1, size = 10 } = query;
     const gigs = await this.getGigs({ page, size });
 
     return {

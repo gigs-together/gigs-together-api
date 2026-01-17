@@ -143,28 +143,11 @@ export class ReceiverService {
     });
   }
 
-  private normalizeCreateGigBody(body: any) {
-    // In multipart/form-data nested object as string
-    // gig = JSON-string
-    if (typeof body?.gig === 'string') {
-      try {
-        body.gig = JSON.parse(body.gig);
-      } catch {
-        throw new BadRequestException('gig must be a valid JSON string');
-      }
-    }
-    return body;
-  }
-
   async handleGigSubmit(
-    body: any,
+    body: V1ReceiverCreateGigRequestBodyValidated,
     photoFile: Express.Multer.File | undefined,
   ): Promise<void> {
-    const gigBody = this.normalizeCreateGigBody(
-      body,
-    ) as V1ReceiverCreateGigRequestBodyValidated;
-
-    const urlFromBody = gigBody.gig.photoUrl ?? gigBody.gig.photo;
+    const urlFromBody = body.gig.photoUrl ?? body.gig.photo;
 
     let photoPath: string | undefined;
     let externalUrl: string | undefined;
@@ -192,17 +175,17 @@ export class ReceiverService {
 
     const data = {
       gig: {
-        title: gigBody.gig.title,
-        date: gigBody.gig.date,
-        location: gigBody.gig.location,
-        ticketsUrl: gigBody.gig.ticketsUrl,
+        title: body.gig.title,
+        date: body.gig.date,
+        location: body.gig.location,
+        ticketsUrl: body.gig.ticketsUrl,
         ...(photoPath
           ? { photo: { url: photoPath, externalUrl } }
           : externalUrl
             ? { photo: { externalUrl } }
             : {}),
       },
-      isAdmin: gigBody.user?.isAdmin,
+      isAdmin: body.user?.isAdmin,
     };
 
     // TODO: add transaction?

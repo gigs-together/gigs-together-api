@@ -20,6 +20,7 @@ import { ReceiverWebhookGuard } from './guards/receiver-webhook.guard';
 import { ReceiverWebhookExceptionFilter } from './filters/receiver-webhook-exception.filter';
 import type { ReceiverWebhookRequest } from './guards/receiver-webhook.guard';
 import { TelegramInitDataPipe } from './pipes/telegram-init-data.pipe';
+import { V1ReceiverCreateGigRequestBodyValidated } from './types/requests/v1-receiver-create-gig-request';
 
 @Controller('receiver')
 @UseFilters(ReceiverExceptionFilter)
@@ -65,7 +66,9 @@ export class ReceiverController {
   )
   createGig(
     @UploadedFile() photoFile: Express.Multer.File | undefined,
-    @Body(TelegramInitDataPipe) body: any, // JSON object (application/json) or strings (multipart/form-data)
+    @Body(TelegramInitDataPipe)
+    body: V1ReceiverCreateGigRequestBodyValidated,
+    // JSON object (application/json) or strings (multipart/form-data)
   ): Promise<void> {
     return this.receiverService.handleGigSubmit(body, photoFile);
   }
