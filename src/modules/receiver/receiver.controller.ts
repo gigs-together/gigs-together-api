@@ -3,9 +3,9 @@ import {
   Body,
   Controller,
   ForbiddenException,
-  Get,
   HttpCode,
   Post,
+  Req,
   UploadedFile,
   UseFilters,
   UseGuards,
@@ -13,7 +13,6 @@ import {
   Version,
 } from '@nestjs/common';
 import { ReceiverService } from './receiver.service';
-import { AdminGuard } from './guards/admin.guard';
 import { TGUpdate } from '../telegram/types/update.types';
 import { ReceiverExceptionFilter } from './filters/receiver-exception.filter';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -22,6 +21,9 @@ import { TelegramService } from '../telegram/telegram.service';
 import { AuthService } from '../auth/auth.service';
 import type { TGUser, User } from '../telegram/types/user.types';
 import type { V1ReceiverCreateGigRequestBody } from './requests/v1-receiver-create-gig-request';
+import { ReceiverWebhookGuard } from './guards/receiver-webhook.guard';
+import { ReceiverWebhookExceptionFilter } from './filters/receiver-webhook-exception.filter';
+import type { ReceiverWebhookRequest } from './guards/receiver-webhook.guard';
 
 @Controller('receiver')
 @UseFilters(ReceiverExceptionFilter)
@@ -32,6 +34,7 @@ export class ReceiverController {
     private readonly authService: AuthService,
   ) {}
 
+  // TODO: extract somewhere
   private async validateTelegramInitDataAndAttachUser(
     body: any,
   ): Promise<void> {
@@ -78,8 +81,19 @@ export class ReceiverController {
   @Version('1')
   @Post('webhook')
   @HttpCode(200)
-  @UseGuards(AdminGuard)
-  async handleUpdate(@Body() update: TGUpdate): Promise<void> {
+  @UseFilters(ReceiverWebhookExceptionFilter)
+  @UseGuards(ReceiverWebhookGuard)
+  async handleUpdate(
+    @Req() req: ReceiverWebhookRequest,
+    @Body() update: TGUpdate,
+  ): Promise<void> {
+    // Telegram must always receive 200, but we still want to process updates only from admins.
+    // TelegramWebhookGuard marks request.telegramWebhook.allowed; when denied we just no-op.
+    // (No throwing here — avoid 4xx which triggers Telegram retries.)
+    if (req.telegramWebhook?.allowed !== true) {
+      return;
+    }
+
     if (update.callback_query) {
       await this.receiverService.handleCallbackQuery(update.callback_query);
       return;
@@ -108,13 +122,5 @@ export class ReceiverController {
   ): Promise<void> {
     await this.validateTelegramInitDataAndAttachUser(body);
     await this.receiverService.handleGigSubmit(body, photoFile);
-  }
-
-  @Version('1')
-  @Get('gig/photos')
-  @UseGuards(AdminGuard)
-  async listGigPhotos(): Promise<{ photos: string[] }> {
-    const photos = await this.receiverService.listGigPhotos();
-    return { photos };
   }
 }
