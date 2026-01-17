@@ -8,6 +8,11 @@ import { Model, Types } from 'mongoose';
 import type { GetGigs, GigDto, GigId } from './types/gig.types';
 import { Gig, GigDocument } from './gig.schema';
 import { Status } from './types/status.enum';
+import type {
+  V1GigGetRequestQuery,
+  V1GigGetResponseBody,
+} from './types/requests/v1-gig-get-request';
+import { toPublicFilesProxyUrlFromStoredPhotoUrl } from '../../shared/utils/public-files';
 
 // TODO: add allowing only specific status transitions
 @Injectable()
@@ -58,6 +63,29 @@ export class GigService {
     const skip = (page - 1) * size;
 
     return this.gigModel.find({}).skip(skip).limit(size);
+  }
+
+  async getGigsV1(query: V1GigGetRequestQuery): Promise<V1GigGetResponseBody> {
+    const { page = 1, size = 10 } = query as any;
+    const gigs = await this.getGigs({ page, size });
+
+    return {
+      gigs: gigs.map((gig) => ({
+        title: gig.title,
+        date: gig.date.toString(), // TODO
+        location: gig.location,
+        ticketsUrl: gig.ticketsUrl,
+        status: gig.status,
+        photo: gig.photo
+          ? {
+              tgFileId: gig.photo.tgFileId,
+              url: toPublicFilesProxyUrlFromStoredPhotoUrl(gig.photo.url),
+            }
+          : undefined,
+      })) as GigDto[],
+      // TODO
+      isLastPage: true,
+    };
   }
 
   async findByExternalPhotoUrl(

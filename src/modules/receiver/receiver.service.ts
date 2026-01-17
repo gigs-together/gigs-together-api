@@ -12,7 +12,7 @@ import { Status } from '../gig/types/status.enum';
 import type { TGCallbackQuery } from '../telegram/types/update.types';
 import { TelegramService } from '../telegram/telegram.service';
 import { Action } from '../telegram/types/action.enum';
-import { V1ReceiverCreateGigRequestBodyValidated } from './requests/v1-receiver-create-gig-request';
+import { V1ReceiverCreateGigRequestBodyValidated } from './types/requests/v1-receiver-create-gig-request';
 import {
   S3Client,
   PutObjectCommand,

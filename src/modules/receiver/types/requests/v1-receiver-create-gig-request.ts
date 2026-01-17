@@ -1,4 +1,4 @@
-import type { User } from '../../telegram/types/user.types';
+import type { User } from '../../../telegram/types/user.types';
 
 interface CreateGigDto {
   title: string;

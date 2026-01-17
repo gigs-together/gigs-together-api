@@ -7,7 +7,7 @@ import {
 import { TelegramService } from '../../telegram/telegram.service';
 import { AuthService } from '../../auth/auth.service';
 import type { TGUser, User } from '../../telegram/types/user.types';
-import type { V1ReceiverCreateGigRequestBody } from '../requests/v1-receiver-create-gig-request';
+import type { V1ReceiverCreateGigRequestBody } from '../types/requests/v1-receiver-create-gig-request';
 
 /**
  * Validates Telegram WebApp initData (`telegramInitDataString`) and attaches `user`
@@ -24,7 +24,9 @@ export class TelegramInitDataPipe implements PipeTransform<any, Promise<any>> {
 
   async transform(value: any): Promise<any> {
     const body =
-      value && typeof value === 'object' && !Array.isArray(value) ? value : null;
+      value && typeof value === 'object' && !Array.isArray(value)
+        ? value
+        : null;
     if (!body) {
       throw new BadRequestException('Body must be an object');
     }
