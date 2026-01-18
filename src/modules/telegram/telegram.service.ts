@@ -172,8 +172,8 @@ export class TelegramService {
     return trimmed;
   }
 
-  private isWrongWebPageContentError(e: unknown): boolean {
-    const data = (e as any)?.response?.data;
+  private isWrongWebPageContentError(e: any): boolean {
+    const data = e?.response?.data;
     const description: string | undefined = data?.description;
     const errorCode: number | undefined = data?.error_code;
     return (
@@ -205,7 +205,7 @@ export class TelegramService {
         return;
       }
 
-      const buffer = Buffer.from(res.data as any);
+      const buffer = Buffer.from(res.data);
       const filename =
         this.guessFilenameFromUrl(url) ?? `poster${gig?._id ?? ''}.jpg`;
 
@@ -213,7 +213,7 @@ export class TelegramService {
     } catch (e) {
       this.logger.warn(
         `downloadRemoteFileAsInputFile error: ${JSON.stringify(
-          (e as any)?.response?.data ?? e,
+          e?.response?.data ?? e,
         )}`,
       );
       return;

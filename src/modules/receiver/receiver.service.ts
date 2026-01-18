@@ -19,6 +19,9 @@ import {
   PutObjectCommand,
   ListObjectsV2Command,
   GetObjectCommand,
+  ListObjectsV2CommandOutput,
+  _Object,
+  GetObjectCommandOutput,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { HttpService } from '@nestjs/axios';
@@ -199,7 +202,7 @@ export class ReceiverService {
     } catch (e) {
       // Publishing to Telegram shouldn't block gig creation.
       this.logger.warn(
-        `publishDraft failed: ${JSON.stringify((e as any)?.response?.data ?? (e as any)?.message ?? e)}`,
+        `publishDraft failed: ${JSON.stringify(e?.response?.data ?? e?.message ?? e)}`,
       );
       res = undefined;
     }
@@ -345,11 +348,11 @@ export class ReceiverService {
     });
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), listTimeoutMs);
-    let res: any | undefined;
+    let res: ListObjectsV2CommandOutput;
     try {
-      res = (await this.s3.send(command, {
+      res = await this.s3.send(command, {
         abortSignal: controller.signal,
-      })) as any;
+      });
     } catch (e) {
       // Never crash the homepage on S3 issues; return cache (even stale) or empty.
       const now = Date.now();
@@ -359,7 +362,7 @@ export class ReceiverService {
       ) {
         this.lastListPhotosErrorLogAt = now;
         this.logger.warn(
-          `listGigPhotos failed: ${JSON.stringify((e as any)?.name ?? (e as any)?.message ?? e)}`,
+          `listGigPhotos failed: ${JSON.stringify(e?.name ?? e?.message ?? e)}`,
         );
       }
       return this.photosCache?.value ?? [];
@@ -368,7 +371,7 @@ export class ReceiverService {
     }
 
     const keys =
-      res?.Contents?.map((o: any) => o.Key)
+      res?.Contents?.map((o: _Object) => o.Key)
         .filter((k): k is string => Boolean(k))
         .filter((k) => !k.endsWith('/')) ?? [];
 
@@ -405,7 +408,7 @@ export class ReceiverService {
     });
     // Use the official AWS SDK v3 presigner so endpoint + path-style/virtual-host
     // are handled correctly for S3-compatible providers like Railway Buckets.
-    return await getSignedUrl(this.s3 as any, command as any, { expiresIn });
+    return await getSignedUrl(this.s3, command, { expiresIn });
   }
 
   private async withTimeout<T>(
@@ -463,7 +466,7 @@ export class ReceiverService {
       };
     } catch (e) {
       // Keep message user-friendly; don't leak internals.
-      const msg = String((e as any)?.message ?? 'unknown error');
+      const msg = String(e?.message ?? 'unknown error');
       throw new BadRequestException(`Failed to download photo: ${msg}`);
     }
   }
@@ -577,7 +580,7 @@ export class ReceiverService {
     return this.presignGetObjectUrl({ bucket, key: safeKey, expiresIn });
   }
 
-  async getGigPhotoObjectByKey(key: string) {
+  getGigPhotoObjectByKey(key: string): Promise<GetObjectCommandOutput> {
     const safeKey = this.ensureGigPhotoKey(key);
     const bucket = process.env.S3_BUCKET;
     if (!bucket) throw new BadRequestException('S3_BUCKET is not configured');
@@ -585,7 +588,7 @@ export class ReceiverService {
       Bucket: bucket,
       Key: safeKey,
     });
-    return await this.s3.send(command);
+    return this.s3.send(command);
   }
 
   async readS3BodyToBuffer(body: any): Promise<Buffer> {

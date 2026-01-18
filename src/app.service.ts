@@ -7,7 +7,9 @@ import {
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import type { Response } from 'express';
+import { Readable } from 'stream';
 import { ReceiverService } from './modules/receiver/receiver.service';
+import { GetObjectCommandOutput } from '@aws-sdk/client-s3';
 
 @Injectable()
 export class AppService {
@@ -32,20 +34,16 @@ export class AppService {
       // but keep the endpoint stable.
       return {
         photos: [],
-        error: (e as any)?.message ?? 'Failed to load photos',
+        error: e?.message ?? 'Failed to load photos',
       };
     }
   }
 
-  private rethrowPublicFileError(
-    route: string,
-    key: string,
-    e: unknown,
-  ): never {
-    const name = (e as any)?.name;
-    const code = (e as any)?.Code ?? (e as any)?.code;
-    const status = (e as any)?.$metadata?.httpStatusCode;
-    const message = String((e as any)?.message ?? '');
+  private rethrowPublicFileError(route: string, key: string, e: any): never {
+    const name = e?.name;
+    const code = e?.Code ?? e?.code;
+    const status = e?.$metadata?.httpStatusCode;
+    const message = String(e?.message ?? '');
 
     // Normalize the most common S3 errors.
     if (
@@ -74,7 +72,7 @@ export class AppService {
         status,
         message,
       })}`,
-      (e as any)?.stack,
+      e?.stack,
     );
     throw new InternalServerErrorException(
       `Internal server error (ref: ${errorId})`,
@@ -93,7 +91,7 @@ export class AppService {
   async writePublicFileProxy(keys: string[], res: Response): Promise<void> {
     const key = keys.join('/');
 
-    let obj: any;
+    let obj: GetObjectCommandOutput;
     try {
       obj = await this.receiverService.getGigPhotoObjectByKey(key);
     } catch (e) {
@@ -114,8 +112,8 @@ export class AppService {
     res.setHeader('Cache-Control', 'public, max-age=3600');
 
     // Body is a Node.js Readable in AWS SDK v3 (in Node runtime).
-    const body: any = obj.Body as any;
-    if (typeof body?.pipe === 'function') {
+    const body = obj.Body;
+    if (body instanceof Readable) {
       body.pipe(res);
       return;
     }
