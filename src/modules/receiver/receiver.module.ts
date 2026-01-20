@@ -1,4 +1,4 @@
-import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { ReceiverController } from './receiver.controller';
 import { ReceiverService } from './receiver.service';
 import { GigModule } from '../gig/gig.module';

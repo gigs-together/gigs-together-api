@@ -3,6 +3,7 @@ import { TelegramService } from './telegram.service';
 import { HttpModule } from '@nestjs/axios';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { GigModule } from '../gig/gig.module';
+import { CalendarModule } from '../calendar/calendar.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { GigModule } from '../gig/gig.module';
       }),
     }),
     GigModule,
+    CalendarModule,
   ],
   providers: [TelegramService],
   exports: [TelegramService],

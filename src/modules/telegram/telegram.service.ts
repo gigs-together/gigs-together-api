@@ -14,10 +14,14 @@ import type { TGAnswerCallbackQuery } from './types/update.types';
 import * as FormData from 'form-data';
 import { Action } from './types/action.enum';
 import { getGigPhotosPrefixWithSlash } from '../bucket/gig-photos';
+import { CalendarService } from '../calendar/calendar.service';
 
 @Injectable()
 export class TelegramService {
-  constructor(private readonly httpService: HttpService) {}
+  constructor(
+    private readonly httpService: HttpService,
+    private readonly calendarService: CalendarService,
+  ) {}
 
   private readonly logger = new Logger(TelegramService.name);
 
@@ -311,13 +315,13 @@ export class TelegramService {
     const endDateTime = new Date(startDateTime);
     endDateTime.setHours(startDateTime.getHours() + 2); // Add 2 hours
 
-    // await this.calendarService.addEvent({
-    //   title: gig.title,
-    //   ticketsUrl: gig.ticketsUrl,
-    //   location: gig.location,
-    //   startDate: startDateTime,
-    //   endDate: endDateTime,
-    // });
+    await this.calendarService.addEvent({
+      title: gig.title,
+      ticketsUrl: gig.ticketsUrl,
+      location: gig.location,
+      startDate: startDateTime,
+      endDate: endDateTime,
+    });
 
     const dateFormatter = new Intl.DateTimeFormat('en-GB', {
       year: 'numeric',
