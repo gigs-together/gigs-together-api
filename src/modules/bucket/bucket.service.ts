@@ -1,6 +1,8 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
+  InternalServerErrorException,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
@@ -19,7 +21,7 @@ import {
   getGigPhotosPrefix,
   getGigPhotosPrefixWithSlash,
   isGigPhotoKey,
-} from '../../shared/utils/gig-photos';
+} from './gig-photos';
 
 @Injectable()
 export class BucketService {
@@ -46,6 +48,59 @@ export class BucketService {
           }
         : undefined,
   });
+
+  private rethrowBucketError(route: string, key: string, e: any): never {
+    const name = e?.name;
+    const code = e?.Code ?? e?.code;
+    const status = e?.$metadata?.httpStatusCode;
+    const message = String(e?.message ?? '');
+
+    // Normalize the most common S3 errors.
+    if (
+      name === 'NoSuchKey' ||
+      code === 'NoSuchKey' ||
+      status === 404 ||
+      /nosuchkey/i.test(message)
+    ) {
+      throw new NotFoundException();
+    }
+    if (
+      name === 'AccessDenied' ||
+      code === 'AccessDenied' ||
+      status === 403 ||
+      /accessdenied/i.test(message)
+    ) {
+      throw new ForbiddenException();
+    }
+
+    // Any other failure: log with an id so it's easy to find in server logs.
+    const errorId = randomUUID();
+    this.logger.error(
+      `[${errorId}] ${route} failed for key="${String(key)}": ${JSON.stringify({
+        name,
+        code,
+        status,
+        message,
+      })}`,
+      e?.stack,
+    );
+    throw new InternalServerErrorException(
+      `Internal server error (ref: ${errorId})`,
+    );
+  }
+
+  private isS3NotFoundError(e: any): boolean {
+    const name = e?.name;
+    const code = e?.Code ?? e?.code;
+    const status = e?.$metadata?.httpStatusCode;
+    const message = String(e?.message ?? '');
+    return (
+      name === 'NoSuchKey' ||
+      code === 'NoSuchKey' ||
+      status === 404 ||
+      /nosuchkey/i.test(message)
+    );
+  }
 
   async uploadGigPhoto(input: {
     buffer: Buffer;
@@ -211,7 +266,15 @@ export class BucketService {
     const expiresIn = this.normalizePresignExpiresIn(
       Number(process.env.S3_PRESIGN_EXPIRES_IN ?? 3600),
     );
-    return this.presignGetObjectUrl({ bucket, key: safeKey, expiresIn });
+    try {
+      return await this.presignGetObjectUrl({
+        bucket,
+        key: safeKey,
+        expiresIn,
+      });
+    } catch (e) {
+      return this.rethrowBucketError('public/files', safeKey, e);
+    }
   }
 
   getGigPhotoObjectByKey(key: string): Promise<GetObjectCommandOutput> {
@@ -222,7 +285,27 @@ export class BucketService {
       Bucket: bucket,
       Key: safeKey,
     });
-    return this.s3.send(command);
+    return this.s3
+      .send(command)
+      .catch((e) => this.rethrowBucketError('public/files-proxy', safeKey, e));
+  }
+
+  async tryGetGigPhotoObjectByKey(
+    key: string,
+  ): Promise<GetObjectCommandOutput | null> {
+    const safeKey = this.ensureGigPhotoKey(key);
+    const bucket = process.env.S3_BUCKET;
+    if (!bucket) throw new BadRequestException('S3_BUCKET is not configured');
+    const command = new GetObjectCommand({
+      Bucket: bucket,
+      Key: safeKey,
+    });
+    try {
+      return await this.s3.send(command);
+    } catch (e) {
+      if (this.isS3NotFoundError(e)) return null;
+      return this.rethrowBucketError('public/files-proxy', safeKey, e);
+    }
   }
 
   async readS3BodyToBuffer(body: any): Promise<Buffer> {

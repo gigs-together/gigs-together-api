@@ -13,7 +13,7 @@ import type { GigDocument } from '../gig/gig.schema';
 import type { TGAnswerCallbackQuery } from './types/update.types';
 import * as FormData from 'form-data';
 import { Action } from './types/action.enum';
-import { getGigPhotosPrefixWithSlash } from '../../shared/utils/gig-photos';
+import { getGigPhotosPrefixWithSlash } from '../bucket/gig-photos';
 
 @Injectable()
 export class TelegramService {

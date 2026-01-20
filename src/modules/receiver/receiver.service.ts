@@ -11,7 +11,7 @@ import { V1ReceiverCreateGigRequestBodyValidated } from './types/requests/v1-rec
 import { BucketService } from '../bucket/bucket.service';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
-import { getGigPhotosPrefixWithSlash } from '../../shared/utils/gig-photos';
+import { getGigPhotosPrefixWithSlash } from '../bucket/gig-photos';
 // import { NodeHttpHandler } from '@smithy/node-http-handler';
 
 type UpdateGigPayload = Pick<Gig, 'status'> & Partial<Pick<Gig, 'photo'>>;

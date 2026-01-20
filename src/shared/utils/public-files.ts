@@ -17,7 +17,7 @@ export function encodeS3KeyForPath(key: string): string {
     .join('/');
 }
 
-import { getGigPhotosPrefixWithSlash } from './gig-photos';
+import { getGigPhotosPrefixWithSlash } from '../../modules/bucket/gig-photos';
 
 export function toPublicFilesProxyUrlFromStoredPhotoUrl(
   value?: string,
