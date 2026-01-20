@@ -10,9 +10,10 @@ import { HttpModule } from '@nestjs/axios';
 import { ReceiverWebhookGuard } from './guards/receiver-webhook.guard';
 import { ReceiverWebhookExceptionFilter } from './filters/receiver-webhook-exception.filter';
 import { TelegramInitDataPipe } from './pipes/telegram-init-data.pipe';
+import { BucketModule } from '../bucket/bucket.module';
 
 @Module({
-  imports: [GigModule, TelegramModule, AuthModule, HttpModule],
+  imports: [GigModule, TelegramModule, AuthModule, HttpModule, BucketModule],
   controllers: [ReceiverController],
   providers: [
     ReceiverService,

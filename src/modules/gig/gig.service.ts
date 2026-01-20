@@ -90,7 +90,7 @@ export class GigService {
                 (externalFallbackEnabled ? gig.photo.externalUrl : undefined),
             }
           : undefined,
-      })) as GigDto[],
+      })),
       // TODO
       isLastPage: true,
     };

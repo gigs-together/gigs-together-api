@@ -8,16 +8,16 @@ import {
 import { randomUUID } from 'crypto';
 import type { Response } from 'express';
 import { Readable } from 'stream';
-import { ReceiverService } from './modules/receiver/receiver.service';
 import { GetObjectCommandOutput } from '@aws-sdk/client-s3';
 import { GigService } from './modules/gig/gig.service';
 import axios from 'axios';
 import { envBool } from './shared/utils/env';
+import { BucketService } from './modules/bucket/bucket.service';
 
 @Injectable()
 export class AppService {
   constructor(
-    private readonly receiverService: ReceiverService,
+    private readonly bucketService: BucketService,
     private readonly gigService: GigService,
   ) {}
 
@@ -33,7 +33,7 @@ export class AppService {
 
   async getPhotos(): Promise<{ photos: string[]; error?: string }> {
     try {
-      const photos = await this.receiverService.listGigPhotos();
+      const photos = await this.bucketService.listGigPhotos();
       return { photos };
     } catch (e) {
       // Should be rare (ReceiverService already tries hard to not throw),
@@ -101,7 +101,7 @@ export class AppService {
   async getPublicFileRedirectUrl(keys: string[]): Promise<string> {
     const key = keys.join('/');
     try {
-      return await this.receiverService.getPresignedGigPhotoUrlByKey(key);
+      return await this.bucketService.getPresignedGigPhotoUrlByKey(key);
     } catch (e) {
       return this.rethrowPublicFileError('public/files', key, e);
     }
@@ -116,7 +116,7 @@ export class AppService {
 
     let obj: GetObjectCommandOutput;
     try {
-      obj = await this.receiverService.getGigPhotoObjectByKey(key);
+      obj = await this.bucketService.getGigPhotoObjectByKey(key);
     } catch (e) {
       if (this.isS3NotFoundError(e)) {
         if (!externalFallbackEnabled) {
@@ -183,7 +183,7 @@ export class AppService {
     }
 
     // Fallback for non-stream bodies.
-    const buf = await this.receiverService.readS3BodyToBuffer(body);
+    const buf = await this.bucketService.readS3BodyToBuffer(body);
     res.end(buf);
   }
 }

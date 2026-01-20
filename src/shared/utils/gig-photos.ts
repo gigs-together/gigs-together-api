@@ -15,9 +15,3 @@ export function getGigPhotosPrefixWithSlash(): string {
 export function isGigPhotoKey(key: string): boolean {
   return key.startsWith(getGigPhotosPrefixWithSlash());
 }
-
-export function toStoredGigPhotoPathFromKey(key: string): string {
-  // Store only bucket key path as "/<prefix>/<file>" so other modules can
-  // convert it to proxy/redirect URLs later.
-  return `/${key}`;
-}

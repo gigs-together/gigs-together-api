@@ -9,6 +9,7 @@ import { TelegramModule } from './modules/telegram/telegram.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { CalendarModule } from './modules/calendar/calendar.module';
 import { ReceiverModule } from './modules/receiver/receiver.module';
+import { BucketModule } from './modules/bucket/bucket.module';
 
 const nodeEnv = (process.env.NODE_ENV ?? 'dev').trim();
 const envFilePath = [`.env.${nodeEnv}`, '.env'];
@@ -35,6 +36,7 @@ const envFilePath = [`.env.${nodeEnv}`, '.env'];
     AuthModule,
     CalendarModule,
     ReceiverModule,
+    BucketModule,
   ],
   controllers: [AppController],
   providers: [AppService, ConsoleLogger],
