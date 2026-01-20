@@ -7,6 +7,7 @@ import { Status } from '../gig/types/status.enum';
 import type { TGCallbackQuery } from '../telegram/types/update.types';
 import { TelegramService } from '../telegram/telegram.service';
 import { Action } from '../telegram/types/action.enum';
+import { getBiggestTgPhotoFileId } from '../telegram/utils/photo';
 import { V1ReceiverCreateGigRequestBodyValidated } from './types/requests/v1-receiver-create-gig-request';
 import { BucketService } from '../bucket/bucket.service';
 import { HttpService } from '@nestjs/axios';
@@ -174,13 +175,15 @@ export class ReceiverService {
       );
       res = undefined;
     }
-    // TODO: find the biggest photo and get its id
+
+    const biggestTgPhotoFileId = getBiggestTgPhotoFileId(res?.photo);
+
     const updateGigPayload: UpdateGigPayload = {
       status: Status.Pending,
     };
     if (photoPath || externalUrl) {
       updateGigPayload.photo = {
-        tgFileId: res?.photo?.[0]?.file_id,
+        tgFileId: biggestTgPhotoFileId,
       };
       if (externalUrl) {
         updateGigPayload.photo.externalUrl = externalUrl;
