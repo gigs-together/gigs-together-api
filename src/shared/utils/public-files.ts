@@ -40,7 +40,13 @@ export function toPublicFilesProxyUrlFromStoredPhotoUrl(
     : trimmed.startsWith(prefix)
       ? trimmed
       : undefined;
-  if (!key) return trimmed;
+  if (!key) {
+    // If it's a stored relative S3 path that we can't safely proxy (wrong prefix),
+    // force the caller to fall back (e.g. to externalUrl) instead of returning
+    // a broken "/gigs/..." URL that 404s in the browser.
+    if (trimmed.startsWith('/')) return undefined;
+    return trimmed;
+  }
 
   const encoded = encodeS3KeyForPath(key);
   const rel = `/public/files-proxy/${encoded}`;

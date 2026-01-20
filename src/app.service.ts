@@ -10,10 +10,16 @@ import type { Response } from 'express';
 import { Readable } from 'stream';
 import { ReceiverService } from './modules/receiver/receiver.service';
 import { GetObjectCommandOutput } from '@aws-sdk/client-s3';
+import { GigService } from './modules/gig/gig.service';
+import axios from 'axios';
+import { envBool } from './shared/utils/env';
 
 @Injectable()
 export class AppService {
-  constructor(private readonly receiverService: ReceiverService) {}
+  constructor(
+    private readonly receiverService: ReceiverService,
+    private readonly gigService: GigService,
+  ) {}
 
   private readonly logger = new Logger(AppService.name);
 
@@ -79,6 +85,19 @@ export class AppService {
     );
   }
 
+  private isS3NotFoundError(e: any): boolean {
+    const name = e?.name;
+    const code = e?.Code ?? e?.code;
+    const status = e?.$metadata?.httpStatusCode;
+    const message = String(e?.message ?? '');
+    return (
+      name === 'NoSuchKey' ||
+      code === 'NoSuchKey' ||
+      status === 404 ||
+      /nosuchkey/i.test(message)
+    );
+  }
+
   async getPublicFileRedirectUrl(keys: string[]): Promise<string> {
     const key = keys.join('/');
     try {
@@ -90,11 +109,56 @@ export class AppService {
 
   async writePublicFileProxy(keys: string[], res: Response): Promise<void> {
     const key = keys.join('/');
+    const externalFallbackEnabled = envBool(
+      'EXTERNAL_PHOTO_FALLBACK_ENABLED',
+      true,
+    );
 
     let obj: GetObjectCommandOutput;
     try {
       obj = await this.receiverService.getGigPhotoObjectByKey(key);
     } catch (e) {
+      if (this.isS3NotFoundError(e)) {
+        if (!externalFallbackEnabled) {
+          throw new NotFoundException();
+        }
+        // Fallback to the original external URL (if present in DB) when the
+        // stored S3 object is missing.
+        const gig = await this.gigService.findByStoredPhotoKey(key);
+        const externalUrl = gig?.photo?.externalUrl;
+        if (externalUrl) {
+          try {
+            const upstream = await axios.get(externalUrl, {
+              responseType: 'stream',
+              timeout: 15_000,
+              maxContentLength: Infinity,
+              maxBodyLength: Infinity,
+              validateStatus: () => true,
+            });
+
+            if (upstream.status < 200 || upstream.status >= 300) {
+              throw new NotFoundException();
+            }
+
+            const ct = upstream.headers?.['content-type'];
+            if (ct) res.setHeader('Content-Type', String(ct));
+
+            // Don't cache too aggressively: external URL content may change.
+            res.setHeader('Cache-Control', 'public, max-age=300');
+
+            (upstream.data as NodeJS.ReadableStream).pipe(res);
+            return;
+          } catch (fallbackErr) {
+            this.logger.warn(
+              `files-proxy externalUrl fallback failed for key="${key}": ${JSON.stringify(
+                (fallbackErr as any)?.message ?? fallbackErr,
+              )}`,
+            );
+            throw new NotFoundException();
+          }
+        }
+        throw new NotFoundException();
+      }
       return this.rethrowPublicFileError('public/files-proxy', key, e);
     }
 

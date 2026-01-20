@@ -14,6 +14,7 @@ import type {
   V1GigGetResponseBody,
 } from './types/requests/v1-gig-get-request';
 import { toPublicFilesProxyUrlFromStoredPhotoUrl } from '../../shared/utils/public-files';
+import { envBool } from '../../shared/utils/env';
 
 // TODO: add allowing only specific status transitions
 @Injectable()
@@ -69,6 +70,10 @@ export class GigService {
   async getGigsV1(query: V1GigGetRequestQuery): Promise<V1GigGetResponseBody> {
     const { page = 1, size = 100 } = query;
     const gigs = await this.getGigs({ page, size });
+    const externalFallbackEnabled = envBool(
+      'EXTERNAL_PHOTO_FALLBACK_ENABLED',
+      true,
+    );
 
     return {
       gigs: gigs.map((gig) => ({
@@ -80,7 +85,9 @@ export class GigService {
         photo: gig.photo
           ? {
               tgFileId: gig.photo.tgFileId,
-              url: toPublicFilesProxyUrlFromStoredPhotoUrl(gig.photo.url),
+              url:
+                toPublicFilesProxyUrlFromStoredPhotoUrl(gig.photo.url) ??
+                (externalFallbackEnabled ? gig.photo.externalUrl : undefined),
             }
           : undefined,
       })) as GigDto[],
@@ -93,5 +100,15 @@ export class GigService {
     externalUrl: string,
   ): Promise<GigDocument | null> {
     return this.gigModel.findOne({ 'photo.externalUrl': externalUrl });
+  }
+
+  async findByStoredPhotoKey(key: string): Promise<GigDocument | null> {
+    const normalized = (key ?? '').trim();
+    if (!normalized) return null;
+    // We store S3 keys as "/<prefix>/..." (leading slash).
+    const withSlash = normalized.startsWith('/')
+      ? normalized
+      : `/${normalized}`;
+    return this.gigModel.findOne({ 'photo.url': withSlash });
   }
 }
