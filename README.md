@@ -68,6 +68,22 @@ Then you can use:
 - Frontend: `http://app.localhost`
 - API: `http://api.localhost`
 
+## Environments (dev/prod) and configs
+
+This API loads env files based on `NODE_ENV`:
+
+- If `NODE_ENV=dev` it loads (in order): `.env.dev`, `.env`
+- If `NODE_ENV=prod` it loads (in order): `.env.prod`, `.env`
+
+### Separate photo paths for dev/prod (S3 prefix)
+
+Set:
+
+- `S3_POSTERS_PREFIX=gigs-dev` in `.env.dev`
+- `S3_POSTERS_PREFIX=gigs` in `.env.prod`
+
+This affects upload/list/proxy/redirect of gig poster images.
+
 ## Railway Bucket: public access via presigned URLs (and CORS)
 
 Railway Storage Buckets are **private**. To display uploaded images to unauthenticated users, this API exposes:

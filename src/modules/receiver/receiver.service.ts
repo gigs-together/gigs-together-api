@@ -15,6 +15,12 @@ import { TelegramService } from '../telegram/telegram.service';
 import { Action } from '../telegram/types/action.enum';
 import { V1ReceiverCreateGigRequestBodyValidated } from './types/requests/v1-receiver-create-gig-request';
 import {
+  getGigPhotosPrefix,
+  getGigPhotosPrefixWithSlash,
+  isGigPhotoKey,
+  toStoredGigPhotoPathFromKey,
+} from '../../shared/utils/gig-photos';
+import {
   S3Client,
   PutObjectCommand,
   ListObjectsV2Command,
@@ -293,7 +299,7 @@ export class ReceiverService {
     if (!bucket || !region) {
       throw new BadRequestException('S3_BUCKET or S3_REGION is not configured');
     }
-    const key = `gigs/${randomUUID()}-${input.filename}`;
+    const key = `${getGigPhotosPrefix()}/${randomUUID()}-${input.filename}`;
     const command = new PutObjectCommand({
       Bucket: bucket,
       Key: key,
@@ -302,9 +308,9 @@ export class ReceiverService {
     });
     await this.s3.send(command);
 
-    // Store only the bucket path + key (relative), e.g. "/gigs/<uuid>-file.jpg".
+    // Store only the bucket path + key (relative), e.g. "/<prefix>/<uuid>-file.jpg".
     // A full public URL can be derived later using APP_PUBLIC_BASE_URL/PUBLIC_BASE_URL.
-    return `/${key}`;
+    return toStoredGigPhotoPathFromKey(key);
   }
 
   async listGigPhotos(): Promise<string[]> {
@@ -342,7 +348,7 @@ export class ReceiverService {
 
     const command = new ListObjectsV2Command({
       Bucket: bucket,
-      Prefix: 'gigs/',
+      Prefix: getGigPhotosPrefixWithSlash(),
       // Avoid giant listings; this endpoint is for the homepage gallery.
       MaxKeys: 200,
     });
@@ -499,8 +505,8 @@ export class ReceiverService {
     if (!trimmed) {
       throw new BadRequestException('key is required');
     }
-    // Avoid exposing arbitrary objects; homepage uses gigs/* only.
-    if (!trimmed.startsWith('gigs/')) {
+    // Avoid exposing arbitrary objects; homepage uses only the configured prefix.
+    if (!isGigPhotoKey(trimmed)) {
       throw new NotFoundException();
     }
     // Hardening: avoid weird traversal-ish keys.
@@ -525,9 +531,10 @@ export class ReceiverService {
       else if (p.startsWith(redirectPrefix))
         p = `/${p.slice(redirectPrefix.length)}`;
 
-      // Accept both "gigs/..." and "/gigs/..."
-      if (p.startsWith('gigs/')) return `/${p}`;
-      if (p.startsWith('/gigs/')) return p;
+      const prefix = getGigPhotosPrefixWithSlash(); // "<prefix>/"
+      // Accept both "<prefix>/..." and "/<prefix>/..."
+      if (p.startsWith(prefix)) return `/${p}`;
+      if (p.startsWith(`/${prefix}`)) return p;
 
       return p;
     };

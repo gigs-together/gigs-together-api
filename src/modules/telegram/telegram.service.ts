@@ -13,6 +13,7 @@ import type { GigDocument } from '../gig/gig.schema';
 import type { TGAnswerCallbackQuery } from './types/update.types';
 import * as FormData from 'form-data';
 import { Action } from './types/action.enum';
+import { getGigPhotosPrefixWithSlash } from '../../shared/utils/gig-photos';
 
 @Injectable()
 export class TelegramService {
@@ -130,9 +131,11 @@ export class TelegramService {
     if (!trimmed) return trimmed;
     if (this.isHttpUrl(trimmed)) return trimmed;
 
-    // If we store only the S3 key path ("/gigs/..."), convert it to our public proxy route.
-    if (trimmed.startsWith('/gigs/')) return `/public/files-proxy${trimmed}`;
-    if (trimmed.startsWith('gigs/')) return `/public/files-proxy/${trimmed}`;
+    const prefix = getGigPhotosPrefixWithSlash(); // "<prefix>/"
+    // If we store only the S3 key path ("/<prefix>/..."), convert it to our public proxy route.
+    if (trimmed.startsWith(`/${prefix}`))
+      return `/public/files-proxy${trimmed}`;
+    if (trimmed.startsWith(prefix)) return `/public/files-proxy/${trimmed}`;
 
     return trimmed;
   }
