@@ -13,6 +13,7 @@ import { BucketService } from '../bucket/bucket.service';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { getGigPhotosPrefixWithSlash } from '../bucket/gig-photos';
+import { CalendarService } from '../calendar/calendar.service';
 // import { NodeHttpHandler } from '@smithy/node-http-handler';
 
 type UpdateGigPayload = Pick<Gig, 'status'> & Partial<Pick<Gig, 'photo'>>;
@@ -28,6 +29,7 @@ export class ReceiverService {
     private readonly gigService: GigService,
     private readonly bucketService: BucketService,
     private readonly httpService: HttpService,
+    private readonly calendarService: CalendarService,
   ) {}
 
   private readonly logger = new Logger(ReceiverService.name);
@@ -224,6 +226,12 @@ export class ReceiverService {
       chatId,
       messageId,
       replyMarkup,
+    });
+    await this.calendarService.addEvent({
+      title: updatedGig.title,
+      ticketsUrl: updatedGig.ticketsUrl,
+      location: updatedGig.location,
+      date: updatedGig.date,
     });
   }
 

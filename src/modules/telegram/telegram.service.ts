@@ -14,14 +14,10 @@ import type { TGAnswerCallbackQuery } from './types/update.types';
 import * as FormData from 'form-data';
 import { Action } from './types/action.enum';
 import { getGigPhotosPrefixWithSlash } from '../bucket/gig-photos';
-import { CalendarService } from '../calendar/calendar.service';
 
 @Injectable()
 export class TelegramService {
-  constructor(
-    private readonly httpService: HttpService,
-    private readonly calendarService: CalendarService,
-  ) {}
+  constructor(private readonly httpService: HttpService) {}
 
   private readonly logger = new Logger(TelegramService.name);
 
@@ -307,22 +303,6 @@ export class TelegramService {
     gig: GigDocument,
     messagePayload: Omit<TGSendPhoto, 'photo'>,
   ): Promise<TGMessage> {
-    // Set start time to 8:00 PM
-    const startDateTime = new Date(gig.date);
-    startDateTime.setHours(20, 0, 0, 0); // Set to 8:00 PM (20:00)
-
-    // Calculate end time (2 hours later)
-    const endDateTime = new Date(startDateTime);
-    endDateTime.setHours(startDateTime.getHours() + 2); // Add 2 hours
-
-    await this.calendarService.addEvent({
-      title: gig.title,
-      ticketsUrl: gig.ticketsUrl,
-      location: gig.location,
-      startDate: startDateTime,
-      endDate: endDateTime,
-    });
-
     const dateFormatter = new Intl.DateTimeFormat('en-GB', {
       year: 'numeric',
       month: 'short', // e.g., "Nov"
