@@ -34,7 +34,25 @@ export class ReceiverService {
 
   private readonly logger = new Logger(ReceiverService.name);
 
-  // S3/Bucket logic moved to BucketService.
+  private formatCallbackQueryError(e: any): string {
+    const data = e?.response?.data;
+    const tgDescription: string | undefined = data?.description;
+    if (tgDescription) return `Failed: ${tgDescription}`;
+
+    if (e instanceof BadRequestException) {
+      const res = e.getResponse() as any;
+      const msg =
+        typeof res === 'string'
+          ? res
+          : Array.isArray(res?.message)
+            ? res.message.join(', ')
+            : (res?.message ?? e.message);
+      return `Failed: ${String(msg)}`;
+    }
+
+    if (e instanceof Error) return `Failed: ${e.message}`;
+    return 'Failed: unknown error';
+  }
 
   async handleMessage(message: TGMessage): Promise<void> {
     const chatId = message?.chat?.id;
@@ -74,7 +92,10 @@ export class ReceiverService {
     }
   }
 
-  async handleCallbackQuery(callbackQuery: TGCallbackQuery): Promise<void> {
+  // TODO: move to telegram module and use dependency injection?
+  private async processCallbackQueryOrThrow(
+    callbackQuery: TGCallbackQuery,
+  ): Promise<void> {
     const [action, gigId] = callbackQuery.data.split(':');
     // TODO: some more security?
     switch (action) {
@@ -113,12 +134,28 @@ export class ReceiverService {
       }
     }
 
-    // TODO: if error - send corresponding message
     await this.telegramService.answerCallbackQuery({
       callback_query_id: callbackQuery.id,
       text: 'Done!',
       show_alert: false,
     });
+  }
+
+  async handleCallbackQuery(callbackQuery: TGCallbackQuery): Promise<void> {
+    try {
+      await this.processCallbackQueryOrThrow(callbackQuery);
+    } catch (e) {
+      this.logger.warn(
+        `handleCallbackQuery failed: ${JSON.stringify(
+          e?.response?.data ?? e?.message ?? e,
+        )}`,
+      );
+      await this.telegramService.answerCallbackQuery({
+        callback_query_id: callbackQuery.id,
+        text: this.formatCallbackQueryError(e),
+        show_alert: true,
+      });
+    }
   }
 
   async handleGigSubmit(
