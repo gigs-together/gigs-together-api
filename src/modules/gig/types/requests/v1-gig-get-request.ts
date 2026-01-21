@@ -66,5 +66,4 @@ export class V1GigGetRequestQuery {
 
 export interface V1GigGetResponseBody {
   gigs: GigDto[];
-  isLastPage: boolean;
 }
