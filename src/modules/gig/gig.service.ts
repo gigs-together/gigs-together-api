@@ -70,7 +70,14 @@ export class GigService {
     const filter: Record<string, unknown> = { date: dateFilter };
     if (status) filter.status = status;
 
-    return this.gigModel.find(filter).skip(skip).limit(size);
+    // Always keep pagination deterministic.
+    // - date: primary sort
+    // - _id: tie-breaker for equal dates
+    return this.gigModel
+      .find(filter)
+      .sort({ date: 1, _id: 1 })
+      .skip(skip)
+      .limit(size);
   }
 
   async getPublishedGigsV1(
