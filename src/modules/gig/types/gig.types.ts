@@ -18,4 +18,9 @@ export interface SubmitGig {
 export interface GetGigs {
   page: number;
   size: number;
+  /**
+   * Range bounds for `Gig.date` (ms since epoch), inclusive.
+   */
+  from: number;
+  to?: number;
 }

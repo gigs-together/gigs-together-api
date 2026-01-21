@@ -111,6 +111,7 @@ export class ReceiverService {
       }
     }
 
+    // TODO: if error - send corresponding message
     await this.telegramService.answerCallbackQuery({
       callback_query_id: callbackQuery.id,
       text: 'Done!',

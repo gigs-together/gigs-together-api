@@ -53,7 +53,7 @@ export class GigService {
   }
 
   async getGigs(data: GetGigs): Promise<GigDocument[]> {
-    const { page, size } = data;
+    const { page, size, from, to } = data;
 
     const MAX_SIZE = 100;
     if (size > MAX_SIZE) {
@@ -64,12 +64,20 @@ export class GigService {
 
     const skip = (page - 1) * size;
 
-    return this.gigModel.find({}).skip(skip).limit(size);
+    const dateFilter: { $gte: number; $lte?: number } = { $gte: from };
+    if (to !== undefined) dateFilter.$lte = to;
+
+    return this.gigModel.find({ date: dateFilter }).skip(skip).limit(size);
   }
 
   async getGigsV1(query: V1GigGetRequestQuery): Promise<V1GigGetResponseBody> {
-    const { page = 1, size = 100 } = query;
-    const gigs = await this.getGigs({ page, size });
+    const { page = 1, size = 100, from, to } = query;
+
+    if (to !== undefined && to < from) {
+      throw new BadRequestException('to must be >= from');
+    }
+
+    const gigs = await this.getGigs({ page, size, from, to });
     const externalFallbackEnabled = envBool(
       'EXTERNAL_PHOTO_FALLBACK_ENABLED',
       true,

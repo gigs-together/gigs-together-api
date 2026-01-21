@@ -1,4 +1,5 @@
-import { Module, ConsoleLogger } from '@nestjs/common';
+import { Module, ConsoleLogger, ValidationPipe } from '@nestjs/common';
+import { APP_PIPE } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -39,6 +40,17 @@ const envFilePath = [`.env.${nodeEnv}`, '.env'];
     BucketModule,
   ],
   controllers: [AppController],
-  providers: [AppService, ConsoleLogger],
+  providers: [
+    AppService,
+    ConsoleLogger,
+    {
+      provide: APP_PIPE,
+      useValue: new ValidationPipe({
+        transform: true,
+        whitelist: true,
+        forbidUnknownValues: false,
+      }),
+    },
+  ],
 })
 export class AppModule {}

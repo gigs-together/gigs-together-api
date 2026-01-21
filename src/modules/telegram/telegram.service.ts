@@ -31,9 +31,9 @@ export class TelegramService {
   ): Promise<TGMessage | undefined> {
     try {
       if (this.isPhotoPayload(payload)) {
-        return await this.sendPhoto(payload, gig);
+        return this.sendPhoto(payload, gig);
       }
-      return await this.sendMessage(payload);
+      return this.sendMessage(payload);
     } catch (e) {
       this.logger.error(
         `send error: ${JSON.stringify(e?.response?.data ?? e)}`,
@@ -69,7 +69,7 @@ export class TelegramService {
             gig,
           );
           if (downloaded) {
-            return await this.sendPhoto({ ...payload, photo: downloaded }, gig);
+            return this.sendPhoto({ ...payload, photo: downloaded }, gig);
           }
 
           // Last resort: send text-only message so publish doesn't silently fail.
@@ -77,7 +77,7 @@ export class TelegramService {
             payload.caption ??
             (payload as unknown as { text?: string }).text ??
             photo;
-          return await this.sendMessage({ chat_id: payload.chat_id, text });
+          return this.sendMessage({ chat_id: payload.chat_id, text });
         }
         throw e;
       }
