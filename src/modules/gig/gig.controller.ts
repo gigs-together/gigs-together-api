@@ -14,6 +14,6 @@ export class GigController {
   getGigsV1(
     @Query() query: V1GigGetRequestQuery,
   ): Promise<V1GigGetResponseBody> {
-    return this.gigService.getGigsV1(query);
+    return this.gigService.getPublishedGigsV1(query);
   }
 }

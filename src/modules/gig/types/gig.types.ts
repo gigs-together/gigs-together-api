@@ -1,4 +1,5 @@
 import type { Types } from 'mongoose';
+import type { Status } from './status.enum';
 
 export type GigId = string | Types.ObjectId;
 
@@ -10,11 +11,6 @@ export interface GigDto {
   photo?: { tgFileId?: string; url?: string };
 }
 
-export interface SubmitGig {
-  gig: GigDto;
-  isAdmin: boolean;
-}
-
 export interface GetGigs {
   page: number;
   size: number;
@@ -23,4 +19,5 @@ export interface GetGigs {
    */
   from: number;
   to?: number;
+  status?: Status;
 }
