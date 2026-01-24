@@ -12,11 +12,11 @@ import { V1ReceiverCreateGigRequestBodyValidated } from './types/requests/v1-rec
 import { BucketService } from '../bucket/bucket.service';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
-import { getGigPhotosPrefixWithSlash } from '../bucket/gig-photos';
+import { getGigPostersPrefixWithSlash } from '../bucket/gig-posters';
 import { CalendarService } from '../calendar/calendar.service';
 // import { NodeHttpHandler } from '@smithy/node-http-handler';
 
-type UpdateGigPayload = Pick<Gig, 'status'> & Partial<Pick<Gig, 'photo'>>;
+type UpdateGigPayload = Pick<Gig, 'status'> & Partial<Pick<Gig, 'poster'>>;
 
 enum Command {
   Start = 'start',
@@ -160,31 +160,33 @@ export class ReceiverService {
 
   async handleGigSubmit(
     body: V1ReceiverCreateGigRequestBodyValidated,
-    photoFile: Express.Multer.File | undefined,
+    posterFile: Express.Multer.File | undefined,
   ): Promise<void> {
-    const urlFromBody = body.gig.photoUrl ?? body.gig.photo;
+    const urlFromBody = body.gig.posterUrl ?? body.gig.posterFile;
 
-    let photoPath: string | undefined;
-    let externalUrl: string | undefined;
+    let posterBucketPath: string | undefined;
+    let posterExternalUrl: string | undefined;
 
-    if (photoFile) {
-      photoPath = await this.uploadGigPhoto({
-        buffer: photoFile.buffer,
-        filename: photoFile.originalname,
-        mimetype: photoFile.mimetype,
+    if (posterFile) {
+      posterBucketPath = await this.uploadGigPoster({
+        buffer: posterFile.buffer,
+        filename: posterFile.originalname,
+        mimetype: posterFile.mimetype,
       });
     } else if (urlFromBody) {
-      // Reuse already downloaded photo if exists
+      // Reuse already downloaded poster if exists
       const existing =
-        await this.gigService.findByExternalPhotoUrl(urlFromBody);
-      // TODO: also look by photo equality
-      if (existing?.photo?.url) {
-        photoPath = this.toStoredGigPhotoPath(existing.photo.url);
-        externalUrl = urlFromBody;
+        await this.gigService.findByExternalPosterUrl(urlFromBody);
+      // TODO: also look by poster equality
+      if (existing?.poster?.bucketPath) {
+        posterBucketPath = this.toStoredGigPosterPath(
+          existing.poster.bucketPath,
+        );
+        posterExternalUrl = urlFromBody;
       } else {
-        const downloaded = await this.downloadPhoto(urlFromBody);
-        photoPath = await this.uploadGigPhoto(downloaded);
-        externalUrl = urlFromBody;
+        const downloaded = await this.downloadPoster(urlFromBody);
+        posterBucketPath = await this.uploadGigPoster(downloaded);
+        posterExternalUrl = urlFromBody;
       }
     }
 
@@ -193,11 +195,17 @@ export class ReceiverService {
         title: body.gig.title,
         date: body.gig.date,
         location: body.gig.location,
+        venue: body.gig.venue,
         ticketsUrl: body.gig.ticketsUrl,
-        ...(photoPath
-          ? { photo: { url: photoPath, externalUrl } }
-          : externalUrl
-            ? { photo: { externalUrl } }
+        ...(posterBucketPath
+          ? {
+              poster: {
+                bucketPath: posterBucketPath,
+                externalUrl: posterExternalUrl,
+              },
+            }
+          : posterExternalUrl
+            ? { poster: { externalUrl: posterExternalUrl } }
             : {}),
       },
       isAdmin: body.user?.isAdmin,
@@ -221,15 +229,15 @@ export class ReceiverService {
     const updateGigPayload: UpdateGigPayload = {
       status: Status.Pending,
     };
-    if (photoPath || externalUrl) {
-      updateGigPayload.photo = {
+    if (posterBucketPath || posterExternalUrl) {
+      updateGigPayload.poster = {
         tgFileId: biggestTgPhotoFileId,
       };
-      if (externalUrl) {
-        updateGigPayload.photo.externalUrl = externalUrl;
+      if (posterExternalUrl) {
+        updateGigPayload.poster.externalUrl = posterExternalUrl;
       }
-      if (photoPath) {
-        updateGigPayload.photo.url = photoPath;
+      if (posterBucketPath) {
+        updateGigPayload.poster.bucketPath = posterBucketPath;
       }
     }
     try {
@@ -300,26 +308,26 @@ export class ReceiverService {
     });
   }
 
-  private async uploadGigPhoto(input: {
+  private async uploadGigPoster(input: {
     buffer: Buffer;
     filename: string;
     mimetype?: string;
   }): Promise<string> {
-    return this.bucketService.uploadGigPhoto(input);
+    return this.bucketService.uploadGigPoster(input);
   }
 
-  private async downloadPhoto(url: string): Promise<{
+  private async downloadPoster(url: string): Promise<{
     buffer: Buffer;
     filename: string;
     mimetype?: string;
   }> {
-    let filename = 'photo.jpg';
+    let filename = 'poster.jpg'; // TODO: jpg?
     try {
       const parsed = new URL(url);
       const last = parsed.pathname.split('/').filter(Boolean).pop();
       if (last) filename = last;
     } catch {
-      throw new BadRequestException('photoUrl must be a valid URL');
+      throw new BadRequestException('posterUrl must be a valid URL');
     }
 
     try {
@@ -335,7 +343,7 @@ export class ReceiverService {
 
       if (ct && !ct.toLowerCase().startsWith('image/')) {
         throw new BadRequestException(
-          `photoUrl must point to an image (content-type: "${ct}")`,
+          `posterUrl must point to an image (content-type: "${ct}")`,
         );
       }
 
@@ -347,11 +355,11 @@ export class ReceiverService {
     } catch (e) {
       // Keep message user-friendly; don't leak internals.
       const msg = String(e?.message ?? 'unknown error');
-      throw new BadRequestException(`Failed to download photo: ${msg}`);
+      throw new BadRequestException(`Failed to download poster: ${msg}`);
     }
   }
 
-  private toStoredGigPhotoPath(value: string): string {
+  private toStoredGigPosterPath(value: string): string {
     const trimmed = (value ?? '').trim();
     if (!trimmed) return trimmed;
 
@@ -366,7 +374,7 @@ export class ReceiverService {
       else if (p.startsWith(redirectPrefix))
         p = `/${p.slice(redirectPrefix.length)}`;
 
-      const prefix = getGigPhotosPrefixWithSlash(); // "<prefix>/"
+      const prefix = getGigPostersPrefixWithSlash(); // "<prefix>/"
       // Accept both "<prefix>/..." and "/<prefix>/..."
       if (p.startsWith(prefix)) return `/${p}`;
       if (p.startsWith(`/${prefix}`)) return p;

@@ -16,7 +16,7 @@ import type {
 } from './types/requests/v1-gig-get-request';
 import type { V1GigLookupRequestBody } from './types/requests/v1-gig-lookup-request';
 import type { V1GigLookupResponseBody } from './types/requests/v1-gig-lookup-request';
-import { toPublicFilesProxyUrlFromStoredPhotoUrl } from '../../shared/utils/public-files';
+import { toPublicFilesProxyUrlFromStoredPosterUrl } from '../../shared/utils/public-files';
 import { envBool } from '../../shared/utils/env';
 
 // TODO: add allowing only specific status transitions
@@ -33,7 +33,7 @@ export class GigService {
       date: new Date(data.date).getTime(),
       location: data.location,
       ticketsUrl: data.ticketsUrl,
-      photo: data.photo,
+      poster: data.poster,
     };
     const createdGig = new this.gigModel(mappedData);
     return createdGig.save();
@@ -103,7 +103,7 @@ export class GigService {
       status: Status.Published,
     });
     const externalFallbackEnabled = envBool(
-      'EXTERNAL_PHOTO_FALLBACK_ENABLED',
+      'EXTERNAL_POSTER_URL_FALLBACK_ENABLED',
       true,
     );
 
@@ -112,14 +112,17 @@ export class GigService {
         title: gig.title,
         date: gig.date.toString(), // TODO
         location: gig.location,
+        venue: gig.venue,
         ticketsUrl: gig.ticketsUrl,
         status: gig.status,
-        photo: gig.photo
+        poster: gig.poster
           ? {
-              tgFileId: gig.photo.tgFileId,
+              tgFileId: gig.poster.tgFileId,
               url:
-                toPublicFilesProxyUrlFromStoredPhotoUrl(gig.photo.url) ??
-                (externalFallbackEnabled ? gig.photo.externalUrl : undefined),
+                toPublicFilesProxyUrlFromStoredPosterUrl(
+                  gig.poster.bucketPath,
+                ) ??
+                (externalFallbackEnabled ? gig.poster.externalUrl : undefined),
             }
           : undefined,
       })),
@@ -136,19 +139,19 @@ export class GigService {
     return { gig };
   }
 
-  async findByExternalPhotoUrl(
+  async findByExternalPosterUrl(
     externalUrl: string,
   ): Promise<GigDocument | null> {
-    return this.gigModel.findOne({ 'photo.externalUrl': externalUrl });
+    return this.gigModel.findOne({ 'poster.externalUrl': externalUrl });
   }
 
-  async findByStoredPhotoKey(key: string): Promise<GigDocument | null> {
+  async findByStoredPosterKey(key: string): Promise<GigDocument | null> {
     const normalized = (key ?? '').trim();
     if (!normalized) return null;
     // We store S3 keys as "/<prefix>/..." (leading slash).
     const withSlash = normalized.startsWith('/')
       ? normalized
       : `/${normalized}`;
-    return this.gigModel.findOne({ 'photo.url': withSlash });
+    return this.gigModel.findOne({ 'poster.bucketPath': withSlash });
   }
 }

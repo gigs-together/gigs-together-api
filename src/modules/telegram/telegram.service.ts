@@ -13,7 +13,7 @@ import type { GigDocument } from '../gig/gig.schema';
 import type { TGAnswerCallbackQuery } from './types/update.types';
 import * as FormData from 'form-data';
 import { Action } from './types/action.enum';
-import { getGigPhotosPrefixWithSlash } from '../bucket/gig-photos';
+import { getGigPostersPrefixWithSlash } from '../bucket/gig-posters';
 
 @Injectable()
 export class TelegramService {
@@ -131,7 +131,7 @@ export class TelegramService {
     if (!trimmed) return trimmed;
     if (this.isHttpUrl(trimmed)) return trimmed;
 
-    const prefix = getGigPhotosPrefixWithSlash(); // "<prefix>/"
+    const prefix = getGigPostersPrefixWithSlash(); // "<prefix>/"
     // If we store only the S3 key path ("/<prefix>/..."), convert it to our public proxy route.
     if (trimmed.startsWith(`/${prefix}`))
       return `/public/files-proxy${trimmed}`;
@@ -320,13 +320,13 @@ export class TelegramService {
     ].join('\n');
 
     const photo =
-      gig.photo &&
-      (gig.photo.tgFileId ||
-        (gig.photo.url
+      gig.poster &&
+      (gig.poster.tgFileId ||
+        (gig.poster.bucketPath
           ? this.toAbsolutePublicUrlForTelegram(
-              this.toPublicFilesProxyPath(gig.photo.url),
+              this.toPublicFilesProxyPath(gig.poster.bucketPath),
             )
-          : gig.photo.externalUrl));
+          : gig.poster.externalUrl));
 
     return this.send(
       {

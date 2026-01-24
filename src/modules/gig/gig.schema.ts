@@ -3,9 +3,9 @@ import { HydratedDocument } from 'mongoose';
 import { Status } from './types/status.enum';
 
 @Schema({ _id: false })
-export class GigPhoto {
+export class GigPoster {
   @Prop({ type: String, required: false })
-  url?: string;
+  bucketPath?: string;
 
   // Original external URL (if uploaded from a remote source)
   @Prop({ type: String, required: false })
@@ -15,7 +15,7 @@ export class GigPhoto {
   tgFileId?: string;
 }
 
-export const GigPhotoSchema = SchemaFactory.createForClass(GigPhoto);
+export const GigPosterSchema = SchemaFactory.createForClass(GigPoster);
 
 @Schema()
 export class Gig {
@@ -23,26 +23,29 @@ export class Gig {
   title: string;
 
   @Prop({ type: Number })
-  date: number;
+  date: number; // timestamp
 
   @Prop({ type: String })
-  location: string;
+  location: string; // full address
+
+  @Prop({ type: String })
+  venue: string; // venue name
 
   @Prop({ type: String })
   ticketsUrl: string;
 
   @Prop({
-    type: GigPhotoSchema,
+    type: GigPosterSchema,
     required: false,
     validate: {
-      validator: (v?: GigPhoto) => {
+      validator: (v?: GigPoster) => {
         if (!v) return true;
-        return !!v.url || !!v.tgFileId;
+        return !!v.bucketPath || !!v.tgFileId;
       },
-      message: 'photo must have at least one of: url or tgFileId',
+      message: 'poster must have at least one of: url or tgFileId',
     },
   })
-  photo?: GigPhoto;
+  poster?: GigPoster;
 
   @Prop({ type: String, enum: Status, default: Status.New })
   status: Status;

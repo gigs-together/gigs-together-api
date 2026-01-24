@@ -4,9 +4,10 @@ interface CreateGigDto {
   title: string;
   date: string;
   location: string;
+  venue: string;
   ticketsUrl: string;
-  photo?: string;
-  photoUrl?: string;
+  posterFile?: string;
+  posterUrl?: string;
 }
 
 export interface V1ReceiverCreateGigRequestBody {

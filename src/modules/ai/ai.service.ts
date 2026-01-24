@@ -17,6 +17,7 @@ export class AiService {
 
     const title = typeof obj.title === 'string' ? obj.title : '';
     const location = typeof obj.location === 'string' ? obj.location : '';
+    const venue = typeof obj.venue === 'string' ? obj.venue : '';
     const ticketsUrl = typeof obj.ticketsUrl === 'string' ? obj.ticketsUrl : '';
 
     let date = '';
@@ -25,21 +26,25 @@ export class AiService {
       date = new Date(obj.date).toISOString();
     }
 
-    const photoRaw = obj.photo;
-    const photo =
-      photoRaw && typeof photoRaw === 'object'
+    const posterRaw = obj.poster;
+    const poster =
+      posterRaw && typeof posterRaw === 'object'
         ? {
-            url: typeof photoRaw.url === 'string' ? photoRaw.url : undefined,
+            bucketPath:
+              typeof posterRaw.bucketPath === 'string'
+                ? posterRaw.bucketPath
+                : undefined,
           }
         : undefined;
-    const photoEmpty = !photo?.url;
+    const isPosterEmpty = !poster?.bucketPath;
 
     return {
       title,
       date,
       location,
+      venue,
       ticketsUrl,
-      photo: photoEmpty ? undefined : photo,
+      poster: isPosterEmpty ? undefined : poster,
     };
   }
 

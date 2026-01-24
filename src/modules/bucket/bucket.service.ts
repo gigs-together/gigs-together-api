@@ -9,31 +9,18 @@ import {
 import {
   GetObjectCommand,
   GetObjectCommandOutput,
-  ListObjectsV2Command,
-  ListObjectsV2CommandOutput,
   PutObjectCommand,
   S3Client,
-  _Object,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { randomUUID } from 'crypto';
-import {
-  getGigPhotosPrefix,
-  getGigPhotosPrefixWithSlash,
-  isGigPhotoKey,
-} from './gig-photos';
+import { getGigPostersPrefix, isGigPosterKey } from './gig-posters';
 
 @Injectable()
 export class BucketService {
   constructor() {}
 
   private readonly logger = new Logger(BucketService.name);
-
-  // Used by /photos endpoint (homepage gallery)
-  private readonly photosCacheTtlMs = 60_000;
-  private photosCache?: { at: number; value: string[] };
-  private photosInFlight?: Promise<string[]>;
-  private lastListPhotosErrorLogAt?: number;
 
   private readonly s3 = new S3Client({
     region: process.env.S3_REGION,
@@ -102,7 +89,7 @@ export class BucketService {
     );
   }
 
-  async uploadGigPhoto(input: {
+  async uploadGigPoster(input: {
     buffer: Buffer;
     filename: string;
     mimetype?: string;
@@ -112,7 +99,7 @@ export class BucketService {
     if (!bucket || !region) {
       throw new BadRequestException('S3_BUCKET or S3_REGION is not configured');
     }
-    const key = `${getGigPhotosPrefix()}/${randomUUID()}-${input.filename}`;
+    const key = `${getGigPostersPrefix()}/${randomUUID()}-${input.filename}`;
     const command = new PutObjectCommand({
       Bucket: bucket,
       Key: key,
@@ -125,75 +112,6 @@ export class BucketService {
     return `/${key}`;
   }
 
-  async listGigPhotos(): Promise<string[]> {
-    const now = Date.now();
-    if (this.photosCache && now - this.photosCache.at < this.photosCacheTtlMs) {
-      return this.photosCache.value;
-    }
-    if (this.photosInFlight) {
-      return this.photosInFlight;
-    }
-
-    this.photosInFlight = this.listGigPhotosUncached()
-      .then((value) => {
-        this.photosCache = { at: Date.now(), value };
-        return value;
-      })
-      .finally(() => {
-        this.photosInFlight = undefined;
-      });
-
-    return this.photosInFlight;
-  }
-
-  private async listGigPhotosUncached(): Promise<string[]> {
-    const bucket = process.env.S3_BUCKET;
-    const region = process.env.S3_REGION;
-    if (!bucket || !region) {
-      throw new BadRequestException('S3_BUCKET or S3_REGION is not configured');
-    }
-
-    const listTimeoutMs = Number(process.env.S3_LIST_TIMEOUT_MS ?? 5_000);
-    const command = new ListObjectsV2Command({
-      Bucket: bucket,
-      Prefix: getGigPhotosPrefixWithSlash(),
-      // Avoid giant listings; this endpoint is for the homepage gallery.
-      MaxKeys: 200,
-    });
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), listTimeoutMs);
-    let res: ListObjectsV2CommandOutput;
-    try {
-      res = await this.s3.send(command, {
-        abortSignal: controller.signal,
-      });
-    } catch (e) {
-      // Never crash the homepage on S3 issues; return cache (even stale) or empty.
-      const now = Date.now();
-      if (
-        !this.lastListPhotosErrorLogAt ||
-        now - this.lastListPhotosErrorLogAt > 60_000
-      ) {
-        this.lastListPhotosErrorLogAt = now;
-        this.logger.warn(
-          `listGigPhotos failed: ${JSON.stringify(e?.name ?? e?.message ?? e)}`,
-        );
-      }
-      return this.photosCache?.value ?? [];
-    } finally {
-      clearTimeout(timeout);
-    }
-
-    const keys =
-      res?.Contents?.map((o: _Object) => o.Key)
-        .filter((k): k is string => Boolean(k))
-        .filter((k) => !k.endsWith('/')) ?? [];
-
-    // Return stable public URLs on our API. The browser will follow the 302 redirect
-    // to a presigned URL, keeping the bucket private while avoiding proxying bytes.
-    return keys.map((Key) => this.getPublicFileRedirectUrl(Key));
-  }
-
   private normalizePresignExpiresIn(expiresIn: number): number {
     // AWS SigV4 presign supports up to 7 days for many services; keep it sane.
     if (!Number.isFinite(expiresIn)) return 3600;
@@ -202,21 +120,13 @@ export class BucketService {
     return Math.floor(expiresIn);
   }
 
-  private encodeS3KeyForPath(key: string): string {
-    // Keep "/" separators but encode each segment.
-    return key
-      .split('/')
-      .map((part) => encodeURIComponent(part))
-      .join('/');
-  }
-
-  private ensureGigPhotoKey(key: string): string {
+  private ensureGigPosterKey(key: string): string {
     const trimmed = key?.trim?.() ?? key;
     if (!trimmed) {
       throw new BadRequestException('key is required');
     }
     // Avoid exposing arbitrary objects; homepage uses only the configured prefix.
-    if (!isGigPhotoKey(trimmed)) {
+    if (!isGigPosterKey(trimmed)) {
       throw new NotFoundException();
     }
     // Hardening: avoid weird traversal-ish keys.
@@ -224,21 +134,6 @@ export class BucketService {
       throw new NotFoundException();
     }
     return trimmed;
-  }
-
-  private getApiPublicBase(): string {
-    const explicit =
-      process.env.APP_PUBLIC_BASE_URL ?? process.env.PUBLIC_BASE_URL;
-    if (explicit) return explicit.replace(/\/$/, '');
-    // Fallback: relative URLs still work for same-origin clients.
-    return '';
-  }
-
-  private getPublicFileRedirectUrl(key: string): string {
-    const safeKey = this.ensureGigPhotoKey(key);
-    const base = this.getApiPublicBase();
-    const encoded = this.encodeS3KeyForPath(safeKey);
-    return `${base}/public/files/${encoded}`;
   }
 
   private async presignGetObjectUrl(input: {
@@ -256,8 +151,8 @@ export class BucketService {
     return await getSignedUrl(this.s3, command, { expiresIn });
   }
 
-  async getPresignedGigPhotoUrlByKey(key: string): Promise<string> {
-    const safeKey = this.ensureGigPhotoKey(key);
+  async getPresignedGigPosterUrlByKey(key: string): Promise<string> {
+    const safeKey = this.ensureGigPosterKey(key);
     const bucket = process.env.S3_BUCKET;
     const region = process.env.S3_REGION;
     if (!bucket || !region) {
@@ -277,23 +172,10 @@ export class BucketService {
     }
   }
 
-  getGigPhotoObjectByKey(key: string): Promise<GetObjectCommandOutput> {
-    const safeKey = this.ensureGigPhotoKey(key);
-    const bucket = process.env.S3_BUCKET;
-    if (!bucket) throw new BadRequestException('S3_BUCKET is not configured');
-    const command = new GetObjectCommand({
-      Bucket: bucket,
-      Key: safeKey,
-    });
-    return this.s3
-      .send(command)
-      .catch((e) => this.rethrowBucketError('public/files-proxy', safeKey, e));
-  }
-
-  async tryGetGigPhotoObjectByKey(
+  async tryGetGigPosterObjectByKey(
     key: string,
   ): Promise<GetObjectCommandOutput | null> {
-    const safeKey = this.ensureGigPhotoKey(key);
+    const safeKey = this.ensureGigPosterKey(key);
     const bucket = process.env.S3_BUCKET;
     if (!bucket) throw new BadRequestException('S3_BUCKET is not configured');
     const command = new GetObjectCommand({

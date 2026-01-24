@@ -16,11 +16,6 @@ export class AppController {
     return this.appService.getHealth();
   }
 
-  @Get('photos')
-  getPhotos(): Promise<{ photos: string[]; error?: string }> {
-    return this.appService.getPhotos();
-  }
-
   /**
    * Public stable URL for images stored in the private bucket.
    *

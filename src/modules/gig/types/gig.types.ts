@@ -7,8 +7,9 @@ export interface GigDto {
   title: string;
   date: string;
   location: string;
+  venue: string;
   ticketsUrl: string;
-  photo?: { tgFileId?: string; url?: string };
+  poster?: { tgFileId?: string; bucketPath?: string };
 }
 
 export interface GetGigs {

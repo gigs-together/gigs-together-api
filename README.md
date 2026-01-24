@@ -75,7 +75,7 @@ This API loads env files based on `NODE_ENV`:
 - If `NODE_ENV=dev` it loads (in order): `.env.dev`, `.env`
 - If `NODE_ENV=prod` it loads (in order): `.env.prod`, `.env`
 
-### Separate photo paths for dev/prod (S3 prefix)
+### Separate poster paths for dev/prod (S3 prefix)
 
 Set:
 
@@ -88,7 +88,6 @@ This affects upload/list/proxy/redirect of gig poster images.
 
 Railway Storage Buckets are **private**. To display uploaded images to unauthenticated users, this API exposes:
 
-- **`GET /photos`**: lists gig poster images as **presigned GET URLs** (browser loads directly from the bucket).
 - **`GET /public/files/:key(*)`**: stable public URL that **302-redirects** to a presigned URL.
 - **`GET /public/files-proxy/:key(*)`**: stable public URL that **proxies bytes** through the API (useful for Telegram/bots that don’t like redirects).
 
@@ -106,7 +105,7 @@ Use Railway Bucket Variable References (recommended) or set manually:
 Optional:
 
 - `S3_PRESIGN_EXPIRES_IN` (seconds, default 3600)
-- `APP_PUBLIC_BASE_URL` (e.g. `https://your-service.up.railway.app`) so stored `Gig.photo.url` becomes absolute
+- `APP_PUBLIC_BASE_URL` (e.g. `https://your-service.up.railway.app`) so stored `Gig.poster.bucketPath` becomes absolute
 
 ### CORS for the API
 

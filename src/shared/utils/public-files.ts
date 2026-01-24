@@ -17,9 +17,9 @@ export function encodeS3KeyForPath(key: string): string {
     .join('/');
 }
 
-import { getGigPhotosPrefixWithSlash } from '../../modules/bucket/gig-photos';
+import { getGigPostersPrefixWithSlash } from '../../modules/bucket/gig-posters';
 
-export function toPublicFilesProxyUrlFromStoredPhotoUrl(
+export function toPublicFilesProxyUrlFromStoredPosterUrl(
   value?: string,
 ): string | undefined {
   const trimmed = (value ?? '').trim();
@@ -33,7 +33,7 @@ export function toPublicFilesProxyUrlFromStoredPhotoUrl(
     return base ? new URL(trimmed, base).toString() : trimmed;
   }
 
-  const prefix = getGigPhotosPrefixWithSlash(); // "<prefix>/"
+  const prefix = getGigPostersPrefixWithSlash(); // "<prefix>/"
   // Stored as S3 key path ("/<prefix>/...") -> convert to stable public proxy URL.
   const key = trimmed.startsWith(`/${prefix}`)
     ? trimmed.slice(1)

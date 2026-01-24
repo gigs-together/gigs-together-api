@@ -23,41 +23,27 @@ export class AppService {
     return { ok: true };
   }
 
-  async getPhotos(): Promise<{ photos: string[]; error?: string }> {
-    try {
-      const photos = await this.bucketService.listGigPhotos();
-      return { photos };
-    } catch (e) {
-      // Should be rare (ReceiverService already tries hard to not throw),
-      // but keep the endpoint stable.
-      return {
-        photos: [],
-        error: e?.message ?? 'Failed to load photos',
-      };
-    }
-  }
-
   async getPublicFileRedirectUrl(keys: string[]): Promise<string> {
     const key = keys.join('/');
-    return await this.bucketService.getPresignedGigPhotoUrlByKey(key);
+    return await this.bucketService.getPresignedGigPosterUrlByKey(key);
   }
 
   async writePublicFileProxy(keys: string[], res: Response): Promise<void> {
     const key = keys.join('/');
     const externalFallbackEnabled = envBool(
-      'EXTERNAL_PHOTO_FALLBACK_ENABLED',
+      'EXTERNAL_POSTER_URL_FALLBACK_ENABLED',
       true,
     );
 
-    const obj = await this.bucketService.tryGetGigPhotoObjectByKey(key);
+    const obj = await this.bucketService.tryGetGigPosterObjectByKey(key);
     if (!obj) {
       if (!externalFallbackEnabled) {
         throw new NotFoundException();
       }
       // Fallback to the original external URL (if present in DB) when the
       // stored S3 object is missing.
-      const gig = await this.gigService.findByStoredPhotoKey(key);
-      const externalUrl = gig?.photo?.externalUrl;
+      const gig = await this.gigService.findByStoredPosterKey(key);
+      const externalUrl = gig?.poster?.externalUrl;
       if (!externalUrl) throw new NotFoundException();
 
       try {
