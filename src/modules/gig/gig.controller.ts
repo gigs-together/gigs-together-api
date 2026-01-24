@@ -2,7 +2,7 @@ import { Body, Controller, Get, Post, Query, Version } from '@nestjs/common';
 import { GigService } from './gig.service';
 import {
   V1GigGetRequestQuery,
-  V1GigGetResponseBody,
+  V1GetGigsResponseBody,
 } from './types/requests/v1-gig-get-request';
 import type { V1GigLookupResponseBody } from './types/requests/v1-gig-lookup-request';
 import { V1GigLookupRequestBody } from './types/requests/v1-gig-lookup-request';
@@ -15,7 +15,7 @@ export class GigController {
   @Get()
   getGigsV1(
     @Query() query: V1GigGetRequestQuery,
-  ): Promise<V1GigGetResponseBody> {
+  ): Promise<V1GetGigsResponseBody> {
     return this.gigService.getPublishedGigsV1(query);
   }
 

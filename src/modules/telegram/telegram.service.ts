@@ -314,7 +314,7 @@ export class TelegramService {
       gig.title,
       '',
       `🗓 ${formattedDate}`,
-      `📍 ${gig.location}`,
+      `📍 ${gig.venue}`,
       '',
       `🎫 ${gig.ticketsUrl}`,
     ].join('\n');

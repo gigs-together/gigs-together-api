@@ -5,7 +5,7 @@ import * as fs from 'fs';
 interface AddCalendarEvent {
   title: string;
   ticketsUrl: string;
-  location: string;
+  address: string;
   date: Date | number;
 }
 
@@ -92,7 +92,7 @@ export class CalendarService {
     const event = {
       summary: eventDetails.title,
       description: `Tickets: ${eventDetails.ticketsUrl}`,
-      location: eventDetails.location,
+      location: eventDetails.address,
       start: {
         dateTime: startDateTime.toISOString(),
         timeZone,

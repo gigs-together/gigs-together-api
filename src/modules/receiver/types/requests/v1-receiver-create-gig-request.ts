@@ -1,9 +1,11 @@
 import type { User } from '../../../telegram/types/user.types';
 
-interface CreateGigDto {
+export interface V1ReceiverCreateGigRequestBodyGig {
   title: string;
   date: string;
-  location: string;
+  address: string;
+  city: string;
+  country: string;
   venue: string;
   ticketsUrl: string;
   posterFile?: string;
@@ -11,11 +13,11 @@ interface CreateGigDto {
 }
 
 export interface V1ReceiverCreateGigRequestBody {
-  gig: CreateGigDto;
+  gig: V1ReceiverCreateGigRequestBodyGig;
   telegramInitDataString: string;
 }
 
 export interface V1ReceiverCreateGigRequestBodyValidated {
-  gig: CreateGigDto;
+  gig: V1ReceiverCreateGigRequestBodyGig;
   user: User;
 }

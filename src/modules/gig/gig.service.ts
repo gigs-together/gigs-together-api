@@ -6,13 +6,13 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import type { UpdateQuery } from 'mongoose';
-import type { GetGigs, GigDto, GigId } from './types/gig.types';
+import type { CreateGigInput, GetGigs, GigId } from './types/gig.types';
 import { Gig, GigDocument } from './gig.schema';
 import { Status } from './types/status.enum';
 import { AiService } from '../ai/ai.service';
 import type {
   V1GigGetRequestQuery,
-  V1GigGetResponseBody,
+  V1GetGigsResponseBody,
 } from './types/requests/v1-gig-get-request';
 import type { V1GigLookupRequestBody } from './types/requests/v1-gig-lookup-request';
 import type { V1GigLookupResponseBody } from './types/requests/v1-gig-lookup-request';
@@ -27,11 +27,14 @@ export class GigService {
     private readonly aiService: AiService,
   ) {}
 
-  async saveGig(data: GigDto): Promise<GigDocument> {
+  async saveGig(data: CreateGigInput): Promise<GigDocument> {
     const mappedData = {
       title: data.title,
       date: new Date(data.date).getTime(),
-      location: data.location,
+      address: data.address,
+      city: data.city,
+      country: data.country,
+      venue: data.venue,
       ticketsUrl: data.ticketsUrl,
       poster: data.poster,
     };
@@ -88,7 +91,7 @@ export class GigService {
 
   async getPublishedGigsV1(
     query: V1GigGetRequestQuery,
-  ): Promise<V1GigGetResponseBody> {
+  ): Promise<V1GetGigsResponseBody> {
     const { page = 1, size = 100, from, to } = query;
 
     if (to !== undefined && to < from) {
@@ -111,20 +114,17 @@ export class GigService {
       gigs: gigs.map((gig) => ({
         title: gig.title,
         date: gig.date.toString(), // TODO
-        location: gig.location,
+        address: gig.address,
+        city: gig.city,
+        country: gig.country,
         venue: gig.venue,
         ticketsUrl: gig.ticketsUrl,
         status: gig.status,
-        poster: gig.poster
-          ? {
-              tgFileId: gig.poster.tgFileId,
-              url:
-                toPublicFilesProxyUrlFromStoredPosterUrl(
-                  gig.poster.bucketPath,
-                ) ??
-                (externalFallbackEnabled ? gig.poster.externalUrl : undefined),
-            }
-          : undefined,
+        posterUrl:
+          (gig.poster?.bucketPath
+            ? toPublicFilesProxyUrlFromStoredPosterUrl(gig.poster.bucketPath)
+            : undefined) ??
+          (externalFallbackEnabled ? gig.poster?.externalUrl : undefined),
       })),
     };
   }

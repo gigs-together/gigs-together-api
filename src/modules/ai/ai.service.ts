@@ -6,19 +6,28 @@ import {
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { buildV1FutureGigLookupPrompt } from './prompts/v1-gig-lookup-prompt';
-import type { GigDto } from '../gig/types/gig.types';
+import { V1ReceiverCreateGigRequestBodyGig } from '../receiver/types/requests/v1-receiver-create-gig-request';
 
 @Injectable()
 export class AiService {
   constructor(private readonly configService: ConfigService) {}
 
-  private normalizeGigDto(raw: unknown): GigDto {
+  private normalizeLookUpedGig(
+    raw: unknown,
+  ): V1ReceiverCreateGigRequestBodyGig {
     const obj = (raw ?? {}) as any;
 
     const title = typeof obj.title === 'string' ? obj.title : '';
-    const location = typeof obj.location === 'string' ? obj.location : '';
+    const address = typeof obj.address === 'string' ? obj.address : '';
+    const city = typeof obj.city === 'string' ? obj.city : '';
+    const rawCountry = typeof obj.country === 'string' ? obj.country : '';
+    const normalizedCountry = rawCountry.trim().toUpperCase();
+    const country = /^[A-Z]{2}$/.test(normalizedCountry)
+      ? normalizedCountry
+      : '';
     const venue = typeof obj.venue === 'string' ? obj.venue : '';
     const ticketsUrl = typeof obj.ticketsUrl === 'string' ? obj.ticketsUrl : '';
+    const posterUrl = typeof obj.posterUrl === 'string' ? obj.posterUrl : '';
 
     let date = '';
     if (typeof obj.date === 'string') date = obj.date;
@@ -26,32 +35,22 @@ export class AiService {
       date = new Date(obj.date).toISOString();
     }
 
-    const posterRaw = obj.poster;
-    const poster =
-      posterRaw && typeof posterRaw === 'object'
-        ? {
-            bucketPath:
-              typeof posterRaw.bucketPath === 'string'
-                ? posterRaw.bucketPath
-                : undefined,
-          }
-        : undefined;
-    const isPosterEmpty = !poster?.bucketPath;
-
     return {
       title,
       date,
-      location,
+      address,
+      city,
+      country,
       venue,
       ticketsUrl,
-      poster: isPosterEmpty ? undefined : poster,
+      posterUrl: posterUrl.trim() ? posterUrl : undefined,
     };
   }
 
   async lookupGigV1(params: {
     name: string;
     location: string;
-  }): Promise<GigDto> {
+  }): Promise<V1ReceiverCreateGigRequestBodyGig> {
     const apiKey =
       this.configService.get<string>('AI_API_KEY') ?? process.env.AI_API_KEY;
     if (!apiKey) {
@@ -119,7 +118,7 @@ export class AiService {
         throw new NotFoundException('Future gig not found');
       }
 
-      const gig = this.normalizeGigDto(parsed);
+      const gig = this.normalizeLookUpedGig(parsed);
 
       const dateRaw = (gig.date ?? '').trim();
       if (!dateRaw) {

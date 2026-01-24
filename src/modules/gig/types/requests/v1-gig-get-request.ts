@@ -1,4 +1,4 @@
-import type { GigDto } from '../gig.types';
+import { V1GetGigsResponseBodyGig } from '../gig.types';
 import { Transform, Type } from 'class-transformer';
 import { IsInt, IsNumber, IsOptional, Min } from 'class-validator';
 
@@ -64,6 +64,6 @@ export class V1GigGetRequestQuery {
   to?: number;
 }
 
-export interface V1GigGetResponseBody {
-  gigs: GigDto[];
+export interface V1GetGigsResponseBody {
+  gigs: V1GetGigsResponseBodyGig[];
 }

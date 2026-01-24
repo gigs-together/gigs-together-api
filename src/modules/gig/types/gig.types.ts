@@ -3,13 +3,30 @@ import type { Status } from './status.enum';
 
 export type GigId = string | Types.ObjectId;
 
-export interface GigDto {
+export interface V1GetGigsResponseBodyGig {
   title: string;
   date: string;
-  location: string;
+  address: string;
+  city: string;
+  country: string;
   venue: string;
   ticketsUrl: string;
-  poster?: { tgFileId?: string; bucketPath?: string };
+  posterUrl?: string;
+}
+
+export interface CreateGigInput {
+  title: string;
+  date: string;
+  address: string;
+  city: string;
+  country: string;
+  venue: string;
+  ticketsUrl: string;
+  poster?: {
+    bucketPath?: string;
+    externalUrl?: string;
+    tgFileId?: string;
+  };
 }
 
 export interface GetGigs {

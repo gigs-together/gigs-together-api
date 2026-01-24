@@ -194,7 +194,9 @@ export class ReceiverService {
       gig: {
         title: body.gig.title,
         date: body.gig.date,
-        location: body.gig.location,
+        address: body.gig.address,
+        city: body.gig.city,
+        country: body.gig.country,
         venue: body.gig.venue,
         ticketsUrl: body.gig.ticketsUrl,
         ...(posterBucketPath
@@ -275,7 +277,7 @@ export class ReceiverService {
     await this.calendarService.addEvent({
       title: updatedGig.title,
       ticketsUrl: updatedGig.ticketsUrl,
-      location: updatedGig.location,
+      address: updatedGig.address,
       date: updatedGig.date,
     });
   }

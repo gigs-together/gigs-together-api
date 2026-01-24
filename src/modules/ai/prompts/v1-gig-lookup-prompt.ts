@@ -5,7 +5,7 @@ export function buildV1FutureGigLookupPrompt(params: {
   const { name, place } = params;
 
   // Prompt for extracting a future gig draft.
-  // The model MUST return a single JSON value: either `null` or an object matching `GigDto`.
+  // The model MUST return a single JSON value: either `null` or an object matching the gig draft schema below.
   return [
     'You are an assistant helping to create a gig draft for an app.',
     'Your task: find gig details based on the provided query.',
@@ -18,13 +18,16 @@ export function buildV1FutureGigLookupPrompt(params: {
     '## Output format (STRICT)',
     '- Return ONLY valid JSON. No markdown, no code fences, no extra text.',
     '- If you cannot find a FUTURE concert that matches this query, return the JSON literal: null',
-    '- Otherwise, return a single JSON object that matches this schema exactly (GigDto):',
+    '- Otherwise, return a single JSON object that matches this schema exactly:',
     '{',
-    '  "title": string,',
-    '  "date": string,',
-    '  "location": string,',
-    '  "ticketsUrl": string,',
-    '  "photo"?: { "url"?: string }',
+    '  "title": string;',
+    '  "date": string;',
+    '  "address": string;',
+    '  "city": string;',
+    '  "country": string;',
+    '  "venue": string;',
+    '  "ticketsUrl": string;',
+    '  "posterUrl"?: string;',
     '}',
     '',
     '## Rules',
@@ -33,8 +36,12 @@ export function buildV1FutureGigLookupPrompt(params: {
     '- We only care about FUTURE concerts.',
     '- Do NOT return past gigs. If you only find past dates, return null.',
     '- `ticketsUrl` must be a URL string or "".',
+    '- `posterUrl` must be a URL string or "".',
+    '- `address` must be a string containing a full venue address (street + venue, if available) or "".',
+    '- `city` must be a city name or "".',
+    '- `country` must be an ISO 3166-1 alpha-2 code (uppercase), e.g. "ES", "US", or "".',
     '- When selecting `ticketsUrl`, prefer verified/official sources (Ticketmaster, AXS, Live Nation, and similar official ticketing platforms). Avoid unofficial resellers if an official link exists.',
-    '- If you do not have a photo URL, omit "photo" entirely.',
+    '- `venue` should be the venue name (not the city and not the address). If unknown, set "".',
     '- Do NOT invent facts. Do not fabricate links.',
   ].join('\n');
 }
