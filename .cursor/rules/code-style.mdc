@@ -1,0 +1,29 @@
+---
+description: "Code style & typing rules (TypeScript/NestJS)"
+globs:
+  - "**/*.ts"
+  - "**/*.tsx"
+---
+
+## Code style (project-wide)
+
+- **Prefer explicit, strict typing**: keep types narrow, avoid widening to `string | number | ...` when the domain is known.
+- **`any` is forbidden by default**:
+  - Use `unknown` + type guards / narrowing instead of `any`.
+  - If you need a flexible object shape, prefer `Record<string, unknown>` (or a specific interface) over `any`.
+  - If you need to type JSON, prefer `unknown` (or a `JsonValue` union) over `any`.
+  - `any` is allowed only when:
+    - There is no realistic alternative (e.g., truly untyped 3rd‑party API surface)
+  - When using `any`, **localize it** (cast at the boundary, not across the codebase) and add a short comment explaining why.
+- **Type assertions (`as`) — avoid as much as possible**:
+  - Prefer type guards, narrowing, and better source types instead of `as`.
+  - Prefer `satisfies` for validating object shapes without changing inferred types.
+  - Prefer parsing/validation at boundaries (HTTP, env, 3rd‑party SDKs) so the rest of the code stays strongly typed.
+  - Avoid `as any` entirely; allow only as a last resort with a short comment explaining why it’s unavoidable.
+- **Prefer `readonly` for immutability** where applicable (DTOs, config objects, constants).
+- **Prefer named types** (`type`/`interface`) for public APIs (service methods, controller responses, module exports).
+- **NestJS patterns**:
+  - Prefer DTOs for request/response shapes.
+  - Keep controller thin, move logic to services.
+  - Use dependency injection consistently; avoid creating clients directly in methods unless scoped and justified.
+
