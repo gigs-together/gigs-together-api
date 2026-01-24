@@ -4,11 +4,12 @@ import { ReceiverService } from './receiver.service';
 import { TelegramService } from '../telegram/telegram.service';
 import { GigService } from '../gig/gig.service';
 import type { TGMessage } from '../telegram/types/message.types';
+import { BucketService } from '../bucket/bucket.service';
+import { HttpService } from '@nestjs/axios';
+import { CalendarService } from '../calendar/calendar.service';
 
 describe('ReceiverService', () => {
   let service: ReceiverService;
-  let telegramService: TelegramService;
-  let gigService: GigService;
 
   const mockTelegramService = {
     sendMessage: jest.fn(),
@@ -24,6 +25,18 @@ describe('ReceiverService', () => {
     updateGigStatus: jest.fn(),
   };
 
+  const mockBucketService = {
+    uploadGigPoster: jest.fn(),
+  };
+
+  const mockHttpService = {
+    get: jest.fn(),
+  };
+
+  const mockCalendarService = {
+    addEvent: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -36,12 +49,22 @@ describe('ReceiverService', () => {
           provide: GigService,
           useValue: mockGigService,
         },
+        {
+          provide: BucketService,
+          useValue: mockBucketService,
+        },
+        {
+          provide: HttpService,
+          useValue: mockHttpService,
+        },
+        {
+          provide: CalendarService,
+          useValue: mockCalendarService,
+        },
       ],
     }).compile();
 
     service = module.get<ReceiverService>(ReceiverService);
-    telegramService = module.get<TelegramService>(TelegramService);
-    gigService = module.get<GigService>(GigService);
   });
 
   afterEach(() => {
@@ -108,7 +131,7 @@ describe('ReceiverService', () => {
     });
 
     it('should ignore empty messages', async () => {
-      await service.handleMessage(null as any);
+      await service.handleMessage(undefined as unknown as TGMessage);
       await service.handleMessage({} as TGMessage);
 
       expect(mockTelegramService.sendMessage).not.toHaveBeenCalled();

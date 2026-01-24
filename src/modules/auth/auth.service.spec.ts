@@ -36,6 +36,10 @@ describe('AuthService', () => {
     adminModel = module.get<Model<AdminDocument>>(getModelToken(Admin.name));
   });
 
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
@@ -43,20 +47,29 @@ describe('AuthService', () => {
   describe('pullAdmins', () => {
     it('should fetch admins and update the cache', async () => {
       // Call the private method indirectly
-      await service['pullAdmins']();
+      await (
+        service as unknown as {
+          pullAdmins: () => Promise<void>;
+          adminsCache: AdminDocument[];
+        }
+      ).pullAdmins();
 
       // Verify the database query
       expect(adminModel.find).toHaveBeenCalledWith({ isActive: true });
 
       // Check that the cache was updated
-      expect(service['adminsCache']).toEqual(mockAdmins);
+      expect(
+        (service as unknown as { adminsCache: AdminDocument[] }).adminsCache,
+      ).toEqual(mockAdmins);
     });
   });
 
   describe('isAdmin', () => {
     it('should return true if telegramId exists in the cache', async () => {
       // Populate the cache first
-      await service['pullAdmins']();
+      await (
+        service as unknown as { pullAdmins: () => Promise<void> }
+      ).pullAdmins();
 
       const result = await service.isAdmin(123);
       expect(result).toBe(true);
@@ -64,7 +77,9 @@ describe('AuthService', () => {
 
     it('should return false if telegramId does not exist in the cache', async () => {
       // Populate the cache first
-      await service['pullAdmins']();
+      await (
+        service as unknown as { pullAdmins: () => Promise<void> }
+      ).pullAdmins();
 
       const result = await service.isAdmin(999);
       expect(result).toBe(false);
@@ -72,7 +87,10 @@ describe('AuthService', () => {
 
     it('should call pullAdmins if cache is empty', async () => {
       // Spy on pullAdmins to ensure it's called
-      const pullAdminsSpy = jest.spyOn(service as any, 'pullAdmins');
+      const pullAdminsSpy = jest.spyOn(
+        service as unknown as { pullAdmins: () => Promise<void> },
+        'pullAdmins',
+      );
 
       const result = await service.isAdmin(123);
       expect(pullAdminsSpy).toHaveBeenCalled();
