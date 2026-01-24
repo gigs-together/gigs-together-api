@@ -9,17 +9,23 @@ import type { UpdateQuery } from 'mongoose';
 import type { GetGigs, GigDto, GigId } from './types/gig.types';
 import { Gig, GigDocument } from './gig.schema';
 import { Status } from './types/status.enum';
+import { AiService } from '../ai/ai.service';
 import type {
   V1GigGetRequestQuery,
   V1GigGetResponseBody,
 } from './types/requests/v1-gig-get-request';
+import type { V1GigLookupRequestBody } from './types/requests/v1-gig-lookup-request';
+import type { V1GigLookupResponseBody } from './types/requests/v1-gig-lookup-request';
 import { toPublicFilesProxyUrlFromStoredPhotoUrl } from '../../shared/utils/public-files';
 import { envBool } from '../../shared/utils/env';
 
 // TODO: add allowing only specific status transitions
 @Injectable()
 export class GigService {
-  constructor(@InjectModel(Gig.name) private gigModel: Model<Gig>) {}
+  constructor(
+    @InjectModel(Gig.name) private gigModel: Model<Gig>,
+    private readonly aiService: AiService,
+  ) {}
 
   async saveGig(data: GigDto): Promise<GigDocument> {
     const mappedData = {
@@ -118,6 +124,16 @@ export class GigService {
           : undefined,
       })),
     };
+  }
+
+  async lookupGigV1(
+    body: V1GigLookupRequestBody,
+  ): Promise<V1GigLookupResponseBody> {
+    const gig = await this.aiService.lookupGigV1({
+      name: body.name,
+      location: body.location,
+    });
+    return { gig };
   }
 
   async findByExternalPhotoUrl(

@@ -1,6 +1,7 @@
 import { IsString, MaxLength, MinLength } from 'class-validator';
+import type { GigDto } from '../gig.types';
 
-export class V1AiGenerateRequestBody {
+export class V1GigLookupRequestBody {
   @IsString()
   @MinLength(1)
   @MaxLength(200)
@@ -9,9 +10,9 @@ export class V1AiGenerateRequestBody {
   @IsString()
   @MinLength(1)
   @MaxLength(200)
-  place!: string;
+  location!: string;
 }
 
-export interface V1AiGenerateResponseBody {
-  text: string;
+export interface V1GigLookupResponseBody {
+  gig: GigDto;
 }
