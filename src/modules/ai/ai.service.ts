@@ -54,7 +54,9 @@ export class AiService {
 
       const text: unknown = response.data?.choices?.[0]?.message?.content;
       if (typeof text !== 'string' || text.trim() === '') {
-        throw new InternalServerErrorException('OpenAI returned empty response');
+        throw new InternalServerErrorException(
+          'OpenAI returned empty response',
+        );
       }
       return { text };
     } catch (err: unknown) {

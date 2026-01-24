@@ -9,8 +9,9 @@ export class AiController {
 
   @Version('1')
   @Post()
-  generateV1(@Body() body: V1AiGenerateRequestBody): Promise<V1AiGenerateResponseBody> {
+  generateV1(
+    @Body() body: V1AiGenerateRequestBody,
+  ): Promise<V1AiGenerateResponseBody> {
     return this.aiService.generateV1(body);
   }
 }
-

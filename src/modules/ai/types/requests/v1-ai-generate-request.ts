@@ -15,4 +15,3 @@ export class V1AiGenerateRequestBody {
 export interface V1AiGenerateResponseBody {
   text: string;
 }
-

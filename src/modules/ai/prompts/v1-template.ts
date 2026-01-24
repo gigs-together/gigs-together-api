@@ -14,4 +14,3 @@ export function buildV1PromptTemplate(params: {
     'TODO: put your real prompt here.',
   ].join('\n');
 }
-
