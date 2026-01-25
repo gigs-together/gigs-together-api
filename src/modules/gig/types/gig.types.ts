@@ -36,4 +36,13 @@ export interface GetGigs {
   from: number;
   to?: number;
   status?: Status;
+  /**
+   * Exact match location filter.
+   * Applied only when both `city` and `country` are provided.
+   */
+  city?: string;
+  /**
+   * ISO 3166-1 alpha-2 code (uppercase), e.g. "ES", "US".
+   */
+  country?: string;
 }

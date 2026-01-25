@@ -168,7 +168,7 @@ export class ReceiverService {
     let posterExternalUrl: string | undefined;
 
     if (posterFile) {
-      posterBucketPath = await this.uploadGigPoster({
+      posterBucketPath = await this.bucketService.uploadGigPoster({
         buffer: posterFile.buffer,
         filename: posterFile.originalname,
         mimetype: posterFile.mimetype,
@@ -185,7 +185,7 @@ export class ReceiverService {
         posterExternalUrl = urlFromBody;
       } else {
         const downloaded = await this.downloadPoster(urlFromBody);
-        posterBucketPath = await this.uploadGigPoster(downloaded);
+        posterBucketPath = await this.bucketService.uploadGigPoster(downloaded);
         posterExternalUrl = urlFromBody;
       }
     }
@@ -309,14 +309,6 @@ export class ReceiverService {
       messageId,
       replyMarkup,
     });
-  }
-
-  private async uploadGigPoster(input: {
-    buffer: Buffer;
-    filename: string;
-    mimetype?: string;
-  }): Promise<string> {
-    return this.bucketService.uploadGigPoster(input);
   }
 
   private async downloadPoster(url: string): Promise<{

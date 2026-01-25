@@ -61,7 +61,7 @@ export class GigService {
   }
 
   async getGigs(data: GetGigs): Promise<GigDocument[]> {
-    const { page, size, from, to, status } = data;
+    const { page, size, from, to, status, city, country } = data;
 
     const MAX_SIZE = 100;
     if (size > MAX_SIZE) {
@@ -77,6 +77,10 @@ export class GigService {
 
     const filter: Record<string, unknown> = { date: dateFilter };
     if (status) filter.status = status;
+    if (city && country) {
+      filter.city = city;
+      filter.country = country;
+    }
 
     // Always keep pagination deterministic.
     // - date: primary sort
@@ -91,7 +95,7 @@ export class GigService {
   async getPublishedGigsV1(
     query: V1GigGetRequestQuery,
   ): Promise<V1GetGigsResponseBody> {
-    const { page = 1, size = 100, from, to } = query;
+    const { page = 1, size = 100, from, to, city, country } = query;
 
     if (to !== undefined && to < from) {
       throw new BadRequestException('to must be >= from');
@@ -103,6 +107,8 @@ export class GigService {
       from,
       to,
       status: Status.Published,
+      city,
+      country,
     });
     const externalFallbackEnabled = envBool(
       'EXTERNAL_POSTER_URL_FALLBACK_ENABLED',
