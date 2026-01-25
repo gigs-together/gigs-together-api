@@ -3,7 +3,6 @@ import type { User } from '../../../telegram/types/user.types';
 export interface V1ReceiverCreateGigRequestBodyGig {
   title: string;
   date: string;
-  address: string;
   city: string;
   country: string;
   venue: string;

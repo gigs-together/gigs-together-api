@@ -6,7 +6,6 @@ export type GigId = string | Types.ObjectId;
 export interface V1GetGigsResponseBodyGig {
   title: string;
   date: string;
-  address: string;
   city: string;
   country: string;
   venue: string;
@@ -17,7 +16,6 @@ export interface V1GetGigsResponseBodyGig {
 export interface CreateGigInput {
   title: string;
   date: string;
-  address: string;
   city: string;
   country: string;
   venue: string;

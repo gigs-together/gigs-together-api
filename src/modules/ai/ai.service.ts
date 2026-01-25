@@ -18,7 +18,6 @@ export class AiService {
     const obj = (raw ?? {}) as any;
 
     const title = typeof obj.title === 'string' ? obj.title : '';
-    const address = typeof obj.address === 'string' ? obj.address : '';
     const city = typeof obj.city === 'string' ? obj.city : '';
     const rawCountry = typeof obj.country === 'string' ? obj.country : '';
     const normalizedCountry = rawCountry.trim().toUpperCase();
@@ -38,7 +37,6 @@ export class AiService {
     return {
       title,
       date,
-      address,
       city,
       country,
       venue,

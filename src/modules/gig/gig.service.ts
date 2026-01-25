@@ -31,7 +31,6 @@ export class GigService {
     const mappedData = {
       title: data.title,
       date: new Date(data.date).getTime(),
-      address: data.address,
       city: data.city,
       country: data.country,
       venue: data.venue,
@@ -114,7 +113,6 @@ export class GigService {
       gigs: gigs.map((gig) => ({
         title: gig.title,
         date: gig.date.toString(), // TODO
-        address: gig.address,
         city: gig.city,
         country: gig.country,
         venue: gig.venue,

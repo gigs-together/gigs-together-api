@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Post, Query, Version } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Query,
+  Version,
+} from '@nestjs/common';
 import { GigService } from './gig.service';
 import {
   V1GigGetRequestQuery,
@@ -25,6 +34,8 @@ export class GigController {
    */
   @Version('1')
   @Post('lookup')
+  @HttpCode(HttpStatus.OK)
+  // TODO: some security
   async lookupGigV1(
     @Body() body: V1GigLookupRequestBody,
   ): Promise<V1GigLookupResponseBody> {

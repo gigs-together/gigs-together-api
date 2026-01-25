@@ -26,9 +26,6 @@ export class Gig {
   date: number; // timestamp
 
   @Prop({ type: String })
-  address: string; // full address
-
-  @Prop({ type: String })
   city: string;
 
   /**

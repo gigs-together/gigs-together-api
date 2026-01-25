@@ -53,23 +53,26 @@ export class ReceiverController {
   @Post('gig')
   @HttpCode(201)
   @UseInterceptors(
-    FileInterceptor('photo', {
+    FileInterceptor('posterFile', {
       storage: memoryStorage(),
       limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
       fileFilter: (_req, file, cb) => {
         if (!file.mimetype?.startsWith('image/')) {
-          return cb(new BadRequestException('photo must be an image'), false);
+          return cb(
+            new BadRequestException('posterFile must be an image'),
+            false,
+          );
         }
         cb(null, true);
       },
     }),
   )
   createGig(
-    @UploadedFile() photoFile: Express.Multer.File | undefined,
+    @UploadedFile() posterFile: Express.Multer.File | undefined,
     @Body(TelegramInitDataPipe)
     body: V1ReceiverCreateGigRequestBodyValidated,
     // JSON object (application/json) or strings (multipart/form-data)
   ): Promise<void> {
-    return this.receiverService.handleGigSubmit(body, photoFile);
+    return this.receiverService.handleGigSubmit(body, posterFile);
   }
 }

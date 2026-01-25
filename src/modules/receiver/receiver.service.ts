@@ -194,7 +194,6 @@ export class ReceiverService {
       gig: {
         title: body.gig.title,
         date: body.gig.date,
-        address: body.gig.address,
         city: body.gig.city,
         country: body.gig.country,
         venue: body.gig.venue,
@@ -277,7 +276,9 @@ export class ReceiverService {
     await this.calendarService.addEvent({
       title: updatedGig.title,
       ticketsUrl: updatedGig.ticketsUrl,
-      address: updatedGig.address,
+      address: [updatedGig.venue, updatedGig.city, updatedGig.country]
+        .filter((str) => !!str)
+        .join(', '),
       date: updatedGig.date,
     });
   }
