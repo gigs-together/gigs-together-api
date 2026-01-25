@@ -10,6 +10,7 @@ import type { TGUser, User } from '../../telegram/types/user.types';
 import {
   V1ReceiverCreateGigRequestBody,
   V1ReceiverCreateGigRequestBodyValidated,
+  type V1ReceiverCreateGigRequestBodyGig,
 } from '../types/requests/v1-receiver-create-gig-request';
 
 /**
@@ -31,6 +32,32 @@ export class TelegramInitDataPipe
     private readonly authService: AuthService,
   ) {}
 
+  private parseGig(value: unknown): V1ReceiverCreateGigRequestBodyGig {
+    // When using multipart/form-data (e.g. uploading a file), non-file fields
+    // are strings. Nested objects must be provided as JSON strings by the client.
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) {
+        throw new BadRequestException('gig must be a JSON object');
+      }
+      try {
+        const parsed = JSON.parse(trimmed) as unknown;
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+          throw new BadRequestException('gig must be a JSON object');
+        }
+        return parsed as V1ReceiverCreateGigRequestBodyGig;
+      } catch {
+        throw new BadRequestException('gig must be a valid JSON object');
+      }
+    }
+
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      throw new BadRequestException('gig must be an object');
+    }
+
+    return value as V1ReceiverCreateGigRequestBodyGig;
+  }
+
   async transform(
     bodyRaw: V1ReceiverCreateGigRequestBody,
   ): Promise<V1ReceiverCreateGigRequestBodyValidated> {
@@ -41,6 +68,8 @@ export class TelegramInitDataPipe
     if (!body) {
       throw new BadRequestException('Body must be an object');
     }
+
+    const gig = this.parseGig(body.gig);
 
     if (!body.telegramInitDataString) {
       throw new ForbiddenException('Missing Telegram user data');
@@ -70,7 +99,7 @@ export class TelegramInitDataPipe
       };
 
       return {
-        gig: body.gig,
+        gig,
         user,
       };
     } catch {

@@ -48,7 +48,7 @@ export class Gig {
         if (!v) return true;
         return !!v.bucketPath || !!v.tgFileId;
       },
-      message: 'poster must have at least one of: url or tgFileId',
+      message: 'poster must have at least one of: bucketPath or tgFileId',
     },
   })
   poster?: GigPoster;

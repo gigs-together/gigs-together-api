@@ -12,7 +12,8 @@ export interface V1ReceiverCreateGigRequestBodyGig {
 }
 
 export interface V1ReceiverCreateGigRequestBody {
-  gig: V1ReceiverCreateGigRequestBodyGig;
+  // When using multipart/form-data, nested objects are typically sent as JSON strings.
+  gig: V1ReceiverCreateGigRequestBodyGig | string;
   telegramInitDataString: string;
 }
 
