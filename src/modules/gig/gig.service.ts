@@ -6,7 +6,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import type { UpdateQuery } from 'mongoose';
-import type { CreateGigInput, GetGigs, GigId } from './types/gig.types';
+import { CreateGigInput, GetGigs, GigId } from './types/gig.types';
 import { Gig, GigDocument } from './gig.schema';
 import { Status } from './types/status.enum';
 import { AiService } from '../ai/ai.service';
@@ -18,7 +18,10 @@ import type { V1GigLookupRequestBody } from './types/requests/v1-gig-lookup-requ
 import type { V1GigLookupResponseBody } from './types/requests/v1-gig-lookup-request';
 import { toPublicFilesProxyUrlFromStoredPosterUrl } from '../../shared/utils/public-files';
 import { envBool } from '../../shared/utils/env';
-import { calendar_v3 } from 'googleapis';
+import {
+  CalendarishEvent,
+  CalendarService,
+} from '../calendar/calendar.service';
 
 // TODO: add allowing only specific status transitions
 @Injectable()
@@ -26,6 +29,7 @@ export class GigService {
   constructor(
     @InjectModel(Gig.name) private gigModel: Model<Gig>,
     private readonly aiService: AiService,
+    private readonly calendarService: CalendarService,
   ) {}
 
   async saveGig(data: CreateGigInput): Promise<GigDocument> {
@@ -117,24 +121,30 @@ export class GigService {
     );
 
     return {
-      gigs: gigs.map((gig) => ({
-        title: gig.title,
-        date: gig.date.toString(), // TODO
-        city: gig.city,
-        country: gig.country,
-        venue: gig.venue,
-        ticketsUrl: gig.ticketsUrl,
-        status: gig.status,
-        posterUrl:
-          (gig.poster?.bucketPath
-            ? toPublicFilesProxyUrlFromStoredPosterUrl(gig.poster.bucketPath)
-            : undefined) ??
-          (externalFallbackEnabled ? gig.poster?.externalUrl : undefined),
-      })),
+      gigs: gigs.map((gig) => {
+        const calendarPayload = this.gigToCalendarPayload(gig);
+        const calendarUrl =
+          this.calendarService.getCreateCalendarEventUrl(calendarPayload);
+        return {
+          title: gig.title,
+          date: gig.date.toString(), // TODO
+          city: gig.city,
+          country: gig.country,
+          venue: gig.venue,
+          ticketsUrl: gig.ticketsUrl,
+          calendarUrl,
+          status: gig.status,
+          posterUrl:
+            (gig.poster?.bucketPath
+              ? toPublicFilesProxyUrlFromStoredPosterUrl(gig.poster.bucketPath)
+              : undefined) ??
+            (externalFallbackEnabled ? gig.poster?.externalUrl : undefined),
+        };
+      }),
     };
   }
 
-  gigToCalendarPayload(gig: GigDocument): calendar_v3.Schema$Event {
+  gigToCalendarPayload(gig: GigDocument): CalendarishEvent {
     const timeZone = 'Europe/Madrid';
 
     // Set start time to 8:00 PM
@@ -146,19 +156,14 @@ export class GigService {
     endDateTime.setHours(startDateTime.getHours() + 2);
 
     return {
-      summary: gig.title,
+      title: gig.title,
       description: `Tickets: ${gig.ticketsUrl}`,
       location: [gig.venue, gig.city, gig.country]
         .filter((str) => !!str)
         .join(', '),
-      start: {
-        dateTime: startDateTime.toISOString(),
-        timeZone,
-      },
-      end: {
-        dateTime: endDateTime.toISOString(),
-        timeZone,
-      },
+      start: startDateTime,
+      end: endDateTime,
+      timeZone,
     };
   }
 

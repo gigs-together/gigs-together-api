@@ -2,6 +2,22 @@ import { Injectable, Logger } from '@nestjs/common';
 import { google, calendar_v3 } from 'googleapis';
 import * as fs from 'fs';
 
+export interface CalendarishEvent {
+  title: string;
+  description: string;
+  location: string;
+  start: Date;
+  end: Date;
+  timeZone: string;
+}
+
+function gcalDateUTC(date: Date): string {
+  return date
+    .toISOString()
+    .replace(/[-:]/g, '')
+    .replace(/\.\d{3}Z$/, 'Z');
+}
+
 @Injectable()
 export class CalendarService {
   private readonly calendar: calendar_v3.Calendar;
@@ -67,17 +83,25 @@ export class CalendarService {
 
   /**
    * Add a new event to the Google Calendar
-   * @param eventDetails - Details of the event to create
+   * @param event - Details of the event to create
    */
-  async addEvent(
-    eventDetails: calendar_v3.Schema$Event,
-  ): Promise<calendar_v3.Schema$Event> {
+  async addEvent(event: CalendarishEvent): Promise<calendar_v3.Schema$Event> {
     try {
       const response = await this.calendar.events.insert({
         calendarId: process.env.CALENDAR_ID,
         requestBody: {
           colorId: '5',
-          ...eventDetails,
+          summary: event.title,
+          description: event.description,
+          location: event.location,
+          start: {
+            dateTime: event.start.toISOString(),
+            timeZone: event.timeZone,
+          },
+          end: {
+            dateTime: event.end.toISOString(),
+            timeZone: event.timeZone,
+          },
         },
       });
       return response.data;
@@ -88,5 +112,25 @@ export class CalendarService {
       );
       throw new Error('Failed to create event.');
     }
+  }
+
+  /**
+   * Builds a Google Calendar "TEMPLATE" URL which opens an "Add event" UI
+   * for the *user's* calendar (client-side flow).
+   */
+  getCreateCalendarEventUrl(event: CalendarishEvent): string {
+    const startDate = gcalDateUTC(event.start);
+    const endDate = gcalDateUTC(event.end);
+
+    const searchParams = new URLSearchParams({
+      action: 'TEMPLATE',
+      text: event.title,
+      dates: `${startDate}/${endDate}`,
+      details: event.description,
+      location: event.location,
+      ctz: event.timeZone,
+    });
+
+    return `https://calendar.google.com/calendar/render?${searchParams.toString()}`;
   }
 }

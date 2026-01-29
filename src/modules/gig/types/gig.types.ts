@@ -10,6 +10,7 @@ export interface V1GetGigsResponseBodyGig {
   country: string;
   venue: string;
   ticketsUrl: string;
+  calendarUrl: string;
   posterUrl?: string;
 }
 
