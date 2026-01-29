@@ -18,6 +18,7 @@ import type { V1GigLookupRequestBody } from './types/requests/v1-gig-lookup-requ
 import type { V1GigLookupResponseBody } from './types/requests/v1-gig-lookup-request';
 import { toPublicFilesProxyUrlFromStoredPosterUrl } from '../../shared/utils/public-files';
 import { envBool } from '../../shared/utils/env';
+import { calendar_v3 } from 'googleapis';
 
 // TODO: add allowing only specific status transitions
 @Injectable()
@@ -130,6 +131,34 @@ export class GigService {
             : undefined) ??
           (externalFallbackEnabled ? gig.poster?.externalUrl : undefined),
       })),
+    };
+  }
+
+  gigToCalendarPayload(gig: GigDocument): calendar_v3.Schema$Event {
+    const timeZone = 'Europe/Madrid';
+
+    // Set start time to 8:00 PM
+    const startDateTime = new Date(gig.date);
+    startDateTime.setHours(20, 0, 0, 0); // 20:00
+
+    // Calculate end time (2 hours later)
+    const endDateTime = new Date(startDateTime);
+    endDateTime.setHours(startDateTime.getHours() + 2);
+
+    return {
+      summary: gig.title,
+      description: `Tickets: ${gig.ticketsUrl}`,
+      location: [gig.venue, gig.city, gig.country]
+        .filter((str) => !!str)
+        .join(', '),
+      start: {
+        dateTime: startDateTime.toISOString(),
+        timeZone,
+      },
+      end: {
+        dateTime: endDateTime.toISOString(),
+        timeZone,
+      },
     };
   }
 

@@ -273,14 +273,8 @@ export class ReceiverService {
       messageId,
       replyMarkup,
     });
-    await this.calendarService.addEvent({
-      title: updatedGig.title,
-      ticketsUrl: updatedGig.ticketsUrl,
-      address: [updatedGig.venue, updatedGig.city, updatedGig.country]
-        .filter((str) => !!str)
-        .join(', '),
-      date: updatedGig.date,
-    });
+    const calendarGig = this.gigService.gigToCalendarPayload(updatedGig);
+    await this.calendarService.addEvent(calendarGig);
   }
 
   async handleGigReject(payload: {

@@ -2,13 +2,6 @@ import { Injectable, Logger } from '@nestjs/common';
 import { google, calendar_v3 } from 'googleapis';
 import * as fs from 'fs';
 
-interface AddCalendarEvent {
-  title: string;
-  ticketsUrl: string;
-  address: string;
-  date: Date | number;
-}
-
 @Injectable()
 export class CalendarService {
   private readonly calendar: calendar_v3.Calendar;
@@ -77,37 +70,15 @@ export class CalendarService {
    * @param eventDetails - Details of the event to create
    */
   async addEvent(
-    eventDetails: AddCalendarEvent,
+    eventDetails: calendar_v3.Schema$Event,
   ): Promise<calendar_v3.Schema$Event> {
-    const timeZone = 'Europe/Madrid';
-
-    // Set start time to 8:00 PM
-    const startDateTime = new Date(eventDetails.date);
-    startDateTime.setHours(20, 0, 0, 0); // 20:00
-
-    // Calculate end time (2 hours later)
-    const endDateTime = new Date(startDateTime);
-    endDateTime.setHours(startDateTime.getHours() + 2);
-
-    const event = {
-      summary: eventDetails.title,
-      description: `Tickets: ${eventDetails.ticketsUrl}`,
-      location: eventDetails.address,
-      start: {
-        dateTime: startDateTime.toISOString(),
-        timeZone,
-      },
-      end: {
-        dateTime: endDateTime.toISOString(),
-        timeZone,
-      },
-      colorId: '5',
-    };
-
     try {
       const response = await this.calendar.events.insert({
         calendarId: process.env.CALENDAR_ID,
-        requestBody: event,
+        requestBody: {
+          colorId: '5',
+          ...eventDetails,
+        },
       });
       return response.data;
     } catch (e) {
