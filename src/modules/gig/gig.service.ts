@@ -190,5 +190,7 @@ export class GigService {
   }
 
   getCreateGigUploadedPosterData =
-    this.gigPosterService.getCreateGigUploadedPosterData;
+    this.gigPosterService.getCreateGigUploadedPosterData.bind(
+      this.gigPosterService,
+    );
 }
