@@ -5,12 +5,17 @@ import { Gig, GigSchema } from './gig.schema';
 import { GigController } from './gig.controller';
 import { AiModule } from '../ai/ai.module';
 import { CalendarModule } from '../calendar/calendar.module';
+import { BucketModule } from '../bucket/bucket.module';
+import { HttpModule } from '@nestjs/axios';
 
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: Gig.name, schema: GigSchema }]),
     AiModule,
     CalendarModule,
+    BucketModule,
+    HttpModule,
+    BucketModule,
   ],
   providers: [GigService],
   exports: [GigService],
