@@ -6,25 +6,15 @@ import { TelegramModule } from '../telegram/telegram.module';
 import { AuthModule } from '../auth/auth.module';
 import { ReceiverExceptionFilter } from './filters/receiver-exception.filter';
 import { ConsoleLogger } from '@nestjs/common';
-import { HttpModule } from '@nestjs/axios';
 import { ReceiverWebhookGuard } from './guards/receiver-webhook.guard';
 import { ReceiverWebhookExceptionFilter } from './filters/receiver-webhook-exception.filter';
 import { TelegramInitDataPipe } from './pipes/telegram-init-data.pipe';
-import { BucketModule } from '../bucket/bucket.module';
 import { CalendarModule } from '../calendar/calendar.module';
 import { MqModule } from '../mq/mq.module';
 import { ReceiverGigCreateConsumer } from './receiver-gig-create.consumer';
 
 @Module({
-  imports: [
-    GigModule,
-    TelegramModule,
-    AuthModule,
-    HttpModule,
-    BucketModule,
-    CalendarModule,
-    MqModule,
-  ],
+  imports: [GigModule, TelegramModule, AuthModule, CalendarModule, MqModule],
   controllers: [ReceiverController],
   providers: [
     ReceiverService,
