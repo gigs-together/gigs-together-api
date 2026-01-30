@@ -10,15 +10,17 @@ import * as amqp from 'amqplib';
 export class MQService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(MQService.name);
 
-  private conn!: amqp.Connection;
-  private ch!: amqp.Channel;
+  // NOTE: `amqplib.connect()` is typed to return `ChannelModel` in our typings.
+  // It behaves as the "connection" handle (createChannel/close/events).
+  private connection!: amqp.ChannelModel;
+  private channel!: amqp.Channel;
 
   private url = (process.env.MQ_URL ?? '').trim();
   private prefetch = Number(process.env.MQ_PREFETCH || 10);
-  private enabled = this.url.length > 0;
+  private isEnabled = this.url.length > 0;
 
   async onModuleInit() {
-    if (!this.enabled) {
+    if (!this.isEnabled) {
       this.logger.warn('MQ_URL is not set; MQ is disabled');
       return;
     }
@@ -28,19 +30,19 @@ export class MQService implements OnModuleInit, OnModuleDestroy {
   private async connectWithRetry() {
     for (;;) {
       try {
-        this.conn = await amqp.connect(this.url);
+        this.connection = await amqp.connect(this.url);
 
-        this.conn.on('error', (err) =>
+        this.connection.on('error', (err) =>
           this.logger.error('Connection error', err),
         );
-        this.conn.on('close', () => {
+        this.connection.on('close', () => {
           this.logger.warn('Connection closed. Reconnecting...');
-          // fire-and-forget: Nest не ждёт, но мы переподнимем канал
+          // fire-and-forget
           this.connectWithRetry().catch((e) => this.logger.error(e));
         });
 
-        this.ch = await this.conn.createChannel();
-        await this.ch.prefetch(this.prefetch);
+        this.channel = await this.connection.createChannel();
+        await this.channel.prefetch(this.prefetch);
 
         this.logger.log(
           `MQ connected (${this.url}), prefetch=${this.prefetch}`,
@@ -57,10 +59,10 @@ export class MQService implements OnModuleInit, OnModuleDestroy {
     queue: string,
     options: amqp.Options.AssertQueue = { durable: true },
   ) {
-    if (!this.enabled) {
+    if (!this.isEnabled) {
       throw new Error('MQ is disabled (MQ_URL is not set)');
     }
-    return this.ch.assertQueue(queue, options);
+    return this.channel.assertQueue(queue, options);
   }
 
   async publishToQueue(
@@ -68,34 +70,33 @@ export class MQService implements OnModuleInit, OnModuleDestroy {
     payload: unknown,
     options: amqp.Options.Publish = {},
   ) {
-    if (!this.enabled) {
+    if (!this.isEnabled) {
       throw new Error('MQ is disabled (MQ_URL is not set)');
     }
     await this.assertQueue(queue, { durable: true });
 
-    const ok = this.ch.sendToQueue(
+    const ok = this.channel.sendToQueue(
       queue,
       Buffer.from(JSON.stringify(payload)),
       { persistent: true, contentType: 'application/json', ...options },
     );
 
-    // backpressure: если вернул false, канал просит подождать drain
-    if (!ok) await new Promise((r) => this.ch.once('drain', r));
+    if (!ok) await new Promise((r) => this.channel.once('drain', r));
   }
 
   getChannel() {
-    if (!this.enabled) {
+    if (!this.isEnabled) {
       throw new Error('MQ is disabled (MQ_URL is not set)');
     }
-    return this.ch;
+    return this.channel;
   }
 
   async onModuleDestroy() {
     try {
-      await this.ch?.close();
+      await this.channel?.close();
     } catch {}
     try {
-      await this.conn?.close();
+      await this.connection?.close();
     } catch {}
   }
 }
