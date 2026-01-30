@@ -13,10 +13,15 @@ export class MQService implements OnModuleInit, OnModuleDestroy {
   private conn!: amqp.Connection;
   private ch!: amqp.Channel;
 
-  private url = process.env.MQ_URL;
+  private url = (process.env.MQ_URL ?? '').trim();
   private prefetch = Number(process.env.MQ_PREFETCH || 10);
+  private enabled = this.url.length > 0;
 
   async onModuleInit() {
+    if (!this.enabled) {
+      this.logger.warn('MQ_URL is not set; MQ is disabled');
+      return;
+    }
     await this.connectWithRetry();
   }
 
@@ -52,6 +57,9 @@ export class MQService implements OnModuleInit, OnModuleDestroy {
     queue: string,
     options: amqp.Options.AssertQueue = { durable: true },
   ) {
+    if (!this.enabled) {
+      throw new Error('MQ is disabled (MQ_URL is not set)');
+    }
     return this.ch.assertQueue(queue, options);
   }
 
@@ -60,6 +68,9 @@ export class MQService implements OnModuleInit, OnModuleDestroy {
     payload: unknown,
     options: amqp.Options.Publish = {},
   ) {
+    if (!this.enabled) {
+      throw new Error('MQ is disabled (MQ_URL is not set)');
+    }
     await this.assertQueue(queue, { durable: true });
 
     const ok = this.ch.sendToQueue(
@@ -73,6 +84,9 @@ export class MQService implements OnModuleInit, OnModuleDestroy {
   }
 
   getChannel() {
+    if (!this.enabled) {
+      throw new Error('MQ is disabled (MQ_URL is not set)');
+    }
     return this.ch;
   }
 

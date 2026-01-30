@@ -14,3 +14,11 @@ services:
     environment:
       MONGO_INITDB_DATABASE: ${MONGO_DB}
     restart: unless-stopped
+
+  rabbitmq:
+    container_name: rabbitmq-gigs
+    image: rabbitmq:3-management
+    ports:
+      - '5672:5672'
+      - '15672:15672'
+    restart: unless-stopped

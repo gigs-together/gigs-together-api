@@ -12,6 +12,8 @@ import { ReceiverWebhookExceptionFilter } from './filters/receiver-webhook-excep
 import { TelegramInitDataPipe } from './pipes/telegram-init-data.pipe';
 import { BucketModule } from '../bucket/bucket.module';
 import { CalendarModule } from '../calendar/calendar.module';
+import { MqModule } from '../mq/mq.module';
+import { ReceiverGigCreateConsumer } from './receiver-gig-create.consumer';
 
 @Module({
   imports: [
@@ -21,10 +23,12 @@ import { CalendarModule } from '../calendar/calendar.module';
     HttpModule,
     BucketModule,
     CalendarModule,
+    MqModule,
   ],
   controllers: [ReceiverController],
   providers: [
     ReceiverService,
+    ReceiverGigCreateConsumer,
     ReceiverWebhookGuard,
     ReceiverExceptionFilter,
     ReceiverWebhookExceptionFilter,
