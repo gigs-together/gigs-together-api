@@ -7,6 +7,7 @@ import { AiModule } from '../ai/ai.module';
 import { CalendarModule } from '../calendar/calendar.module';
 import { BucketModule } from '../bucket/bucket.module';
 import { HttpModule } from '@nestjs/axios';
+import { GigPosterService } from './gig.poster.service';
 
 @Module({
   imports: [
@@ -15,9 +16,8 @@ import { HttpModule } from '@nestjs/axios';
     CalendarModule,
     BucketModule,
     HttpModule,
-    BucketModule,
   ],
-  providers: [GigService],
+  providers: [GigService, GigPosterService],
   exports: [GigService],
   controllers: [GigController],
 })
