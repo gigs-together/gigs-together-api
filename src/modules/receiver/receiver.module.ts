@@ -11,14 +11,14 @@ import { ReceiverWebhookExceptionFilter } from './filters/receiver-webhook-excep
 import { TelegramInitDataPipe } from './pipes/telegram-init-data.pipe';
 import { CalendarModule } from '../calendar/calendar.module';
 import { MqModule } from '../mq/mq.module';
-import { ReceiverGigCreateConsumer } from './receiver-gig-create.consumer';
+import { ReceiverConsumer } from './receiver.consumer';
 
 @Module({
   imports: [GigModule, TelegramModule, AuthModule, CalendarModule, MqModule],
   controllers: [ReceiverController],
   providers: [
     ReceiverService,
-    ReceiverGigCreateConsumer,
+    ReceiverConsumer,
     ReceiverWebhookGuard,
     ReceiverExceptionFilter,
     ReceiverWebhookExceptionFilter,

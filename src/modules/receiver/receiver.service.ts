@@ -10,6 +10,8 @@ import { Action } from '../telegram/types/action.enum';
 import { getBiggestTgPhotoFileId } from '../telegram/utils/photo';
 import { V1ReceiverCreateGigRequestBodyValidated } from './types/requests/v1-receiver-create-gig-request';
 import { CalendarService } from '../calendar/calendar.service';
+import { MQService } from '../mq/mq.service';
+import { CreateGigJobPayload } from './types/receiver.types';
 // import { NodeHttpHandler } from '@smithy/node-http-handler';
 
 type UpdateGigPayload = Pick<Gig, 'status'> & Partial<Pick<Gig, 'poster'>>;
@@ -24,7 +26,10 @@ export class ReceiverService {
     private readonly telegramService: TelegramService,
     private readonly gigService: GigService,
     private readonly calendarService: CalendarService,
+    private readonly mqService: MQService,
   ) {}
+
+  readonly CREATE_GIG_QUEUE = 'CREATE_GIG_QUEUE';
 
   private readonly logger = new Logger(ReceiverService.name);
 
@@ -161,7 +166,7 @@ export class ReceiverService {
       file: posterFile,
     });
 
-    const data = {
+    const payload: CreateGigJobPayload = {
       gig: {
         title: body.gig.title,
         date: body.gig.date,
@@ -171,11 +176,27 @@ export class ReceiverService {
         ticketsUrl: body.gig.ticketsUrl,
         poster,
       },
-      isAdmin: body.user?.isAdmin,
+      requestedBy: { isAdmin: body.user?.isAdmin },
+      meta: { enqueuedAt: Date.now() },
     };
 
-    // TODO: add transaction?
-    const savedGig = await this.gigService.saveGig(data.gig);
+    try {
+      await this.mqService.publishToQueue(this.CREATE_GIG_QUEUE, payload);
+      return;
+    } catch (e) {
+      // Fallback to sync if MQ is down/disabled.
+      this.logger.warn(
+        `MQ publish failed, falling back to sync createGig: ${String(
+          e?.message ?? e,
+        )}`,
+      );
+      await this.processCreateGigJob(payload);
+    }
+  }
+
+  async processCreateGigJob(payload: CreateGigJobPayload): Promise<void> {
+    const savedGig = await this.gigService.saveGig(payload.gig);
+
     let res: TGMessage | undefined;
     try {
       res = await this.telegramService.publishDraft(savedGig);
@@ -192,6 +213,9 @@ export class ReceiverService {
     const updateGigPayload: UpdateGigPayload = {
       status: Status.Pending,
     };
+    const posterBucketPath = payload.gig.poster?.bucketPath;
+    const posterExternalUrl = payload.gig.poster?.externalUrl;
+    // TODO: maybe partial update, no?
     if (posterBucketPath || posterExternalUrl) {
       updateGigPayload.poster = {
         tgFileId: biggestTgPhotoFileId,
