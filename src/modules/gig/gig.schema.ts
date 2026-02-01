@@ -26,7 +26,7 @@ export class Gig {
   date: number; // timestamp
 
   @Prop({ type: String })
-  city: string;
+  city: string; // city code
 
   /**
    * ISO 3166-1 alpha-2 code (uppercase), e.g. "ES", "US".

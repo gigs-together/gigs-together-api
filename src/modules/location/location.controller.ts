@@ -1,6 +1,6 @@
 import { Controller, Get, Version } from '@nestjs/common';
 import { LocationService } from './location.service';
-import type { Country } from './types/country.types';
+import type { Country } from './types/location.types';
 import type { SupportedLanguage } from './types/language.types';
 
 @Controller('location')

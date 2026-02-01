@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import type { Model } from 'mongoose';
-import type { Country } from './types/country.types';
+import type { Country } from './types/location.types';
 import type { CountryDocument } from './location.schema';
 import { Country as CountrySchema } from './location.schema';
 import type { SupportedLanguage } from './types/language.types';
