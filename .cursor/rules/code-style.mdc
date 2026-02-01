@@ -24,6 +24,9 @@ globs:
   - Avoid `as any` entirely; allow only as a last resort with a short comment explaining why it’s unavoidable.
 - **Prefer `readonly` for immutability** where applicable (DTOs, config objects, constants).
 - **Prefer named types** (`type`/`interface`) for public APIs (service methods, controller responses, module exports).
+- **Prefer `interface` over `type`** for object shapes, unless it’s impossible or significantly more complex:
+  - Use **`interface`** for DTOs, public contracts, and extendable object shapes.
+  - Use **`type`** when you need unions/intersections, mapped/conditional types, tuples, or other patterns that `interface` can’t express cleanly.
 - **NestJS patterns**:
   - Prefer DTOs for request/response shapes.
   - Keep controller thin, move logic to services.
