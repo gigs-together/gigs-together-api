@@ -20,5 +20,3 @@ export class Country {
 
 export type CountryDocument = HydratedDocument<Country>;
 export const CountrySchema = SchemaFactory.createForClass(Country);
-
-CountrySchema.index({ iso: 1 }, { unique: true });
