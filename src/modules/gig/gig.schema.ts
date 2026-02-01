@@ -59,3 +59,8 @@ export class Gig {
 
 export type GigDocument = HydratedDocument<Gig>;
 export const GigSchema = SchemaFactory.createForClass(Gig);
+
+GigSchema.index(
+  { country: 1, city: 1 },
+  { collation: { locale: 'en', strength: 2 } },
+);

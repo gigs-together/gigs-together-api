@@ -94,6 +94,7 @@ export class GigService {
     // - _id: tie-breaker for equal dates
     return this.gigModel
       .find(filter)
+      .collation({ locale: 'en', strength: 2 })
       .sort({ date: 1, _id: 1 })
       .skip(skip)
       .limit(size);
