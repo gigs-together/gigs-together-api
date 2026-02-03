@@ -2,7 +2,11 @@ import type { LanguageIso } from '../language.types';
 import type { TranslationFormat } from '../../translation.schema';
 
 export interface V1LanguageGetTranslationsRequest {
-  readonly acceptLanguage: LanguageIso | undefined;
+  /**
+   * Raw `Accept-Language` header value (may be "*", "en-US,en;q=0.9", etc).
+   * We validate and normalize it on the server.
+   */
+  readonly acceptLanguage: string | undefined;
   readonly namespacesQuery: string | readonly string[] | undefined;
 }
 

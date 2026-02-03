@@ -21,6 +21,36 @@ export class LanguageService {
   private static readonly DEFAULT_LANGUAGE_ISO: LanguageIso = 'en';
   private static readonly DEFAULT_NAMESPACE = 'default';
 
+  private async resolveLocale(
+    acceptLanguageRaw?: string,
+  ): Promise<LanguageIso> {
+    const requested =
+      LanguageService.normalizeAcceptLanguage(acceptLanguageRaw);
+    if (!requested) return LanguageService.DEFAULT_LANGUAGE_ISO;
+
+    const supported = await this.languageModel
+      .find({ isActive: true }, { _id: 0, iso: 1 })
+      .lean<Array<{ readonly iso: LanguageIso }>>()
+      .exec();
+
+    const set = new Set(supported.map((x) => x.iso));
+    return set.has(requested)
+      ? requested
+      : LanguageService.DEFAULT_LANGUAGE_ISO;
+  }
+
+  private static normalizeAcceptLanguage(
+    value?: string,
+  ): LanguageIso | undefined {
+    if (!value) return undefined;
+    const first = value.split(',')[0]?.trim(); // "en-US;q=0.9" or "*"
+    if (!first || first === '*') return undefined;
+    const withoutQ = first.split(';')[0]?.trim(); // "en-US"
+    const primary = withoutQ.split('-')[0]?.trim().toLowerCase(); // "en"
+    if (!primary) return undefined;
+    return primary as LanguageIso;
+  }
+
   getLanguagesV1(): Promise<readonly SupportedLanguage[]> {
     return this.languageModel
       .find(
@@ -35,8 +65,7 @@ export class LanguageService {
   async getTranslationsV1(
     request: V1LanguageGetTranslationsRequest,
   ): Promise<V1LanguageGetTranslationsResponseBody> {
-    const locale =
-      request.acceptLanguage ?? LanguageService.DEFAULT_LANGUAGE_ISO;
+    const locale = await this.resolveLocale(request.acceptLanguage);
 
     const namespaces = LanguageService.parseNamespacesQuery(
       request.namespacesQuery,
@@ -44,6 +73,7 @@ export class LanguageService {
 
     const filter: Record<string, unknown> = {
       locale,
+      isActive: true,
     };
 
     if (namespaces !== undefined) {

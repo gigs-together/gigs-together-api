@@ -161,7 +161,7 @@ export class GigService {
     return {
       title: gig.title,
       description: `Tickets: ${gig.ticketsUrl}`,
-      location: [gig.venue, gig.city, gig.country]
+      location: [gig.venue, gig.city, gig.country] // TODO: add country name?
         .filter((str) => !!str)
         .join(', '),
       start: startDateTime,
