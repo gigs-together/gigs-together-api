@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import type { HydratedDocument } from 'mongoose';
+import { LanguageIso } from './types/language.types';
 
 @Schema()
 export class Language {
@@ -8,7 +9,7 @@ export class Language {
     required: true,
     unique: true,
   })
-  iso: string;
+  iso: LanguageIso;
 
   @Prop({ type: String, required: true })
   name: string;

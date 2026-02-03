@@ -3,7 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { LocationController } from './location.controller';
 import { LocationService } from './location.service';
 import { Country, CountrySchema } from './location.schema';
-import { Language, LanguageSchema } from './language.schema';
+import { Language, LanguageSchema } from '../language/language.schema';
 
 @Module({
   imports: [

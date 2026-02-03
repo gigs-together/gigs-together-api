@@ -1,17 +1,16 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import type { HydratedDocument } from 'mongoose';
-import type {
-  CityNameTranslations,
-  CountryNameTranslations,
-} from './types/location.types';
 
 @Schema()
 export class Country {
-  @Prop({ required: true, unique: true })
+  @Prop({
+    type: String,
+    required: true,
+    unique: true,
+    uppercase: true,
+    trim: true,
+  })
   iso: string; // "ES"
-
-  @Prop({ type: Map, of: String, required: true })
-  name: CountryNameTranslations;
 }
 
 export type CountryDocument = HydratedDocument<Country>;
@@ -24,10 +23,6 @@ export class City {
 
   @Prop({ required: true })
   country: string; // iso code: e.g. "ES"
-
-  @Prop({ type: Map, of: String, required: true })
-  name: CityNameTranslations;
-  // { en: "Madrid", es: "Madrid", ru: "Мадрид" }
 }
 
 export type CityDocument = HydratedDocument<City>;

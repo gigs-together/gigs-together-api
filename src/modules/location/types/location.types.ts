@@ -1,14 +1,10 @@
-export type CountryNameTranslations = Record<string, string>;
+type CountryIso = string;
 
 export interface Country {
-  readonly iso: string;
-  readonly name: CountryNameTranslations;
+  readonly iso: CountryIso;
 }
-
-export type CityNameTranslations = Record<string, string>;
 
 export interface City {
   readonly code: string;
   readonly country: string;
-  readonly name: CityNameTranslations;
 }

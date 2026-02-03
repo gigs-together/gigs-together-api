@@ -1,5 +1,7 @@
+export type LanguageIso = 'en' | 'es' | 'ru';
+
 export interface SupportedLanguage {
-  readonly iso: string;
+  readonly iso: LanguageIso;
   /**
    * Default language name in its own language (e.g. "Русский", "Español").
    */

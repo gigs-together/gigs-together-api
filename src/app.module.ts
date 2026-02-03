@@ -13,6 +13,7 @@ import { ReceiverModule } from './modules/receiver/receiver.module';
 import { BucketModule } from './modules/bucket/bucket.module';
 import { AiModule } from './modules/ai/ai.module';
 import { LocationModule } from './modules/location/location.module';
+import { LanguageModule } from './modules/language/language.module';
 
 const nodeEnv = (process.env.NODE_ENV ?? 'dev').trim();
 const envFilePath = [`.env.${nodeEnv}`, '.env'];
@@ -42,6 +43,7 @@ const envFilePath = [`.env.${nodeEnv}`, '.env'];
     BucketModule,
     AiModule,
     LocationModule,
+    LanguageModule,
   ],
   controllers: [AppController],
   providers: [
