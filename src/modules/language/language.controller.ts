@@ -1,6 +1,7 @@
 import { Controller, Get, Headers, Query, Version } from '@nestjs/common';
 import { LanguageService } from './language.service';
 import type { LanguageIso, SupportedLanguage } from './types/language.types';
+import { V1LanguageGetTranslationsResponseBody } from './types/requests/v1-language-get-translations-request';
 
 @Controller('language')
 export class LanguageController {
@@ -18,7 +19,7 @@ export class LanguageController {
     @Query('namespaces')
     namespacesQuery: string | readonly string[] | undefined,
     @Headers('accept-language') acceptLanguage: LanguageIso | undefined,
-  ) {
+  ): Promise<V1LanguageGetTranslationsResponseBody> {
     return this.languageService.getTranslationsV1({
       acceptLanguage,
       namespacesQuery,
