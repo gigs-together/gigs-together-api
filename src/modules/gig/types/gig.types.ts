@@ -4,6 +4,7 @@ import type { Status } from './status.enum';
 export type GigId = string | Types.ObjectId;
 
 export interface V1GetGigsResponseBodyGig {
+  id: string;
   title: string;
   date: string;
   city: string;

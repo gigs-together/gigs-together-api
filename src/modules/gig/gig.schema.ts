@@ -19,6 +19,16 @@ export const GigPosterSchema = SchemaFactory.createForClass(GigPoster);
 
 @Schema()
 export class Gig {
+  /**
+   * Public stable identifier for URLs/anchors.
+   *
+   * IMPORTANT:
+   * - This is NOT MongoDB `_id`.
+   * - We keep it ASCII-friendly (slug + YYYY-MM-DD).
+   */
+  @Prop({ type: String, required: true })
+  publicId: string;
+
   @Prop({ type: String, default: 'Unknown Gig' })
   title: string;
 
@@ -59,6 +69,9 @@ export class Gig {
 
 export type GigDocument = HydratedDocument<Gig>;
 export const GigSchema = SchemaFactory.createForClass(Gig);
+
+// Unique public id for anchoring/sharing.
+GigSchema.index({ publicId: 1 }, { unique: true });
 
 GigSchema.index(
   { country: 1, city: 1 },

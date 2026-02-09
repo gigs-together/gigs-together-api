@@ -34,10 +34,64 @@ export class GigService {
     private readonly gigPosterService: GigPosterService,
   ) {}
 
+  private async generateUniquePublicId(input: {
+    title: string;
+    yyyyMmDd: string;
+    excludeMongoId?: Types.ObjectId;
+  }): Promise<string> {
+    const slugifyTitle = (rawTitle: string): string => {
+      const str0 = (rawTitle ?? '').trim().toLowerCase();
+      const str1 = str0
+        .normalize('NFKD')
+        // Remove diacritics (ASCII-friendly)
+        .replace(/[\u0300-\u036f]/g, '');
+
+      // Replace common separators with spaces to avoid accidental concatenations.
+      const str2 = str1.replace(/[&+]/g, ' ');
+
+      // Keep only a-z0-9 and convert any other run to a hyphen.
+      const str3 = str2
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+
+      return str3 || 'gig';
+    };
+    const base = `${slugifyTitle(input.title)}-${input.yyyyMmDd}`;
+
+    for (let n = 0; n < 50; n++) {
+      const candidate = n === 0 ? base : `${base}-${n + 1}`;
+      const existing = await this.gigModel
+        .findOne(
+          {
+            publicId: candidate,
+            ...(input.excludeMongoId
+              ? { _id: { $ne: input.excludeMongoId } }
+              : {}),
+          },
+          { _id: 1 },
+        )
+        .lean();
+      if (!existing) return candidate;
+    }
+
+    // Extremely unlikely fallback: add a short random suffix.
+    const rnd = Math.random().toString(36).slice(2, 8);
+    return `${base}-${rnd}`;
+  }
+
   async saveGig(data: CreateGigInput): Promise<GigDocument> {
-    const mappedData = {
+    const date = new Date(data.date);
+    const yyyyMmDd = date.toISOString().split('T')[0];
+    const publicId = await this.generateUniquePublicId({
       title: data.title,
-      date: new Date(data.date).getTime(),
+      yyyyMmDd,
+    });
+
+    const mappedData = {
+      publicId,
+      title: data.title,
+      date: date.getTime(),
       city: data.city,
       country: data.country,
       venue: data.venue,
@@ -129,6 +183,7 @@ export class GigService {
         const calendarUrl =
           this.calendarService.getCreateCalendarEventUrl(calendarPayload);
         return {
+          id: gig.publicId,
           title: gig.title,
           date: gig.date.toString(), // TODO
           city: gig.city,
@@ -136,7 +191,6 @@ export class GigService {
           venue: gig.venue,
           ticketsUrl: gig.ticketsUrl,
           calendarUrl,
-          status: gig.status,
           posterUrl:
             (gig.poster?.bucketPath
               ? toPublicFilesProxyUrlFromStoredPosterUrl(gig.poster.bucketPath)
