@@ -1,6 +1,17 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
 import { Status } from './types/status.enum';
+import { TGMessage } from '../telegram/types/message.types';
+import { TGChat } from '../telegram/types/chat.types';
+import { Messenger } from './types/messenger.enum';
+
+interface GigTGPost {
+  id: TGMessage['message_id'];
+  chatId: TGChat['id'];
+  to: Messenger.Telegram;
+}
+
+type GigPost = { to: Messenger } & GigTGPost;
 
 @Schema({ _id: false })
 export class GigPoster {
@@ -12,7 +23,7 @@ export class GigPoster {
   externalUrl?: string;
 
   @Prop({ type: String, required: false })
-  tgFileId?: string;
+  tgFileId?: string; // TODO
 }
 
 export const GigPosterSchema = SchemaFactory.createForClass(GigPoster);
@@ -65,6 +76,9 @@ export class Gig {
 
   @Prop({ type: String, enum: Status, default: Status.New })
   status: Status;
+
+  @Prop({ type: Object, required: false })
+  post?: GigPost;
 }
 
 export type GigDocument = HydratedDocument<Gig>;

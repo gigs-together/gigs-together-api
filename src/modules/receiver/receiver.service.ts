@@ -10,6 +10,7 @@ import { Action } from '../telegram/types/action.enum';
 import { getBiggestTgPhotoFileId } from '../telegram/utils/photo';
 import { V1ReceiverCreateGigRequestBodyValidated } from './types/requests/v1-receiver-create-gig-request';
 import { CalendarService } from '../calendar/calendar.service';
+import { Messenger } from '../gig/types/messenger.enum';
 // import { NodeHttpHandler } from '@smithy/node-http-handler';
 
 type UpdateGigPayload = Pick<Gig, 'status'> & Partial<Pick<Gig, 'poster'>>;
@@ -56,11 +57,12 @@ export class ReceiverService {
 
     const text = message.text || '';
 
+    // TODO
     if (text.charAt(0) !== '/') {
-      await this.telegramService.sendMessage({
-        chat_id: chatId,
-        text: `You said: "${text}"`,
-      });
+      //   await this.telegramService.sendMessage({
+      //     chat_id: chatId,
+      //     text: `You said: "${text}"`,
+      //   });
       return;
     }
 
@@ -224,8 +226,15 @@ export class ReceiverService {
       gigId,
       Status.Approved,
     );
-    await this.telegramService.publishMain(updatedGig);
-    await this.gigService.updateGigStatus(gigId, Status.Published);
+    const tgPost = await this.telegramService.publishMain(updatedGig);
+    await this.gigService.updateGig(gigId, {
+      status: Status.Published,
+      post: {
+        id: tgPost.message_id,
+        chatId: tgPost.sender_chat?.id ?? tgPost.chat?.id,
+        to: Messenger.Telegram,
+      },
+    });
     this.logger.log(`Gig #${gigId} approved`);
     const replyMarkup = {
       inline_keyboard: [],
