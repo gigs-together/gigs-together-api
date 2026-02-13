@@ -13,6 +13,7 @@ export interface V1GetGigsResponseBodyGig {
   ticketsUrl: string;
   calendarUrl: string;
   posterUrl?: string;
+  postUrl?: string;
 }
 
 export interface CreateGigInput {

@@ -182,6 +182,9 @@ export class GigService {
         const calendarPayload = this.gigToCalendarPayload(gig);
         const calendarUrl =
           this.calendarService.getCreateCalendarEventUrl(calendarPayload);
+        const postUrl = gig.post
+          ? `https://t.me/c/${gig.post.chatId.toString().replace(/^-100/, '')}/${gig.post.id}`
+          : undefined;
         return {
           id: gig.publicId,
           title: gig.title,
@@ -191,6 +194,7 @@ export class GigService {
           venue: gig.venue,
           ticketsUrl: gig.ticketsUrl,
           calendarUrl,
+          postUrl,
           posterUrl:
             (gig.poster?.bucketPath
               ? toPublicFilesProxyUrlFromStoredPosterUrl(gig.poster.bucketPath)
