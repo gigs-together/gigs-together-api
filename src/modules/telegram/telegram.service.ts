@@ -305,7 +305,7 @@ export class TelegramService {
     const formattedDate = dateFormatter.format(new Date(gig.date));
 
     const text = [
-      gig.title,
+      `<a href="${process.env.APP_BASE_URL}">${gig.title}</a>`,
       '',
       `🗓 ${formattedDate}`,
       `📍 ${gig.venue}`,
@@ -327,6 +327,8 @@ export class TelegramService {
         text,
         caption: text,
         photo,
+        parse_mode: 'HTML',
+        disable_web_page_preview: true,
         ...messagePayload,
       },
       gig,

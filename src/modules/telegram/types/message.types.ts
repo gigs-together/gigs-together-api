@@ -20,6 +20,8 @@ export interface TGMessage {
 export interface TGSendMessage {
   chat_id: TGChatId;
   text: string;
+  parse_mode?: string;
+  disable_web_page_preview?: boolean;
 
   [key: string]: unknown;
 }
