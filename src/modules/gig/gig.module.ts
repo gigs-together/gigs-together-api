@@ -8,6 +8,7 @@ import { CalendarModule } from '../calendar/calendar.module';
 import { BucketModule } from '../bucket/bucket.module';
 import { HttpModule } from '@nestjs/axios';
 import { GigPosterService } from './gig.poster.service';
+import { TelegramModule } from '../telegram/telegram.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { GigPosterService } from './gig.poster.service';
     CalendarModule,
     BucketModule,
     HttpModule,
+    TelegramModule,
   ],
   providers: [GigService, GigPosterService],
   exports: [GigService],

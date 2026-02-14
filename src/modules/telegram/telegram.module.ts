@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { TelegramService } from './telegram.service';
 import { HttpModule } from '@nestjs/axios';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { GigModule } from '../gig/gig.module';
+import { CacheModule } from '@nestjs/cache-manager';
 
 @Module({
   imports: [
@@ -13,7 +13,9 @@ import { GigModule } from '../gig/gig.module';
         baseURL: `https://api.telegram.org/bot${configService.get<string>('BOT_TOKEN')}`,
       }),
     }),
-    GigModule,
+    CacheModule.register({
+      ttl: 60_000 * 60,
+    }),
   ],
   providers: [TelegramService],
   exports: [TelegramService],

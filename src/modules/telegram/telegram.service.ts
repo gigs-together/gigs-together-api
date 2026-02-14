@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import type {
   InputFile,
   TGEditMessageReplyMarkup,
@@ -14,10 +14,16 @@ import type { TGAnswerCallbackQuery } from './types/update.types';
 import * as FormData from 'form-data';
 import { Action } from './types/action.enum';
 import { getGigPostersPrefixWithSlash } from '../bucket/gig-posters';
+import { TGChat } from './types/chat.types';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 
 @Injectable()
 export class TelegramService {
-  constructor(private readonly httpService: HttpService) {}
+  constructor(
+    private readonly httpService: HttpService,
+    @Inject(CACHE_MANAGER) private cache: Cache,
+  ) {}
 
   private readonly logger = new Logger(TelegramService.name);
 
@@ -357,5 +363,32 @@ export class TelegramService {
       ],
     };
     return this.publish(gig, { chat_id: chatId, reply_markup: replyMarkup });
+  }
+
+  private async getChat(chatIdOrUsername: number | string): Promise<TGChat> {
+    const res$ = this.httpService.get('getChat', {
+      params: { chat_id: chatIdOrUsername },
+    });
+    const { data } = await firstValueFrom(res$);
+
+    if (!data.ok) {
+      throw new Error(
+        `Telegram getChat error ${data.error_code}: ${data.description}`,
+      );
+    }
+
+    return data.result;
+  }
+
+  public async getChatUsername(
+    chatId: TGChat['id'],
+  ): Promise<TGChat['username']> {
+    const key = `chat:${chatId}`;
+    const cachedChat = await this.cache.get<TGChat>(key);
+    if (cachedChat) return cachedChat.username;
+
+    const chat = await this.getChat(chatId);
+    await this.cache.set(key, chat);
+    return chat.username;
   }
 }

@@ -23,6 +23,7 @@ import {
   CalendarService,
 } from '../calendar/calendar.service';
 import { GigPosterService } from './gig.poster.service';
+import { TelegramService } from '../telegram/telegram.service';
 
 // TODO: add allowing only specific status transitions
 @Injectable()
@@ -32,6 +33,7 @@ export class GigService {
     private readonly aiService: AiService,
     private readonly calendarService: CalendarService,
     private readonly gigPosterService: GigPosterService,
+    private readonly telegramService: TelegramService,
   ) {}
 
   private async generateUniquePublicId(input: {
@@ -154,6 +156,7 @@ export class GigService {
       .limit(size);
   }
 
+  // TODO: add cache
   async getPublishedGigsV1(
     query: V1GigGetRequestQuery,
   ): Promise<V1GetGigsResponseBody> {
@@ -177,31 +180,38 @@ export class GigService {
       true,
     );
 
-    return {
-      gigs: gigs.map((gig) => {
-        const calendarPayload = this.gigToCalendarPayload(gig);
-        const calendarUrl =
-          this.calendarService.getCreateCalendarEventUrl(calendarPayload);
-        const postUrl = gig.post
-          ? `https://t.me/c/${gig.post.chatId.toString().replace(/^-100/, '')}/${gig.post.id}`
+    const mapped: V1GetGigsResponseBody['gigs'] = [];
+    for (const gig of gigs) {
+      const calendarPayload = this.gigToCalendarPayload(gig);
+      const calendarUrl =
+        this.calendarService.getCreateCalendarEventUrl(calendarPayload);
+      const chatUsername = gig.post?.chatId
+        ? await this.telegramService.getChatUsername(gig.post.chatId)
+        : undefined;
+      const postUrl =
+        chatUsername && gig.post.id
+          ? `https://t.me/${chatUsername}/${gig.post.id}`
           : undefined;
-        return {
-          id: gig.publicId,
-          title: gig.title,
-          date: gig.date.toString(), // TODO
-          city: gig.city,
-          country: gig.country,
-          venue: gig.venue,
-          ticketsUrl: gig.ticketsUrl,
-          calendarUrl,
-          postUrl,
-          posterUrl:
-            (gig.poster?.bucketPath
-              ? toPublicFilesProxyUrlFromStoredPosterUrl(gig.poster.bucketPath)
-              : undefined) ??
-            (externalFallbackEnabled ? gig.poster?.externalUrl : undefined),
-        };
-      }),
+      mapped.push({
+        id: gig.publicId,
+        title: gig.title,
+        date: gig.date.toString(), // TODO
+        city: gig.city,
+        country: gig.country,
+        venue: gig.venue,
+        ticketsUrl: gig.ticketsUrl,
+        calendarUrl,
+        postUrl,
+        posterUrl:
+          (gig.poster?.bucketPath
+            ? toPublicFilesProxyUrlFromStoredPosterUrl(gig.poster.bucketPath)
+            : undefined) ??
+          (externalFallbackEnabled ? gig.poster?.externalUrl : undefined),
+      });
+    }
+
+    return {
+      gigs: mapped,
     };
   }
 
