@@ -44,7 +44,10 @@ export class Gig {
   title: string;
 
   @Prop({ type: Number })
-  date: number; // timestamp
+  date: number;
+
+  @Prop({ type: Number })
+  endDate?: number;
 
   @Prop({ type: String })
   city: string; // city code

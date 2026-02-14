@@ -196,6 +196,7 @@ export class GigService {
         id: gig.publicId,
         title: gig.title,
         date: gig.date.toString(), // TODO
+        endDate: gig.endDate?.toString(),
         city: gig.city,
         country: gig.country,
         venue: gig.venue,

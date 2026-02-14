@@ -7,6 +7,7 @@ export interface V1GetGigsResponseBodyGig {
   id: string;
   title: string;
   date: string;
+  endDate?: string;
   city: string;
   country: string;
   venue: string;
