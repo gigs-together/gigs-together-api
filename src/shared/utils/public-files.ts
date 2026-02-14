@@ -1,6 +1,5 @@
 export function getApiPublicBase(): string {
-  const explicit =
-    process.env.APP_PUBLIC_BASE_URL ?? process.env.PUBLIC_BASE_URL;
+  const explicit = process.env.APP_API_BASE_URL;
   const baseRaw = (explicit ?? '').trim();
   if (!baseRaw) return '';
   const base = /^[a-z][a-z0-9+.-]*:\/\//i.test(baseRaw)

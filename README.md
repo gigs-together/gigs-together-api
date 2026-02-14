@@ -105,7 +105,7 @@ Use Railway Bucket Variable References (recommended) or set manually:
 Optional:
 
 - `S3_PRESIGN_EXPIRES_IN` (seconds, default 3600)
-- `APP_PUBLIC_BASE_URL` (e.g. `https://your-service.up.railway.app`) so stored `Gig.poster.bucketPath` becomes absolute
+- `APP_API_BASE_URL` (e.g. `https://your-service.up.railway.app`) so stored `Gig.poster.bucketPath` becomes absolute
 
 ### CORS for the API
 
@@ -123,7 +123,7 @@ Or:
 - **API**: `https://api.your-domain.tld`
 - **Env**:
   - `CORS_ORIGINS="https://app.your-domain.tld"`
-  - `APP_PUBLIC_BASE_URL="https://api.your-domain.tld"` (so stored URLs point to the API domain when needed)
+  - `APP_API_BASE_URL="https://api.your-domain.tld"` (so stored URLs point to the API domain when needed)
 
 ### CORS for the Bucket (only needed for browser uploads / fetch)
 

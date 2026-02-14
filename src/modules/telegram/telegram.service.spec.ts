@@ -29,8 +29,7 @@ describe('TelegramService', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
-    delete process.env.APP_PUBLIC_BASE_URL;
-    delete process.env.PUBLIC_BASE_URL;
+    delete process.env.APP_API_BASE_URL;
   });
 
   it('should be defined', () => {
@@ -89,7 +88,7 @@ describe('TelegramService', () => {
     });
 
     it('should resolve "/public/..." against base origin (ignoring base path)', () => {
-      process.env.APP_PUBLIC_BASE_URL = 'https://example.com/api';
+      process.env.APP_API_BASE_URL = 'https://example.com/api';
       const fn = (
         service as unknown as {
           toAbsolutePublicUrlForTelegram: (value: string) => string;
@@ -107,7 +106,7 @@ describe('TelegramService', () => {
         }
       ).toAbsolutePublicUrlForTelegram.bind(service);
       expect(() => fn('/public/files-proxy/gigs/x.jpg')).toThrow(
-        /set APP_PUBLIC_BASE_URL/i,
+        /set APP_API_BASE_URL/i,
       );
     });
   });

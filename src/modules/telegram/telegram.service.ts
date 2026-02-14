@@ -146,15 +146,11 @@ export class TelegramService {
     if (!trimmed) return trimmed;
     if (this.isHttpUrl(trimmed)) return trimmed;
     if (trimmed.startsWith('/')) {
-      const baseRaw = (
-        process.env.APP_PUBLIC_BASE_URL ??
-        process.env.PUBLIC_BASE_URL ??
-        ''
-      ).trim();
+      const baseRaw = (process.env.APP_API_BASE_URL ?? '').trim();
       if (!baseRaw) {
         // Telegram rejects relative URLs with: "URL host is empty"
         throw new Error(
-          'Telegram photo URL is relative; set APP_PUBLIC_BASE_URL (or PUBLIC_BASE_URL) to make it absolute',
+          'Telegram photo URL is relative; set APP_API_BASE_URL to make it absolute',
         );
       }
       // IMPORTANT:
@@ -167,9 +163,7 @@ export class TelegramService {
       try {
         return new URL(trimmed, base).toString();
       } catch {
-        throw new Error(
-          `Invalid APP_PUBLIC_BASE_URL/PUBLIC_BASE_URL: "${baseRaw}"`,
-        );
+        throw new Error(`Invalid APP_API_BASE_URL: "${baseRaw}"`);
       }
     }
     return trimmed;
