@@ -308,12 +308,16 @@ export class TelegramService {
       month: 'short', // e.g., "Nov"
       day: '2-digit',
     });
-    const formattedDate = dateFormatter.format(new Date(gig.date));
+    const date = dateFormatter.format(new Date(gig.date));
+    const endDate = gig.endDate
+      ? dateFormatter.format(new Date(gig.endDate))
+      : undefined;
+    const dates = [date, endDate].filter(Boolean).join(' - ');
 
     const text = [
       `<a href="${process.env.APP_BASE_URL}">${gig.title}</a>`,
       '',
-      `🗓 ${formattedDate}`,
+      `🗓 ${dates}`,
       `📍 ${gig.venue}`,
       '',
       `🎫 ${gig.ticketsUrl}`,
