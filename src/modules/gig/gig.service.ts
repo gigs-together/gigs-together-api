@@ -229,8 +229,22 @@ export class GigService {
     startDateTime.setHours(20, 0, 0, 0); // 20:00
 
     // Calculate end time (2 hours later)
-    const endDateTime = new Date(startDateTime);
-    endDateTime.setHours(startDateTime.getHours() + 2);
+    const getDefaultEndDateTime = () =>
+      new Date(startDateTime.getTime() + 2 * 60 * 60 * 1000);
+
+    // If `endDate` exists (multi-day event), end on the last day.
+    // We still default to an evening time window.
+    const endDateTime = (() => {
+      if (!gig.endDate) return getDefaultEndDateTime();
+
+      const end = new Date(gig.endDate);
+      end.setHours(22, 0, 0, 0); // 22:00 (20:00 + 2h)
+
+      // Safety: never return an end before the start.
+      return end.getTime() > startDateTime.getTime()
+        ? end
+        : getDefaultEndDateTime();
+    })();
 
     return {
       title: gig.title,
