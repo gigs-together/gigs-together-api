@@ -20,6 +20,7 @@ export interface V1GetGigsResponseBodyGig {
 export interface CreateGigInput {
   title: string;
   date: string;
+  endDate?: string;
   city: string;
   country: string;
   venue: string;

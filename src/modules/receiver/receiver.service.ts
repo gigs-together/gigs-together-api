@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import type { TGChatId, TGMessage } from '../telegram/types/message.types';
 import { GigService } from '../gig/gig.service';
 import type { Gig } from '../gig/gig.schema';
-import type { GigId } from '../gig/types/gig.types';
+import { CreateGigInput, GigId } from '../gig/types/gig.types';
 import { Status } from '../gig/types/status.enum';
 import type { TGCallbackQuery } from '../telegram/types/update.types';
 import { TelegramService } from '../telegram/telegram.service';
@@ -163,7 +163,7 @@ export class ReceiverService {
       file: posterFile,
     });
 
-    const data = {
+    const data: { gig: CreateGigInput; isAdmin: boolean } = {
       gig: {
         title: body.gig.title,
         date: body.gig.date,
@@ -175,6 +175,10 @@ export class ReceiverService {
       },
       isAdmin: body.user?.isAdmin,
     };
+
+    if (body.gig.endDate && body.gig.endDate !== body.gig.date) {
+      data.gig.endDate = body.gig.endDate;
+    }
 
     // TODO: add transaction?
     const savedGig = await this.gigService.saveGig(data.gig);

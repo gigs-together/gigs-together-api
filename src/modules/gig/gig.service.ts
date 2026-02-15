@@ -90,7 +90,7 @@ export class GigService {
       yyyyMmDd,
     });
 
-    const mappedData = {
+    const mappedData: Gig = {
       publicId,
       title: data.title,
       date: date.getTime(),
@@ -99,7 +99,12 @@ export class GigService {
       venue: data.venue,
       ticketsUrl: data.ticketsUrl,
       poster: data.poster,
+      status: Status.New,
     };
+    if (data.endDate) {
+      mappedData.endDate = new Date(data.endDate).getTime();
+    }
+
     const createdGig = new this.gigModel(mappedData);
     return createdGig.save();
   }
