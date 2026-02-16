@@ -4,10 +4,12 @@ import { Status } from './types/status.enum';
 import { TGMessage } from '../telegram/types/message.types';
 import { TGChat } from '../telegram/types/chat.types';
 import { Messenger } from './types/messenger.enum';
+import { GigSuggestedBy } from './types/gig.types';
 
 interface GigTGPost {
   id: TGMessage['message_id'];
   chatId: TGChat['id'];
+  fileId?: string;
   to: Messenger.Telegram;
 }
 
@@ -21,9 +23,6 @@ export class GigPoster {
   // Original external URL (if uploaded from a remote source)
   @Prop({ type: String, required: false })
   externalUrl?: string;
-
-  @Prop({ type: String, required: false })
-  tgFileId?: string; // TODO
 }
 
 export const GigPosterSchema = SchemaFactory.createForClass(GigPoster);
@@ -70,9 +69,9 @@ export class Gig {
     validate: {
       validator: (v?: GigPoster) => {
         if (!v) return true;
-        return !!v.bucketPath || !!v.tgFileId;
+        return !!v.bucketPath;
       },
-      message: 'poster must have at least one of: bucketPath or tgFileId',
+      message: 'poster must have bucketPath',
     },
   })
   poster?: GigPoster;
@@ -82,6 +81,9 @@ export class Gig {
 
   @Prop({ type: Object, required: false })
   post?: GigPost;
+
+  @Prop({ type: Object, required: true })
+  suggestedBy: GigSuggestedBy;
 }
 
 export type GigDocument = HydratedDocument<Gig>;

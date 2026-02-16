@@ -100,6 +100,7 @@ export class GigService {
       ticketsUrl: data.ticketsUrl,
       poster: data.poster,
       status: Status.New,
+      suggestedBy: data.suggestedBy,
     };
     if (data.endDate) {
       mappedData.endDate = new Date(data.endDate).getTime();

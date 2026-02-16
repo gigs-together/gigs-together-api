@@ -17,6 +17,7 @@ import { getGigPostersPrefixWithSlash } from '../bucket/gig-posters';
 import { TGChat } from './types/chat.types';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
+import type { TGChatId } from './types/message.types';
 
 @Injectable()
 export class TelegramService {
@@ -315,7 +316,7 @@ export class TelegramService {
     const dates = [date, endDate].filter(Boolean).join(' - ');
 
     const text = [
-      `<a href="${process.env.APP_BASE_URL}">${gig.title}</a>`,
+      `<a href="${process.env.APP_BASE_URL}">${gig.title}</a>`, // TODO
       '',
       `🗓 ${dates}`,
       `📍 ${gig.venue}`,
@@ -325,7 +326,7 @@ export class TelegramService {
 
     const photo =
       gig.poster &&
-      (gig.poster.tgFileId ||
+      (gig.post?.fileId ||
         (gig.poster.bucketPath
           ? this.toAbsolutePublicUrlForTelegram(
               this.toPublicFilesProxyPath(gig.poster.bucketPath),
@@ -367,6 +368,27 @@ export class TelegramService {
       ],
     };
     return this.publish(gig, { chat_id: chatId, reply_markup: replyMarkup });
+  }
+
+  async sendGigSubmissionFeedback(
+    gig: GigDocument,
+    chatId: TGChatId,
+  ): Promise<TGMessage> {
+    const statusForUser = 'Pending';
+    // TODO: add some language like "You've submitted, blablabla..."
+    return this.publish(gig, {
+      chat_id: chatId,
+      reply_markup: {
+        inline_keyboard: [
+          [
+            {
+              text: `⏳ ${statusForUser}`,
+              callback_data: `${Action.Status}:${statusForUser}`,
+            },
+          ],
+        ],
+      },
+    });
   }
 
   private async getChat(chatIdOrUsername: number | string): Promise<TGChat> {

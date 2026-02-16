@@ -1,7 +1,6 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import type { TGChatId, TGMessage } from '../telegram/types/message.types';
 import { GigService } from '../gig/gig.service';
-import type { Gig } from '../gig/gig.schema';
 import { CreateGigInput, GigId } from '../gig/types/gig.types';
 import { Status } from '../gig/types/status.enum';
 import type { TGCallbackQuery } from '../telegram/types/update.types';
@@ -12,8 +11,6 @@ import { V1ReceiverCreateGigRequestBodyValidated } from './types/requests/v1-rec
 import { CalendarService } from '../calendar/calendar.service';
 import { Messenger } from '../gig/types/messenger.enum';
 // import { NodeHttpHandler } from '@smithy/node-http-handler';
-
-type UpdateGigPayload = Pick<Gig, 'status'> & Partial<Pick<Gig, 'poster'>>;
 
 enum Command {
   Start = 'start',
@@ -101,12 +98,12 @@ export class ReceiverService {
   private async processCallbackQueryOrThrow(
     callbackQuery: TGCallbackQuery,
   ): Promise<void> {
-    const [action, gigId] = callbackQuery.data.split(':');
+    const [action, data] = callbackQuery.data.split(':');
     // TODO: some more security?
     switch (action) {
       case Action.Approve: {
         await this.handleGigApprove({
-          gigId,
+          gigId: data,
           messageId: callbackQuery.message.message_id,
           chatId: callbackQuery.message.chat.id,
         });
@@ -114,7 +111,7 @@ export class ReceiverService {
       }
       case Action.Reject: {
         await this.handleGigReject({
-          gigId,
+          gigId: data,
           messageId: callbackQuery.message.message_id,
           chatId: callbackQuery.message.chat.id,
         });
@@ -129,10 +126,18 @@ export class ReceiverService {
         });
         return;
       }
+      case Action.Status: {
+        await this.telegramService.answerCallbackQuery({
+          callback_query_id: callbackQuery.id,
+          text: data ? `Status is ${data}` : undefined,
+          show_alert: false,
+        });
+        return;
+      }
       default: {
         await this.telegramService.answerCallbackQuery({
           callback_query_id: callbackQuery.id,
-          text: 'Go write better code!',
+          text: 'Something unexpected happened, I dunno what to do',
           show_alert: true,
         });
         return;
@@ -172,25 +177,23 @@ export class ReceiverService {
       file: posterFile,
     });
 
-    const data: { gig: CreateGigInput; isAdmin: boolean } = {
-      gig: {
-        title: body.gig.title,
-        date: body.gig.date,
-        city: body.gig.city,
-        country: body.gig.country,
-        venue: body.gig.venue,
-        ticketsUrl: body.gig.ticketsUrl,
-        poster,
-      },
-      isAdmin: body.user?.isAdmin,
+    const gig: CreateGigInput = {
+      title: body.gig.title,
+      date: body.gig.date,
+      city: body.gig.city,
+      country: body.gig.country,
+      venue: body.gig.venue,
+      ticketsUrl: body.gig.ticketsUrl,
+      poster,
+      suggestedBy: { userId: body.user.tgUser.id },
     };
 
     if (body.gig.endDate && body.gig.endDate !== body.gig.date) {
-      data.gig.endDate = body.gig.endDate;
+      gig.endDate = body.gig.endDate;
     }
 
     // TODO: add transaction?
-    const savedGig = await this.gigService.saveGig(data.gig);
+    const savedGig = await this.gigService.saveGig(gig);
     let res: TGMessage | undefined;
     try {
       res = await this.telegramService.publishDraft(savedGig);
@@ -204,20 +207,33 @@ export class ReceiverService {
 
     const biggestTgPhotoFileId = getBiggestTgPhotoFileId(res?.photo);
 
-    const updateGigPayload: UpdateGigPayload = {
+    const updateGigPayload = {
+      post: {
+        fileId: biggestTgPhotoFileId,
+        to: Messenger.Telegram,
+      },
       status: Status.Pending,
     };
-    if (poster.bucketPath || poster.externalUrl) {
-      updateGigPayload.poster = {
-        tgFileId: biggestTgPhotoFileId,
-      };
-      if (poster.externalUrl) {
-        updateGigPayload.poster.externalUrl = poster.externalUrl;
-      }
-      if (poster.bucketPath) {
-        updateGigPayload.poster.bucketPath = poster.bucketPath;
+
+    // Notify the author in DM (but never notify admins).
+    // NOTE: Telegram may reject sending DMs if the user hasn't started the bot.
+    const authorTelegramId = body.user?.tgUser?.id;
+    if (authorTelegramId && body.user?.isAdmin !== true) {
+      try {
+        const res: TGMessage =
+          await this.telegramService.sendGigSubmissionFeedback(
+            savedGig,
+            authorTelegramId,
+          );
+        updateGigPayload['suggestedBy.feedbackMessageId'] = res.message_id;
+      } catch (e) {
+        // DM notification shouldn't block gig creation.
+        this.logger.warn(
+          `notifyAuthorInDm failed: ${JSON.stringify(e?.response?.data ?? e?.message ?? e)}`,
+        );
       }
     }
+
     try {
       await this.gigService.updateGig(savedGig._id, updateGigPayload);
     } catch (e) {
@@ -231,7 +247,7 @@ export class ReceiverService {
   async handleGigApprove(payload: {
     gigId: GigId;
     chatId: TGChatId;
-    messageId: number;
+    messageId: TGMessage['message_id'];
   }): Promise<void> {
     // TODO: add transaction?
     const { gigId, chatId, messageId } = payload;
@@ -242,11 +258,8 @@ export class ReceiverService {
     const tgPost = await this.telegramService.publishMain(updatedGig);
     await this.gigService.updateGig(gigId, {
       status: Status.Published,
-      post: {
-        id: tgPost.message_id,
-        chatId: tgPost.sender_chat?.id ?? tgPost.chat?.id,
-        to: Messenger.Telegram,
-      },
+      'post.id': tgPost.message_id,
+      'post.chatId': tgPost.sender_chat?.id ?? tgPost.chat?.id,
     });
     this.logger.log(`Gig #${gigId} approved`);
     const replyMarkup = {
@@ -257,6 +270,28 @@ export class ReceiverService {
       messageId,
       replyMarkup,
     });
+
+    if (
+      updatedGig.suggestedBy.userId &&
+      updatedGig.suggestedBy.feedbackMessageId
+    ) {
+      const statusForUser = 'Published';
+      await this.telegramService.editMessageReplyMarkup({
+        chatId: updatedGig.suggestedBy.userId,
+        messageId: updatedGig.suggestedBy.feedbackMessageId,
+        replyMarkup: {
+          inline_keyboard: [
+            [
+              {
+                text: `✅ ${statusForUser}`,
+                callback_data: `${Action.Status}:${statusForUser}`,
+              },
+            ],
+          ],
+        },
+      });
+    }
+
     const calendarGig = this.gigService.gigToCalendarPayload(updatedGig);
     await this.calendarService.addEvent(calendarGig);
   }
@@ -264,28 +299,52 @@ export class ReceiverService {
   async handleGigReject(payload: {
     gigId: GigId;
     chatId: TGChatId;
-    messageId: number;
+    messageId: TGMessage['message_id'];
   }): Promise<void> {
     const { gigId, chatId, messageId } = payload;
-    await this.gigService.updateGigStatus(gigId, Status.Rejected);
+    const updatedGig = await this.gigService.updateGigStatus(
+      gigId,
+      Status.Rejected,
+    );
     this.logger.log(`Gig #${gigId} rejected`);
-    const replyMarkup = {
-      inline_keyboard: [
-        [
-          {
-            text: '❌ Rejected',
-            callback_data: `${Action.Rejected}:${gigId}`,
-          },
-        ],
-      ],
-      // TODO: reason for rejection
-      // force_reply: true,
-      // input_field_placeholder: 'Reason?',
-    };
+
     await this.telegramService.editMessageReplyMarkup({
       chatId,
       messageId,
-      replyMarkup,
+      replyMarkup: {
+        inline_keyboard: [
+          [
+            {
+              text: '❌ Rejected',
+              callback_data: `${Action.Rejected}:${gigId}`,
+            },
+          ],
+        ],
+        // TODO: reason for rejection
+        // force_reply: true,
+        // input_field_placeholder: 'Reason?',
+      },
     });
+
+    if (
+      updatedGig.suggestedBy.userId &&
+      updatedGig.suggestedBy.feedbackMessageId
+    ) {
+      const statusForUser = 'Rejected';
+      await this.telegramService.editMessageReplyMarkup({
+        chatId: updatedGig.suggestedBy.userId,
+        messageId: updatedGig.suggestedBy.feedbackMessageId,
+        replyMarkup: {
+          inline_keyboard: [
+            [
+              {
+                text: `❌ ${statusForUser}`,
+                callback_data: `${Action.Status}:${statusForUser}`,
+              },
+            ],
+          ],
+        },
+      });
+    }
   }
 }

@@ -1,5 +1,7 @@
 import type { Types } from 'mongoose';
 import type { Status } from './status.enum';
+import type { TGUser } from '../../telegram/types/user.types';
+import type { TGMessage } from '../../telegram/types/message.types';
 
 export type GigId = string | Types.ObjectId;
 
@@ -28,8 +30,8 @@ export interface CreateGigInput {
   poster?: {
     bucketPath?: string;
     externalUrl?: string;
-    tgFileId?: string;
   };
+  suggestedBy: GigSuggestedBy;
 }
 
 export interface GetGigs {
@@ -50,4 +52,9 @@ export interface GetGigs {
    * ISO 3166-1 alpha-2 code (uppercase), e.g. "ES", "US".
    */
   country?: string;
+}
+
+export interface GigSuggestedBy {
+  userId: TGUser['id'];
+  feedbackMessageId?: TGMessage['message_id'];
 }

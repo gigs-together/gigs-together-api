@@ -17,6 +17,8 @@ describe('ReceiverService', () => {
     editMessageReplyMarkup: jest.fn(),
     publishDraft: jest.fn(),
     publishMain: jest.fn(),
+    publishToChat: jest.fn(),
+    buildGigStatusReplyMarkup: jest.fn(),
   };
 
   const mockGigService = {
@@ -88,10 +90,8 @@ describe('ReceiverService', () => {
 
       await service.handleMessage(message);
 
-      expect(mockTelegramService.sendMessage).toHaveBeenCalledWith({
-        chat_id: 12345,
-        text: `You said: "Hello!"`,
-      });
+      // Non-command messages are ignored for now.
+      expect(mockTelegramService.sendMessage).not.toHaveBeenCalled();
     });
 
     it('should handle the /start command', async () => {

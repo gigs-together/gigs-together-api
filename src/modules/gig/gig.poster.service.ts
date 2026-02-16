@@ -96,7 +96,7 @@ export class GigPosterService {
   async getCreateGigUploadedPosterData(payload: {
     url?: string;
     file?: Express.Multer.File;
-  }): Promise<Omit<GigPoster, 'tgFileId'>> {
+  }): Promise<GigPoster> {
     const { url, file } = payload;
 
     let bucketPath: string | undefined;
