@@ -45,6 +45,7 @@ export class ReceiverWebhookGuard implements CanActivate {
       ? await this.authService.isAdmin(telegramId)
       : false;
 
+    // TODO: open some features for other users
     request.telegramWebhook = {
       allowed: isAdmin === true,
       reason: isAdmin === true ? undefined : 'Admin privileges required',
