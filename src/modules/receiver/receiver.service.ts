@@ -196,7 +196,7 @@ export class ReceiverService {
     const savedGig = await this.gigService.saveGig(gig);
     let res: TGMessage | undefined;
     try {
-      res = await this.telegramService.publishDraft(savedGig);
+      res = await this.telegramService.sendToModeration(savedGig);
     } catch (e) {
       // Publishing to Telegram shouldn't block gig creation.
       this.logger.warn(
@@ -221,7 +221,7 @@ export class ReceiverService {
     if (authorTelegramId && body.user?.isAdmin !== true) {
       try {
         const res: TGMessage =
-          await this.telegramService.sendGigSubmissionFeedback(
+          await this.telegramService.sendSubmissionFeedback(
             savedGig,
             authorTelegramId,
           );
@@ -262,35 +262,11 @@ export class ReceiverService {
       'post.chatId': tgPost.sender_chat?.id ?? tgPost.chat?.id,
     });
     this.logger.log(`Gig #${gigId} approved`);
-    const replyMarkup = {
-      inline_keyboard: [],
-    };
-    await this.telegramService.editMessageReplyMarkup({
-      chatId,
-      messageId,
-      replyMarkup,
-    });
 
-    if (
-      updatedGig.suggestedBy.userId &&
-      updatedGig.suggestedBy.feedbackMessageId
-    ) {
-      const statusForUser = 'Published';
-      await this.telegramService.editMessageReplyMarkup({
-        chatId: updatedGig.suggestedBy.userId,
-        messageId: updatedGig.suggestedBy.feedbackMessageId,
-        replyMarkup: {
-          inline_keyboard: [
-            [
-              {
-                text: `✅ ${statusForUser}`,
-                callback_data: `${Action.Status}:${statusForUser}`,
-              },
-            ],
-          ],
-        },
-      });
-    }
+    await this.telegramService.handlePostPublish({
+      suggestedBy: updatedGig.suggestedBy,
+      moderationMessage: { chatId, messageId },
+    });
 
     const calendarGig = this.gigService.gigToCalendarPayload(updatedGig);
     await this.calendarService.addEvent(calendarGig);
@@ -308,43 +284,10 @@ export class ReceiverService {
     );
     this.logger.log(`Gig #${gigId} rejected`);
 
-    await this.telegramService.editMessageReplyMarkup({
-      chatId,
-      messageId,
-      replyMarkup: {
-        inline_keyboard: [
-          [
-            {
-              text: '❌ Rejected',
-              callback_data: `${Action.Rejected}:${gigId}`,
-            },
-          ],
-        ],
-        // TODO: reason for rejection
-        // force_reply: true,
-        // input_field_placeholder: 'Reason?',
-      },
+    await this.telegramService.handlePostReject({
+      suggestedBy: updatedGig.suggestedBy,
+      moderationMessage: { chatId, messageId },
+      gigId,
     });
-
-    if (
-      updatedGig.suggestedBy.userId &&
-      updatedGig.suggestedBy.feedbackMessageId
-    ) {
-      const statusForUser = 'Rejected';
-      await this.telegramService.editMessageReplyMarkup({
-        chatId: updatedGig.suggestedBy.userId,
-        messageId: updatedGig.suggestedBy.feedbackMessageId,
-        replyMarkup: {
-          inline_keyboard: [
-            [
-              {
-                text: `❌ ${statusForUser}`,
-                callback_data: `${Action.Status}:${statusForUser}`,
-              },
-            ],
-          ],
-        },
-      });
-    }
   }
 }

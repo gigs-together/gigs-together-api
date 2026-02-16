@@ -351,8 +351,8 @@ export class TelegramService {
     return this.publish(gig, { chat_id: chatId });
   }
 
-  async publishDraft(gig: GigDocument): Promise<TGMessage> {
-    const chatId = process.env.DRAFT_CHANNEL_ID;
+  async sendToModeration(gig: GigDocument): Promise<TGMessage> {
+    const chatId = process.env.MODERATION_CHANNEL_ID;
     const replyMarkup = {
       inline_keyboard: [
         [
@@ -370,7 +370,73 @@ export class TelegramService {
     return this.publish(gig, { chat_id: chatId, reply_markup: replyMarkup });
   }
 
-  async sendGigSubmissionFeedback(
+  async handlePostPublish({ suggestedBy, moderationMessage }) {
+    await this.editMessageReplyMarkup({
+      chatId: moderationMessage.chatId,
+      messageId: moderationMessage.messageId,
+      replyMarkup: {
+        inline_keyboard: [],
+      },
+    });
+
+    if (suggestedBy.userId && suggestedBy.feedbackMessageId) {
+      const statusForUser = 'Published';
+      await this.editMessageReplyMarkup({
+        chatId: suggestedBy.userId,
+        messageId: suggestedBy.feedbackMessageId,
+        replyMarkup: {
+          inline_keyboard: [
+            [
+              {
+                text: `✅ ${statusForUser}`,
+                callback_data: `${Action.Status}:${statusForUser}`,
+              },
+            ],
+          ],
+        },
+      });
+    }
+  }
+
+  async handlePostReject({ suggestedBy, moderationMessage, gigId }) {
+    await this.editMessageReplyMarkup({
+      chatId: moderationMessage.chatId,
+      messageId: moderationMessage.messageId,
+      replyMarkup: {
+        inline_keyboard: [
+          [
+            {
+              text: '❌ Rejected',
+              callback_data: `${Action.Rejected}:${gigId}`,
+            },
+          ],
+        ],
+        // TODO: reason for rejection
+        // force_reply: true,
+        // input_field_placeholder: 'Reason?',
+      },
+    });
+
+    if (suggestedBy.userId && suggestedBy.feedbackMessageId) {
+      const statusForUser = 'Rejected';
+      await this.editMessageReplyMarkup({
+        chatId: suggestedBy.userId,
+        messageId: suggestedBy.feedbackMessageId,
+        replyMarkup: {
+          inline_keyboard: [
+            [
+              {
+                text: `❌ ${statusForUser}`,
+                callback_data: `${Action.Status}:${statusForUser}`,
+              },
+            ],
+          ],
+        },
+      });
+    }
+  }
+
+  async sendSubmissionFeedback(
     gig: GigDocument,
     chatId: TGChatId,
   ): Promise<TGMessage> {
