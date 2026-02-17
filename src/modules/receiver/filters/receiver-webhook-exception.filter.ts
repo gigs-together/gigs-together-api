@@ -35,6 +35,8 @@ export class ReceiverWebhookExceptionFilter implements ExceptionFilter {
         ? exception.getResponse()
         : 'Internal server error';
 
+    console.log('TEMP LOG exception: ', exception);
+
     // Keep logs, but never trigger Telegram retries.
     this.logger.error(
       `Telegram webhook error suppressed (responding 200): ${JSON.stringify({
