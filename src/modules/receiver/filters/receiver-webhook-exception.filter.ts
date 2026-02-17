@@ -4,7 +4,6 @@ import {
   ConsoleLogger,
   ExceptionFilter,
   HttpException,
-  HttpStatus,
   Injectable,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
