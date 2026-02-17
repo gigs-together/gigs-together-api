@@ -8,6 +8,7 @@ import {
   Injectable,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { isAxiosError } from 'axios';
 
 /**
  * Telegram webhook MUST always respond 200, otherwise Telegram retries.
@@ -26,30 +27,40 @@ export class ReceiverWebhookExceptionFilter implements ExceptionFilter {
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
 
-    const statusForLog =
-      exception instanceof HttpException
-        ? exception.getStatus()
-        : HttpStatus.INTERNAL_SERVER_ERROR;
-    const messageForLog =
-      exception instanceof HttpException
-        ? exception.getResponse()
-        : 'Internal server error';
-
-    console.log('TEMP LOG exception: ', exception);
+    const axiosPart = isAxiosError(exception)
+      ? {
+          code: exception.code,
+          status: exception.response?.status ?? null,
+          message: exception.message,
+          request: {
+            method: exception.config?.method,
+            url: exception.config?.url,
+            // baseURL: exception.config?.baseURL,
+            timeout: exception.config?.timeout,
+          },
+          response: {
+            data: exception.response?.data ?? null,
+          },
+        }
+      : undefined;
 
     // Keep logs, but never trigger Telegram retries.
     this.logger.error(
-      `Telegram webhook error suppressed (responding 200): ${JSON.stringify({
-        statusCode: statusForLog,
+      {
+        note: 'Telegram webhook error suppressed (responding 200)',
+        status:
+          exception instanceof HttpException
+            ? exception.getStatus()
+            : undefined,
+        message:
+          exception instanceof HttpException
+            ? exception.getResponse()
+            : 'Unknown error occurred.',
         timestamp: new Date().toISOString(),
         path: request.url,
         method: request.method,
-        message:
-          typeof messageForLog === 'string'
-            ? messageForLog
-            : (messageForLog as { message: string }).message ||
-              'An error occurred',
-      })}`,
+        ...axiosPart,
+      },
       exception instanceof Error ? exception.stack : undefined,
       ReceiverWebhookExceptionFilter.name,
     );
