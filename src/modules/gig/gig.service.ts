@@ -279,8 +279,5 @@ export class GigService {
     return this.gigModel.findOne({ 'poster.bucketPath': withSlash });
   }
 
-  getCreateGigUploadedPosterData =
-    this.gigPosterService.getCreateGigUploadedPosterData.bind(
-      this.gigPosterService,
-    );
+  uploadPoster = this.gigPosterService.uploadPoster.bind(this.gigPosterService);
 }

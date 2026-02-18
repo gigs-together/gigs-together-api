@@ -93,40 +93,41 @@ export class GigPosterService {
     }
   }
 
-  async getCreateGigUploadedPosterData(payload: {
+  async uploadPoster(payload: {
     url?: string;
     file?: Express.Multer.File;
-  }): Promise<GigPoster> {
+  }): Promise<GigPoster> | undefined {
     const { url, file } = payload;
 
-    let bucketPath: string | undefined;
-    let externalUrl: string | undefined;
-
     if (file) {
-      bucketPath = await this.bucketService.uploadGigPoster({
+      const bucketPath = await this.bucketService.uploadGigPoster({
         buffer: file.buffer,
         filename: file.originalname,
         mimetype: file.mimetype,
       });
-    } else if (url) {
-      // Reuse already downloaded poster if exists
-      const existing = await this.gigModel.findOne({
-        'poster.externalUrl': url,
-      });
-      // TODO: also look by poster equality
-      if (existing?.poster?.bucketPath) {
-        bucketPath = this.toStoredGigPosterPath(existing.poster.bucketPath);
-        externalUrl = url;
-      } else {
-        const downloaded = await this.downloadPoster(url);
-        bucketPath = await this.bucketService.uploadGigPoster(downloaded);
-        externalUrl = url;
-      }
+
+      return { bucketPath };
     }
 
+    if (!url) return;
+
+    // Reuse already downloaded poster if exists
+    const existing = await this.gigModel.findOne({
+      'poster.externalUrl': url,
+    });
+
+    // TODO: also look by poster equality
+    if (existing?.poster?.bucketPath) {
+      return {
+        bucketPath: this.toStoredGigPosterPath(existing.poster.bucketPath),
+        externalUrl: url,
+      };
+    }
+
+    const downloaded = await this.downloadPoster(url);
     return {
-      bucketPath,
-      externalUrl,
+      bucketPath: await this.bucketService.uploadGigPoster(downloaded),
+      externalUrl: url,
     };
   }
 }

@@ -172,7 +172,7 @@ export class ReceiverService {
     body: V1ReceiverCreateGigRequestBodyValidated,
     posterFile: Express.Multer.File | undefined,
   ): Promise<void> {
-    const poster = await this.gigService.getCreateGigUploadedPosterData({
+    const poster = await this.gigService.uploadPoster({
       url: body.gig.posterUrl,
       file: posterFile,
     });
