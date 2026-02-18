@@ -103,7 +103,7 @@ export class GigPosterService {
     const key = [
       this.getBucketPrefix(),
       year,
-      context.country,
+      context.country.toLowerCase(),
       city,
       `${context.publicId}.${fileExtension}`,
     ].join('/');
