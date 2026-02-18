@@ -5,7 +5,6 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { BucketService } from '../bucket/bucket.service';
 import { HttpService } from '@nestjs/axios';
-import { randomUUID } from 'crypto';
 
 interface PosterFile {
   buffer: Buffer;
@@ -16,6 +15,12 @@ interface PosterFile {
 interface UploadPosterPayload {
   url?: string;
   file?: Express.Multer.File;
+  context: {
+    date: string | number | Date;
+    country: string;
+    city: string;
+    publicId: string;
+  };
 }
 
 @Injectable()
@@ -75,27 +80,52 @@ export class GigPosterService {
     return normalized;
   }
 
-  private async uploadToBucket(input: PosterFile): Promise<string> {
+  private getUtcYear(date: string | number | Date | undefined): number {
+    if (!date) return new Date().getUTCFullYear();
+    const d = date instanceof Date ? date : new Date(date);
+    const year = d.getUTCFullYear();
+    return Number.isFinite(year) ? year : new Date().getUTCFullYear();
+  }
+
+  private async uploadToBucket(
+    input: PosterFile,
+    context: UploadPosterPayload['context'],
+  ): Promise<string> {
     const { buffer, filename, mimetype } = input;
-    // TODO: instead of randomUUID gig publicId? + no filename
-    const key = `${this.getBucketPrefix()}/${randomUUID()}-${input.filename}`;
+    const year = this.getUtcYear(context.date);
+    // TODO
+    const TEMP_BARCELONA = 'barcelona';
+    const city =
+      context.city.toLowerCase() === TEMP_BARCELONA
+        ? TEMP_BARCELONA
+        : 'unknown';
+    const fileExtension = filename?.split('.').filter(Boolean).pop();
+    const key = [
+      this.getBucketPrefix(),
+      year,
+      context.country,
+      city,
+      `${context.publicId}.${fileExtension}`,
+    ].join('/');
     return this.bucketService.upload({
       buffer,
-      filename,
       mimetype,
       key,
     });
   }
 
   async upload(payload: UploadPosterPayload): Promise<GigPoster> | undefined {
-    const { url, file } = payload;
+    const { url, file, context } = payload;
 
     if (file) {
-      const bucketPath = await this.uploadToBucket({
-        buffer: file.buffer,
-        filename: file.originalname,
-        mimetype: file.mimetype,
-      });
+      const bucketPath = await this.uploadToBucket(
+        {
+          buffer: file.buffer,
+          filename: file.originalname,
+          mimetype: file.mimetype,
+        },
+        context,
+      );
 
       return { bucketPath };
     }
@@ -117,7 +147,7 @@ export class GigPosterService {
 
     const downloaded = await this.download(url);
     return {
-      bucketPath: await this.uploadToBucket(downloaded),
+      bucketPath: await this.uploadToBucket(downloaded, context),
       externalUrl: url,
     };
   }

@@ -90,8 +90,12 @@ describe('ReceiverService', () => {
 
       await service.handleMessage(message);
 
-      // Non-command messages are ignored for now.
-      expect(mockTelegramService.sendMessage).not.toHaveBeenCalled();
+      expect(mockTelegramService.sendMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          chat_id: 12345,
+          text: expect.stringContaining("bot can't receive messages"),
+        }),
+      );
     });
 
     it('should handle the /start command', async () => {

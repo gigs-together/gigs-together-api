@@ -21,6 +21,7 @@ export interface V1GetGigsResponseBodyGig {
 
 export interface CreateGigInput {
   title: string;
+  publicId: string;
   date: string;
   endDate?: string;
   city: string;

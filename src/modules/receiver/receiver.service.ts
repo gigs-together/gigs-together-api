@@ -172,12 +172,26 @@ export class ReceiverService {
     body: V1ReceiverCreateGigRequestBodyValidated,
     posterFile: Express.Multer.File | undefined,
   ): Promise<void> {
+    const date = new Date(body.gig.date);
+    const yyyyMmDd = date.toISOString().split('T')[0];
+    const publicId = await this.gigService.generateUniquePublicId({
+      title: body.gig.title,
+      yyyyMmDd,
+    });
+
     const poster = await this.gigService.uploadPoster({
       url: body.gig.posterUrl,
       file: posterFile,
+      context: {
+        date: body.gig.date,
+        city: body.gig.city,
+        country: body.gig.country,
+        publicId,
+      },
     });
 
     const gig: CreateGigInput = {
+      publicId,
       title: body.gig.title,
       date: body.gig.date,
       city: body.gig.city,

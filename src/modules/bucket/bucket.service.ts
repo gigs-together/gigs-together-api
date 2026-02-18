@@ -23,7 +23,6 @@ export class BucketService {
   async upload(input: {
     key: string;
     buffer: Buffer;
-    filename: string;
     mimetype?: string;
   }): Promise<string> {
     const bucket = process.env.S3_BUCKET;

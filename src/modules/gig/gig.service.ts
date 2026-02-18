@@ -37,7 +37,7 @@ export class GigService {
     private readonly telegramService: TelegramService,
   ) {}
 
-  private async generateUniquePublicId(input: {
+  async generateUniquePublicId(input: {
     title: string;
     yyyyMmDd: string;
     excludeMongoId?: Types.ObjectId;
@@ -85,14 +85,9 @@ export class GigService {
 
   async saveGig(data: CreateGigInput): Promise<GigDocument> {
     const date = new Date(data.date);
-    const yyyyMmDd = date.toISOString().split('T')[0];
-    const publicId = await this.generateUniquePublicId({
-      title: data.title,
-      yyyyMmDd,
-    });
 
     const mappedData: Gig = {
-      publicId,
+      publicId: data.publicId,
       title: data.title,
       date: date.getTime(),
       city: data.city,
@@ -270,5 +265,7 @@ export class GigService {
     return { gig };
   }
 
-  uploadPoster = this.gigPosterService.upload.bind(this.gigPosterService);
+  uploadPoster: GigPosterService['upload'] = this.gigPosterService.upload.bind(
+    this.gigPosterService,
+  );
 }

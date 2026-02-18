@@ -27,7 +27,7 @@ describe('GigService', () => {
           },
         },
         { provide: CalendarService, useValue: {} },
-        { provide: GigPosterService, useValue: {} },
+        { provide: GigPosterService, useValue: { upload: jest.fn() } },
         { provide: TelegramService, useValue: {} },
         { provide: BucketService, useValue: {} },
       ],
