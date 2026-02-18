@@ -16,7 +16,6 @@ import type {
 } from './types/requests/v1-gig-get-request';
 import type { V1GigLookupRequestBody } from './types/requests/v1-gig-lookup-request';
 import type { V1GigLookupResponseBody } from './types/requests/v1-gig-lookup-request';
-import { toPublicFilesProxyUrlFromStoredPosterUrl } from '../../shared/utils/public-files';
 import { envBool } from '../../shared/utils/env';
 import {
   CalendarishEvent,
@@ -24,6 +23,7 @@ import {
 } from '../calendar/calendar.service';
 import { GigPosterService } from './gig.poster.service';
 import { TelegramService } from '../telegram/telegram.service';
+import { BucketService } from '../bucket/bucket.service';
 
 // TODO: add allowing only specific status transitions
 @Injectable()
@@ -33,6 +33,7 @@ export class GigService {
     private readonly aiService: AiService,
     private readonly calendarService: CalendarService,
     private readonly gigPosterService: GigPosterService,
+    private readonly bucketService: BucketService,
     private readonly telegramService: TelegramService,
   ) {}
 
@@ -211,7 +212,7 @@ export class GigService {
         postUrl,
         posterUrl:
           (gig.poster?.bucketPath
-            ? toPublicFilesProxyUrlFromStoredPosterUrl(gig.poster.bucketPath)
+            ? this.bucketService.getPublicFileUrl(gig.poster.bucketPath)
             : undefined) ??
           (externalFallbackEnabled ? gig.poster?.externalUrl : undefined),
       });
@@ -269,15 +270,5 @@ export class GigService {
     return { gig };
   }
 
-  async findByStoredPosterKey(key: string): Promise<GigDocument | null> {
-    const normalized = (key ?? '').trim();
-    if (!normalized) return null;
-    // We store S3 keys as "/<prefix>/..." (leading slash).
-    const withSlash = normalized.startsWith('/')
-      ? normalized
-      : `/${normalized}`;
-    return this.gigModel.findOne({ 'poster.bucketPath': withSlash });
-  }
-
-  uploadPoster = this.gigPosterService.uploadPoster.bind(this.gigPosterService);
+  uploadPoster = this.gigPosterService.upload.bind(this.gigPosterService);
 }

@@ -82,30 +82,25 @@ Set:
 - `S3_POSTERS_PREFIX=gigs-dev` in `.env.dev`
 - `S3_POSTERS_PREFIX=gigs` in `.env.prod`
 
-This affects upload/list/proxy/redirect of gig poster images.
+This affects upload and public URL building for gig poster images.
 
-## Railway Bucket: public access via presigned URLs (and CORS)
+## Public bucket (Cloudflare R2 recommended)
 
-Railway Storage Buckets are **private**. To display uploaded images to unauthenticated users, this API exposes:
+The bucket is expected to be **public**. The API:
 
-- **`GET /public/files/:key(*)`**: stable public URL that **302-redirects** to a presigned URL.
-- **`GET /public/files-proxy/:key(*)`**: stable public URL that **proxies bytes** through the API (useful for Telegram/bots that don’t like redirects).
+- Uploads posters into the bucket under the `S3_POSTERS_PREFIX` prefix.
+- Stores only the object key path in DB as `Gig.poster.bucketPath` (e.g. `"/gigs/<uuid>-file.jpg"`).
+- Returns a **direct public URL** to the object for clients (no proxy routes, no presigned URLs).
 
-### Required env vars (S3 client)
+### Required env vars (S3 client + public base URL)
 
-Use Railway Bucket Variable References (recommended) or set manually:
-
-- `S3_BUCKET` (Railway: use `BUCKET`)
-- `S3_ACCESS_KEY_ID` (Railway: `ACCESS_KEY_ID`)
-- `S3_SECRET_ACCESS_KEY` (Railway: `SECRET_ACCESS_KEY`)
-- `S3_REGION` (Railway: `REGION`, usually `auto`)
-- `S3_ENDPOINT` (Railway: `ENDPOINT`, usually `https://storage.railway.app`)
-- `S3_FORCE_PATH_STYLE` (`false` for most new Railway buckets; see Bucket Credentials tab)
-
-Optional:
-
-- `S3_PRESIGN_EXPIRES_IN` (seconds, default 3600)
-- `APP_API_BASE_URL` (e.g. `https://your-service.up.railway.app`) so stored `Gig.poster.bucketPath` becomes absolute
+- `S3_BUCKET`
+- `S3_ACCESS_KEY_ID`
+- `S3_SECRET_ACCESS_KEY`
+- `S3_REGION` (for R2 use `auto`)
+- `S3_ENDPOINT` (for R2: `https://<accountid>.r2.cloudflarestorage.com`)
+- `S3_FORCE_PATH_STYLE` (for R2 usually `true`)
+- `S3_PUBLIC_BASE_URL` (public bucket base URL / CDN / custom domain)
 
 ### CORS for the API
 
@@ -123,11 +118,10 @@ Or:
 - **API**: `https://api.your-domain.tld`
 - **Env**:
   - `CORS_ORIGINS="https://app.your-domain.tld"`
-  - `APP_API_BASE_URL="https://api.your-domain.tld"` (so stored URLs point to the API domain when needed)
 
-### CORS for the Bucket (only needed for browser uploads / fetch)
+### CORS for the Bucket (only needed if the browser fetches directly)
 
-If the browser uploads directly to the bucket (presigned POST/PUT) or fetches presigned URLs via `fetch`, you must allow your frontend origin in the bucket CORS config. Railway docs: [Storage buckets → presigned URLs](https://docs.railway.com/guides/storage-buckets#upload-files-with-presigned-urls).
+If the browser fetches objects directly from the public bucket domain (or uploads directly to the bucket), you must allow your frontend origin in the bucket CORS config.
 
 Example (adjust origins/methods as needed):
 

@@ -1,11 +1,22 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { getGigPostersPrefixWithSlash } from '../bucket/gig-posters';
 import { Gig, GigPoster } from './gig.schema';
 import { firstValueFrom } from 'rxjs';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { BucketService } from '../bucket/bucket.service';
 import { HttpService } from '@nestjs/axios';
+import { randomUUID } from 'crypto';
+
+interface PosterFile {
+  buffer: Buffer;
+  filename: string;
+  mimetype?: string;
+}
+
+interface UploadPosterPayload {
+  url?: string;
+  file?: Express.Multer.File;
+}
 
 @Injectable()
 export class GigPosterService {
@@ -15,46 +26,7 @@ export class GigPosterService {
     private readonly httpService: HttpService,
   ) {}
 
-  toStoredGigPosterPath(value: string): string {
-    const trimmed = (value ?? '').trim();
-    if (!trimmed) return trimmed;
-
-    const normalizeFromPathname = (pathname: string): string => {
-      let p = (pathname ?? '').trim();
-      if (!p) return p;
-
-      // If stored as a public route, extract the S3 key part.
-      const proxyPrefix = '/public/files-proxy/';
-      const redirectPrefix = '/public/files/';
-      if (p.startsWith(proxyPrefix)) p = `/${p.slice(proxyPrefix.length)}`;
-      else if (p.startsWith(redirectPrefix))
-        p = `/${p.slice(redirectPrefix.length)}`;
-
-      const prefix = getGigPostersPrefixWithSlash(); // "<prefix>/"
-      // Accept both "<prefix>/..." and "/<prefix>/..."
-      if (p.startsWith(prefix)) return `/${p}`;
-      if (p.startsWith(`/${prefix}`)) return p;
-
-      return p;
-    };
-
-    // Absolute URL -> use pathname.
-    if (/^https?:\/\//i.test(trimmed)) {
-      try {
-        return normalizeFromPathname(new URL(trimmed).pathname);
-      } catch {
-        return trimmed;
-      }
-    }
-
-    return normalizeFromPathname(trimmed);
-  }
-
-  private async downloadPoster(url: string): Promise<{
-    buffer: Buffer;
-    filename: string;
-    mimetype?: string;
-  }> {
+  private async download(url: string): Promise<PosterFile> {
     let filename = 'poster.jpg'; // TODO: jpg?
     try {
       const parsed = new URL(url);
@@ -93,14 +65,33 @@ export class GigPosterService {
     }
   }
 
-  async uploadPoster(payload: {
-    url?: string;
-    file?: Express.Multer.File;
-  }): Promise<GigPoster> | undefined {
+  private getBucketPrefix(): string {
+    const raw = (process.env.S3_POSTERS_PREFIX ?? 'gigs').trim();
+    // Normalize: remove leading/trailing slashes so callers can safely do `${prefix}/...`.
+    const normalized = raw.replace(/^\/+/, '').replace(/\/+$/, '');
+    if (!normalized) return 'gigs';
+    // Hardening: prevent weird traversal-ish values.
+    if (normalized.includes('..') || normalized.includes('\\')) return 'gigs';
+    return normalized;
+  }
+
+  private async uploadToBucket(input: PosterFile): Promise<string> {
+    const { buffer, filename, mimetype } = input;
+    // TODO: instead of randomUUID gig publicId? + no filename
+    const key = `${this.getBucketPrefix()}/${randomUUID()}-${input.filename}`;
+    return this.bucketService.upload({
+      buffer,
+      filename,
+      mimetype,
+      key,
+    });
+  }
+
+  async upload(payload: UploadPosterPayload): Promise<GigPoster> | undefined {
     const { url, file } = payload;
 
     if (file) {
-      const bucketPath = await this.bucketService.uploadGigPoster({
+      const bucketPath = await this.uploadToBucket({
         buffer: file.buffer,
         filename: file.originalname,
         mimetype: file.mimetype,
@@ -116,17 +107,17 @@ export class GigPosterService {
       'poster.externalUrl': url,
     });
 
-    // TODO: also look by poster equality
+    // TODO: also look by poster equality?
     if (existing?.poster?.bucketPath) {
       return {
-        bucketPath: this.toStoredGigPosterPath(existing.poster.bucketPath),
+        bucketPath: existing.poster.bucketPath,
         externalUrl: url,
       };
     }
 
-    const downloaded = await this.downloadPoster(url);
+    const downloaded = await this.download(url);
     return {
-      bucketPath: await this.bucketService.uploadGigPoster(downloaded),
+      bucketPath: await this.uploadToBucket(downloaded),
       externalUrl: url,
     };
   }

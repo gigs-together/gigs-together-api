@@ -4,6 +4,10 @@ import { GigService } from './gig.service';
 import { getModelToken } from '@nestjs/mongoose';
 import { Gig } from './gig.schema';
 import { AiService } from '../ai/ai.service';
+import { CalendarService } from '../calendar/calendar.service';
+import { GigPosterService } from './gig.poster.service';
+import { TelegramService } from '../telegram/telegram.service';
+import { BucketService } from '../bucket/bucket.service';
 
 describe('GigService', () => {
   let service: GigService;
@@ -22,6 +26,10 @@ describe('GigService', () => {
             lookupGigV1: jest.fn(),
           },
         },
+        { provide: CalendarService, useValue: {} },
+        { provide: GigPosterService, useValue: {} },
+        { provide: TelegramService, useValue: {} },
+        { provide: BucketService, useValue: {} },
       ],
     }).compile();
 

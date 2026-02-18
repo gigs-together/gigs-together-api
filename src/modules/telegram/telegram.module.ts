@@ -3,6 +3,7 @@ import { TelegramService } from './telegram.service';
 import { HttpModule } from '@nestjs/axios';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { CacheModule } from '@nestjs/cache-manager';
+import { BucketModule } from '../bucket/bucket.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { CacheModule } from '@nestjs/cache-manager';
     CacheModule.register({
       ttl: 60_000 * 60,
     }),
+    BucketModule,
   ],
   providers: [TelegramService],
   exports: [TelegramService],

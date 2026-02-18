@@ -13,16 +13,17 @@ import type { GigDocument } from '../gig/gig.schema';
 import type { TGAnswerCallbackQuery } from './types/update.types';
 import * as FormData from 'form-data';
 import { Action } from './types/action.enum';
-import { getGigPostersPrefixWithSlash } from '../bucket/gig-posters';
 import { TGChat } from './types/chat.types';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import type { TGChatId } from './types/message.types';
+import { BucketService } from '../bucket/bucket.service';
 
 @Injectable()
 export class TelegramService {
   constructor(
     private readonly httpService: HttpService,
+    private readonly bucketService: BucketService,
     @Inject(CACHE_MANAGER) private cache: Cache,
   ) {}
 
@@ -130,50 +131,6 @@ export class TelegramService {
 
   private isHttpUrl(value: string): boolean {
     return /^https?:\/\//i.test(value);
-  }
-
-  private toPublicFilesProxyPath(value: string): string {
-    if (!value) return value;
-    const trimmed = value.trim();
-    if (!trimmed) return trimmed;
-    if (this.isHttpUrl(trimmed)) return trimmed;
-
-    const prefix = getGigPostersPrefixWithSlash(); // "<prefix>/"
-    // If we store only the S3 key path ("/<prefix>/..."), convert it to our public proxy route.
-    if (trimmed.startsWith(`/${prefix}`))
-      return `/public/files-proxy${trimmed}`;
-    if (trimmed.startsWith(prefix)) return `/public/files-proxy/${trimmed}`;
-
-    return trimmed;
-  }
-
-  private toAbsolutePublicUrlForTelegram(value: string): string {
-    if (!value) return value;
-    const trimmed = value.trim();
-    if (!trimmed) return trimmed;
-    if (this.isHttpUrl(trimmed)) return trimmed;
-    if (trimmed.startsWith('/')) {
-      const baseRaw = (process.env.APP_API_BASE_URL ?? '').trim();
-      if (!baseRaw) {
-        // Telegram rejects relative URLs with: "URL host is empty"
-        throw new Error(
-          'Telegram photo URL is relative; set APP_API_BASE_URL to make it absolute',
-        );
-      }
-      // IMPORTANT:
-      // - Use URL resolution (not string concat) so if base contains a path like
-      //   "https://host/api", "/public/..." still resolves to "https://host/public/...".
-      // - Be forgiving if the base is provided without a scheme.
-      const base = /^[a-z][a-z0-9+.-]*:\/\//i.test(baseRaw)
-        ? baseRaw
-        : `https://${baseRaw}`;
-      try {
-        return new URL(trimmed, base).toString();
-      } catch {
-        throw new Error(`Invalid APP_API_BASE_URL: "${baseRaw}"`);
-      }
-    }
-    return trimmed;
   }
 
   private isWrongWebPageContentError(e: any): boolean {
@@ -328,9 +285,8 @@ export class TelegramService {
       gig.poster &&
       (gig.post?.fileId ||
         (gig.poster.bucketPath
-          ? this.toAbsolutePublicUrlForTelegram(
-              this.toPublicFilesProxyPath(gig.poster.bucketPath),
-            )
+          ? (this.bucketService.getPublicFileUrl(gig.poster.bucketPath) ??
+            gig.poster.externalUrl)
           : gig.poster.externalUrl));
 
     return this.send(
