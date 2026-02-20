@@ -11,7 +11,7 @@ import { firstValueFrom } from 'rxjs';
 import * as crypto from 'crypto';
 import type { GigDocument } from '../gig/gig.schema';
 import type { TGAnswerCallbackQuery } from './types/update.types';
-import * as FormData from 'form-data';
+import FormData from 'form-data';
 import { Action } from './types/action.enum';
 import { TGChat } from './types/chat.types';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
