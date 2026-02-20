@@ -20,6 +20,9 @@ export class GigPoster {
   @Prop({ type: String, required: false })
   bucketPath?: string;
 
+  @Prop({ type: String, required: false })
+  thumbnailBucketPath?: string;
+
   // Original external URL (if uploaded from a remote source)
   @Prop({ type: String, required: false })
   externalUrl?: string;

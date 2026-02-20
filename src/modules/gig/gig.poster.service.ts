@@ -5,6 +5,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { BucketService } from '../bucket/bucket.service';
 import { HttpService } from '@nestjs/axios';
+import sharp from 'sharp';
 
 interface PosterFile {
   buffer: Buffer;
@@ -87,30 +88,106 @@ export class GigPosterService {
     return Number.isFinite(year) ? year : new Date().getUTCFullYear();
   }
 
-  private async uploadToBucket(
-    input: PosterFile,
-    context: UploadPosterPayload['context'],
-  ): Promise<string> {
-    const { buffer, filename, mimetype } = input;
-    const year = this.getUtcYear(context.date);
-    // TODO
+  private getNormalizedCity(raw: string): string {
+    // TODO: real mapping (this is currently a temporary hack)
     const TEMP_BARCELONA = 'barcelona';
-    const city =
-      context.city.toLowerCase() === TEMP_BARCELONA
-        ? TEMP_BARCELONA
-        : 'unknown';
-    const fileExtension = filename?.split('.').filter(Boolean).pop();
-    const key = [
+    const city = (raw ?? '').trim().toLowerCase();
+    return city === TEMP_BARCELONA ? TEMP_BARCELONA : 'unknown';
+  }
+
+  private getFileExtension(input: {
+    filename?: string;
+    mimetype?: string;
+  }): string {
+    const fromName = input.filename
+      ?.split('.')
+      .filter(Boolean)
+      .pop()
+      ?.trim()
+      .toLowerCase();
+    const safeFromName =
+      fromName && /^[a-z]{1,10}$/.test(fromName) ? fromName : undefined;
+
+    if (safeFromName) {
+      return safeFromName;
+    }
+
+    const fromMime = () => {
+      switch (input.mimetype) {
+        case 'image/jpeg':
+        case 'image/jpg':
+          return 'jpg';
+        case 'image/png':
+          return 'png';
+        case 'image/webp':
+          return 'webp';
+        case 'image/gif':
+          return 'gif';
+        case 'image/avif':
+          return 'avif';
+        default:
+          return undefined;
+      }
+    };
+
+    return fromMime() ?? 'jpg';
+  }
+
+  private buildBaseKey(context: UploadPosterPayload['context']): string {
+    const year = this.getUtcYear(context.date);
+    const city = this.getNormalizedCity(context.city);
+    return [
       this.getBucketPrefix(),
       year,
       context.country.toLowerCase(),
       city,
-      `${context.publicId}.${fileExtension}`,
+      context.publicId,
     ].join('/');
+  }
+
+  private async uploadOriginalToBucket(
+    input: PosterFile,
+    context: UploadPosterPayload['context'],
+  ): Promise<string> {
+    const ext = this.getFileExtension(input);
+    const key = `${this.buildBaseKey(context)}.${ext}`;
+
     return this.bucketService.upload({
-      buffer,
-      mimetype,
+      buffer: input.buffer,
+      mimetype: input.mimetype,
       key,
+    });
+  }
+
+  private async uploadThumbnailToBucket(
+    input: PosterFile,
+    context: UploadPosterPayload['context'],
+  ): Promise<string> {
+    const key = `${this.buildBaseKey(context)}-thumbnail.webp`;
+
+    let thumb: Buffer;
+    try {
+      thumb = await sharp(input.buffer)
+        .rotate()
+        .resize({
+          width: 512,
+          height: 512,
+          fit: 'inside',
+          withoutEnlargement: true,
+        })
+        .webp({ quality: 80 })
+        .toBuffer();
+    } catch (e) {
+      const msg = String(e?.message ?? 'unknown error');
+      throw new BadRequestException(
+        `Failed to create poster thumbnail: ${msg}`,
+      );
+    }
+
+    return this.bucketService.upload({
+      key,
+      buffer: thumb,
+      mimetype: 'image/webp',
     });
   }
 
@@ -118,16 +195,18 @@ export class GigPosterService {
     const { url, file, context } = payload;
 
     if (file) {
-      const bucketPath = await this.uploadToBucket(
-        {
-          buffer: file.buffer,
-          filename: file.originalname,
-          mimetype: file.mimetype,
-        },
+      const original: PosterFile = {
+        buffer: file.buffer,
+        filename: file.originalname,
+        mimetype: file.mimetype,
+      };
+      const bucketPath = await this.uploadOriginalToBucket(original, context);
+      const thumbnailBucketPath = await this.uploadThumbnailToBucket(
+        original,
         context,
       );
 
-      return { bucketPath };
+      return { bucketPath, thumbnailBucketPath };
     }
 
     if (!url) return;
@@ -141,13 +220,20 @@ export class GigPosterService {
     if (existing?.poster?.bucketPath) {
       return {
         bucketPath: existing.poster.bucketPath,
+        thumbnailBucketPath: existing.poster.thumbnailBucketPath,
         externalUrl: url,
       };
     }
 
     const downloaded = await this.download(url);
+    const bucketPath = await this.uploadOriginalToBucket(downloaded, context);
+    const thumbnailBucketPath = await this.uploadThumbnailToBucket(
+      downloaded,
+      context,
+    );
     return {
-      bucketPath: await this.uploadToBucket(downloaded, context),
+      bucketPath,
+      thumbnailBucketPath,
       externalUrl: url,
     };
   }

@@ -210,6 +210,9 @@ export class GigService {
             ? this.bucketService.getPublicFileUrl(gig.poster.bucketPath)
             : undefined) ??
           (externalFallbackEnabled ? gig.poster?.externalUrl : undefined),
+        posterThumbnailUrl: gig.poster?.thumbnailBucketPath
+          ? this.bucketService.getPublicFileUrl(gig.poster.thumbnailBucketPath)
+          : undefined,
       });
     }
 
