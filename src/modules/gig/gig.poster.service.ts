@@ -170,9 +170,10 @@ export class GigPosterService {
       thumb = await sharp(input.buffer)
         .rotate()
         .resize({
-          width: 512,
-          height: 512,
-          fit: 'inside',
+          // Match feed card aspect (3/4) to avoid client-side upscaling and blur.
+          width: 720,
+          height: 960,
+          fit: 'cover',
           withoutEnlargement: true,
         })
         .webp({ quality: 80 })
