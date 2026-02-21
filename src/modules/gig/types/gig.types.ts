@@ -16,7 +16,6 @@ export interface V1GetGigsResponseBodyGig {
   ticketsUrl: string;
   calendarUrl: string;
   posterUrl?: string;
-  posterThumbnailUrl?: string;
   postUrl?: string;
 }
 
@@ -31,7 +30,6 @@ export interface CreateGigInput {
   ticketsUrl: string;
   poster?: {
     bucketPath?: string;
-    thumbnailBucketPath?: string;
     externalUrl?: string;
   };
   suggestedBy: GigSuggestedBy;
