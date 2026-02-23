@@ -109,14 +109,6 @@ export class ReceiverService {
         });
         break;
       }
-      case Action.Edit: {
-        await this.editGig({
-          gigId: data,
-          messageId: callbackQuery.message.message_id,
-          chatId: callbackQuery.message.chat.id,
-        });
-        break;
-      }
       case Action.Reject: {
         await this.handleGigReject({
           gigId: data,
@@ -317,13 +309,5 @@ export class ReceiverService {
       gigId,
       title: updatedGig.title,
     });
-  }
-
-  private async editGig(param: {
-    gigId: string;
-    messageId: number;
-    chatId: number;
-  }) {
-    // TODO: open form page
   }
 }

@@ -393,6 +393,7 @@ export class TelegramService {
 
   async sendToModeration(gig: GigDocument): Promise<TGMessage> {
     const chatId = process.env.MODERATION_CHANNEL_ID;
+    const editGigUrl = process.env.EDIT_GIG_URL;
     const replyMarkup = {
       inline_keyboard: [
         [
@@ -400,15 +401,17 @@ export class TelegramService {
             text: '✅ Approve',
             callback_data: `${Action.Approve}:${gig._id}`,
           },
-          {
-            text: '✏️ Edit',
-            callback_data: `${Action.Edit}:${gig._id}`,
-          },
+          editGigUrl
+            ? {
+                text: '✏️ Edit',
+                url: editGigUrl,
+              }
+            : undefined,
           {
             text: '❌ Reject',
             callback_data: `${Action.Reject}:${gig._id}`,
           },
-        ],
+        ].filter(Boolean),
       ],
     };
 
