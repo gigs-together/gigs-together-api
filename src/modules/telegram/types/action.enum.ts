@@ -3,4 +3,5 @@ export enum Action {
   Reject = 'reject',
   Rejected = 'rejected',
   Status = 'status',
+  Edit = 'edit',
 }

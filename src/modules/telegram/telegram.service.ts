@@ -401,6 +401,10 @@ export class TelegramService {
             callback_data: `${Action.Approve}:${gig._id}`,
           },
           {
+            text: '✏️ Edit',
+            callback_data: `${Action.Edit}:${gig._id}`,
+          },
+          {
             text: '❌ Reject',
             callback_data: `${Action.Reject}:${gig._id}`,
           },
