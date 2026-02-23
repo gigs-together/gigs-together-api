@@ -30,6 +30,7 @@ interface PublishPayload {
   url?: string;
   post?: GigPost;
   poster?: GigPoster;
+  message: Omit<TGSendPhoto, 'photo'>;
 }
 
 interface EditSubmissionFeedbackPayload {
@@ -294,37 +295,36 @@ export class TelegramService {
     }
   }
 
-  private async publish(
-    gig: PublishPayload,
-    messagePayload: Omit<TGSendPhoto, 'photo'>,
-  ): Promise<TGMessage> {
+  private publish(payload: PublishPayload): Promise<TGMessage> {
     const dateFormatter = new Intl.DateTimeFormat('en-GB', {
       year: 'numeric',
       month: 'short', // e.g., "Nov"
       day: '2-digit',
     });
-    const date = dateFormatter.format(new Date(gig.date));
-    const endDate = gig.endDate
-      ? dateFormatter.format(new Date(gig.endDate))
+    const date = dateFormatter.format(new Date(payload.date));
+    const endDate = payload.endDate
+      ? dateFormatter.format(new Date(payload.endDate))
       : undefined;
     const dates = [date, endDate].filter(Boolean).join(' - ');
 
     const text = [
-      gig.url ? `<a href="${gig.url}">${gig.title}</a>` : gig.title,
+      payload.url
+        ? `<a href="${payload.url}">${payload.title}</a>`
+        : payload.title,
       '',
       `🗓 ${dates}`,
-      `📍 ${gig.venue}`,
+      `📍 ${payload.venue}`,
       '',
-      `🎫 ${gig.ticketsUrl}`,
+      `🎫 ${payload.ticketsUrl}`,
     ].join('\n');
 
     const photo =
-      gig.poster &&
-      (gig.post?.fileId ||
-        (gig.poster.bucketPath
-          ? (this.bucketService.getPublicFileUrl(gig.poster.bucketPath) ??
-            gig.poster.externalUrl)
-          : gig.poster.externalUrl));
+      payload.poster &&
+      (payload.post?.fileId ||
+        (payload.poster.bucketPath
+          ? (this.bucketService.getPublicFileUrl(payload.poster.bucketPath) ??
+            payload.poster.externalUrl)
+          : payload.poster.externalUrl));
 
     return this.send(
       {
@@ -333,9 +333,9 @@ export class TelegramService {
         photo,
         parse_mode: 'HTML',
         disable_web_page_preview: true,
-        ...messagePayload,
+        ...payload.message,
       },
-      gig.id,
+      payload.id,
     );
   }
 
@@ -363,9 +363,10 @@ export class TelegramService {
       poster: gig.poster,
       date: gig.date,
       endDate: gig.endDate,
+      message: { chat_id: chatId },
     };
 
-    return this.publish(payload, { chat_id: chatId });
+    return this.publish(payload);
   }
 
   async sendToModeration(gig: GigDocument): Promise<TGMessage> {
@@ -394,12 +395,13 @@ export class TelegramService {
       poster: gig.poster,
       date: gig.date,
       endDate: gig.endDate,
+      message: {
+        chat_id: chatId,
+        reply_markup: replyMarkup,
+      },
     };
 
-    return this.publish(payload, {
-      chat_id: chatId,
-      reply_markup: replyMarkup,
-    });
+    return this.publish(payload);
   }
 
   async handlePostPublish({ suggestedBy, moderationMessage, title, url }) {
@@ -489,22 +491,23 @@ export class TelegramService {
       poster: gig.poster,
       date: gig.date,
       endDate: gig.endDate,
+      message: {
+        chat_id: chatId,
+        reply_markup: {
+          inline_keyboard: [
+            [
+              {
+                text: `⏳ ${statusForUser}`,
+                callback_data: `${Action.Status}:${statusForUser}`,
+              },
+            ],
+          ],
+        },
+      },
     };
 
     // TODO: add some language like "You've submitted, blablabla..."
-    return this.publish(payload, {
-      chat_id: chatId,
-      reply_markup: {
-        inline_keyboard: [
-          [
-            {
-              text: `⏳ ${statusForUser}`,
-              callback_data: `${Action.Status}:${statusForUser}`,
-            },
-          ],
-        ],
-      },
-    });
+    return this.publish(payload);
   }
 
   private async getChat(chatIdOrUsername: number | string): Promise<TGChat> {
