@@ -318,7 +318,19 @@ export class TelegramService {
   async publishMain(gig: GigDocument): Promise<TGMessage> {
     const chatId = process.env.MAIN_CHANNEL_ID;
 
+    const appBaseUrl = (process.env.APP_BASE_URL ?? '').trim();
+    const url =
+      appBaseUrl && gig.publicId && gig.country && gig.city
+        ? this.buildGigPermalink({
+            baseUrl: appBaseUrl,
+            publicId: gig.publicId,
+            country: gig.country,
+            city: gig.city,
+          })
+        : undefined;
+
     const payload: PublishPayload = {
+      url,
       id: String(gig._id),
       title: gig.title,
       ticketsUrl: gig.ticketsUrl,
@@ -490,5 +502,25 @@ export class TelegramService {
     const chat = await this.getChat(chatId);
     await this.cache.set(key, chat);
     return chat.username;
+  }
+
+  private buildGigPermalink(input: {
+    baseUrl: string;
+    country: string;
+    city: string;
+    publicId: string;
+  }): string {
+    const country = (input.country ?? '').trim().toLowerCase();
+    const city = (input.city ?? '').trim().toLowerCase();
+
+    // Current frontend routes:
+    // - /feed/[country]/[city]
+    // - gig anchor: #<publicId>
+    const u = new URL(
+      `/feed/${encodeURIComponent(country)}/${encodeURIComponent(city)}`,
+      input.baseUrl,
+    );
+    u.hash = input.publicId ?? '';
+    return u.toString();
   }
 }
