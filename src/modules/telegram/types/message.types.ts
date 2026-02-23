@@ -38,6 +38,14 @@ export interface TGEditMessageReplyMarkup {
   replyMarkup?: TGInlineKeyboardMarkup;
 }
 
+export interface TGEditMessageCaption {
+  chatId?: TGChatId;
+  messageId?: number;
+  caption?: string;
+  parse_mode?: string;
+  disable_web_page_preview?: boolean;
+}
+
 export type InputFile =
   | Buffer
   // | Readable

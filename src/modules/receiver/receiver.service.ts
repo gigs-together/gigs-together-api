@@ -278,6 +278,7 @@ export class ReceiverService {
     this.logger.log(`Gig #${gigId} approved`);
 
     await this.telegramService.handlePostPublish({
+      title: updatedGig.title,
       suggestedBy: updatedGig.suggestedBy,
       moderationMessage: { chatId, messageId },
     });
@@ -302,6 +303,7 @@ export class ReceiverService {
       suggestedBy: updatedGig.suggestedBy,
       moderationMessage: { chatId, messageId },
       gigId,
+      title: updatedGig.title,
     });
   }
 }

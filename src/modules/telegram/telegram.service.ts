@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import type {
+import {
   InputFile,
+  TGEditMessageCaption,
   TGEditMessageReplyMarkup,
   TGMessage,
   TGSendMessage,
@@ -230,6 +231,17 @@ export class TelegramService {
     );
   }
 
+  async editMessageCaption(payload: TGEditMessageCaption): Promise<void> {
+    const { chatId, messageId, caption } = payload;
+    await firstValueFrom(
+      this.httpService.post('editMessageCaption', {
+        chat_id: chatId,
+        message_id: messageId,
+        caption,
+      }),
+    );
+  }
+
   parseTelegramInitDataString(initData: string): {
     parsedData: Record<string, string>;
     dataCheckString: string;
@@ -378,7 +390,9 @@ export class TelegramService {
     });
   }
 
-  async handlePostPublish({ suggestedBy, moderationMessage }) {
+  async handlePostPublish({ suggestedBy, moderationMessage, title }) {
+    // TODO:
+    // await this.editMessageCaption({
     await this.editMessageReplyMarkup({
       chatId: moderationMessage.chatId,
       messageId: moderationMessage.messageId,
@@ -387,26 +401,15 @@ export class TelegramService {
       },
     });
 
-    if (suggestedBy.userId && suggestedBy.feedbackMessageId) {
-      const statusForUser = 'Published';
-      await this.editMessageReplyMarkup({
-        chatId: suggestedBy.userId,
-        messageId: suggestedBy.feedbackMessageId,
-        replyMarkup: {
-          inline_keyboard: [
-            [
-              {
-                text: `✅ ${statusForUser}`,
-                callback_data: `${Action.Status}:${statusForUser}`,
-              },
-            ],
-          ],
-        },
-      });
-    }
+    await this.editSubmissionFeedback({
+      chatId: suggestedBy.userId,
+      messageId: suggestedBy.feedbackMessageId,
+      title,
+      status: 'Published',
+    });
   }
 
-  async handlePostReject({ suggestedBy, moderationMessage, gigId }) {
+  async handlePostReject({ suggestedBy, moderationMessage, gigId, title }) {
     await this.editMessageReplyMarkup({
       chatId: moderationMessage.chatId,
       messageId: moderationMessage.messageId,
@@ -425,23 +428,21 @@ export class TelegramService {
       },
     });
 
-    if (suggestedBy.userId && suggestedBy.feedbackMessageId) {
-      const statusForUser = 'Rejected';
-      await this.editMessageReplyMarkup({
-        chatId: suggestedBy.userId,
-        messageId: suggestedBy.feedbackMessageId,
-        replyMarkup: {
-          inline_keyboard: [
-            [
-              {
-                text: `❌ ${statusForUser}`,
-                callback_data: `${Action.Status}:${statusForUser}`,
-              },
-            ],
-          ],
-        },
-      });
-    }
+    await this.editSubmissionFeedback({
+      chatId: suggestedBy.userId,
+      messageId: suggestedBy.feedbackMessageId,
+      title,
+      status: 'Rejected',
+    });
+  }
+
+  private async editSubmissionFeedback({ chatId, messageId, title, status }) {
+    if (!chatId || !messageId) return;
+    await this.editMessageCaption({
+      chatId,
+      messageId,
+      caption: `${title} is ${status}`,
+    });
   }
 
   async sendSubmissionFeedback(
