@@ -13,8 +13,6 @@ export interface TGMessage {
   reply_to_message?: TGMessage;
   sender_chat?: TGChat;
   photo?: TGPhotoSize[];
-
-  [key: string]: unknown;
 }
 
 export interface TGSendMessage {
@@ -42,8 +40,7 @@ export interface TGEditMessageCaption {
   chatId?: TGChatId;
   messageId?: number;
   caption?: string;
-  parse_mode?: string;
-  disable_web_page_preview?: boolean;
+  replyMarkup?: TGInlineKeyboardMarkup;
 }
 
 export type InputFile =

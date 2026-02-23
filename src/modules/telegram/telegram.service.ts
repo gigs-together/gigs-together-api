@@ -32,6 +32,14 @@ interface PublishPayload {
   poster?: GigPoster;
 }
 
+interface EditSubmissionFeedbackPayload {
+  chatId: TGChatId;
+  messageId: number;
+  title: string;
+  status: string;
+  url?: string;
+}
+
 @Injectable()
 export class TelegramService {
   constructor(
@@ -220,26 +228,30 @@ export class TelegramService {
 
   async editMessageReplyMarkup(
     payload: TGEditMessageReplyMarkup,
-  ): Promise<void> {
+  ): Promise<TGMessage> {
     const { chatId, messageId, replyMarkup } = payload;
-    await firstValueFrom(
+    const res = await firstValueFrom(
       this.httpService.post('editMessageReplyMarkup', {
         chat_id: chatId,
         message_id: messageId,
         reply_markup: replyMarkup,
       }),
     );
+    return res.data.result;
   }
 
-  async editMessageCaption(payload: TGEditMessageCaption): Promise<void> {
-    const { chatId, messageId, caption } = payload;
-    await firstValueFrom(
+  async editMessageCaption(payload: TGEditMessageCaption): Promise<TGMessage> {
+    const { chatId, messageId, caption, replyMarkup } = payload;
+    const res = await firstValueFrom(
       this.httpService.post('editMessageCaption', {
         chat_id: chatId,
         message_id: messageId,
         caption,
+        reply_markup: replyMarkup,
       }),
     );
+
+    return res.data.result;
   }
 
   parseTelegramInitDataString(initData: string): {
@@ -390,7 +402,7 @@ export class TelegramService {
     });
   }
 
-  async handlePostPublish({ suggestedBy, moderationMessage, title }) {
+  async handlePostPublish({ suggestedBy, moderationMessage, title, url }) {
     // TODO:
     // await this.editMessageCaption({
     await this.editMessageReplyMarkup({
@@ -406,6 +418,7 @@ export class TelegramService {
       messageId: suggestedBy.feedbackMessageId,
       title,
       status: 'Published',
+      url,
     });
   }
 
@@ -436,12 +449,28 @@ export class TelegramService {
     });
   }
 
-  private async editSubmissionFeedback({ chatId, messageId, title, status }) {
+  private editSubmissionFeedback(
+    payload: EditSubmissionFeedbackPayload,
+  ): Promise<TGMessage> {
+    const { chatId, messageId, title, status, url } = payload;
     if (!chatId || !messageId) return;
-    await this.editMessageCaption({
+
+    return this.editMessageCaption({
       chatId,
       messageId,
       caption: `${title} is ${status}`,
+      replyMarkup: url
+        ? {
+            inline_keyboard: [
+              [
+                {
+                  text: 'See post',
+                  url,
+                },
+              ],
+            ],
+          }
+        : undefined,
     });
   }
 
@@ -523,5 +552,10 @@ export class TelegramService {
     );
     u.hash = input.publicId ?? '';
     return u.toString();
+  }
+
+  getPostLink({ username, id }): string | undefined {
+    if (!username || !id) return;
+    return `https://t.me/${username}/${id}`;
   }
 }

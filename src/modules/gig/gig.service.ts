@@ -192,7 +192,10 @@ export class GigService {
         : undefined;
       const postUrl =
         chatUsername && gig.post.id
-          ? `https://t.me/${chatUsername}/${gig.post.id}`
+          ? this.telegramService.getPostLink({
+              username: chatUsername,
+              id: gig.post.id,
+            })
           : undefined;
       mapped.push({
         id: gig.publicId,

@@ -281,6 +281,10 @@ export class ReceiverService {
       title: updatedGig.title,
       suggestedBy: updatedGig.suggestedBy,
       moderationMessage: { chatId, messageId },
+      url: this.telegramService.getPostLink({
+        username: tgPost.chat.username,
+        id: tgPost.message_id,
+      }),
     });
 
     const calendarGig = this.gigService.gigToCalendarPayload(updatedGig);
