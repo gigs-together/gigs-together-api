@@ -21,16 +21,24 @@ import type { TGChatId } from './types/message.types';
 import { BucketService } from '../bucket/bucket.service';
 
 interface PublishPayload {
-  id: string;
+  caption: string;
+  message: Omit<TGSendPhoto, 'photo'>;
+  gigId: string;
+  photo?: string;
+}
+
+interface GetPosterPayload {
+  post?: GigPost;
+  poster?: GigPoster;
+}
+
+interface BuildCaptionPayload {
   date: string | number | Date;
   endDate?: string | number | Date;
   venue: string;
   title: string;
   ticketsUrl: string;
   url?: string;
-  post?: GigPost;
-  poster?: GigPoster;
-  message: Omit<TGSendPhoto, 'photo'>;
 }
 
 interface EditSubmissionFeedbackPayload {
@@ -295,7 +303,7 @@ export class TelegramService {
     }
   }
 
-  private publish(payload: PublishPayload): Promise<TGMessage> {
+  private buildCaption(payload: BuildCaptionPayload): string {
     const dateFormatter = new Intl.DateTimeFormat('en-GB', {
       year: 'numeric',
       month: 'short', // e.g., "Nov"
@@ -307,7 +315,7 @@ export class TelegramService {
       : undefined;
     const dates = [date, endDate].filter(Boolean).join(' - ');
 
-    const text = [
+    return [
       payload.url
         ? `<a href="${payload.url}">${payload.title}</a>`
         : payload.title,
@@ -317,29 +325,39 @@ export class TelegramService {
       '',
       `🎫 ${payload.ticketsUrl}`,
     ].join('\n');
+  }
 
-    const photo =
-      payload.poster &&
-      (payload.post?.fileId ||
-        (payload.poster.bucketPath
-          ? (this.bucketService.getPublicFileUrl(payload.poster.bucketPath) ??
-            payload.poster.externalUrl)
-          : payload.poster.externalUrl));
+  private getPoster({ poster, post }: GetPosterPayload): string | undefined {
+    if (!poster) return;
+
+    if (post?.fileId) {
+      return post.fileId;
+    }
+
+    const { bucketPath, externalUrl } = poster;
+    if (bucketPath) {
+      return this.bucketService.getPublicFileUrl(bucketPath) ?? externalUrl;
+    }
+    return externalUrl;
+  }
+
+  private publish(payload: PublishPayload): Promise<TGMessage> {
+    const { caption, message, photo, gigId } = payload;
 
     return this.send(
       {
-        text,
-        caption: text,
+        text: caption,
+        caption,
         photo,
         parse_mode: 'HTML',
         disable_web_page_preview: true,
-        ...payload.message,
+        ...message,
       },
-      payload.id,
+      gigId,
     );
   }
 
-  async publishMain(gig: GigDocument): Promise<TGMessage> {
+  publishMain(gig: GigDocument): Promise<TGMessage> {
     const chatId = process.env.MAIN_CHANNEL_ID;
 
     const appBaseUrl = (process.env.APP_BASE_URL ?? '').trim();
@@ -353,20 +371,24 @@ export class TelegramService {
           })
         : undefined;
 
-    const payload: PublishPayload = {
+    const buildCaptionPayload: BuildCaptionPayload = {
       url,
-      id: String(gig._id),
       title: gig.title,
       ticketsUrl: gig.ticketsUrl,
       venue: gig.venue,
-      post: gig.post,
-      poster: gig.poster,
       date: gig.date,
       endDate: gig.endDate,
-      message: { chat_id: chatId },
     };
 
-    return this.publish(payload);
+    const caption = this.buildCaption(buildCaptionPayload);
+    const poster = this.getPoster({ post: gig.post, poster: gig.poster });
+
+    return this.publish({
+      caption,
+      message: { chat_id: chatId },
+      photo: poster,
+      gigId: String(gig._id),
+    });
   }
 
   async sendToModeration(gig: GigDocument): Promise<TGMessage> {
@@ -386,22 +408,26 @@ export class TelegramService {
       ],
     };
 
-    const payload: PublishPayload = {
-      id: String(gig._id),
+    const buildCaptionPayload: BuildCaptionPayload = {
       title: gig.title,
       ticketsUrl: gig.ticketsUrl,
       venue: gig.venue,
-      post: gig.post,
-      poster: gig.poster,
       date: gig.date,
       endDate: gig.endDate,
+    };
+
+    const caption = this.buildCaption(buildCaptionPayload);
+    const poster = this.getPoster({ post: gig.post, poster: gig.poster });
+
+    return this.publish({
+      caption,
       message: {
         chat_id: chatId,
         reply_markup: replyMarkup,
       },
-    };
-
-    return this.publish(payload);
+      photo: poster,
+      gigId: String(gig._id),
+    });
   }
 
   async handlePostPublish({ suggestedBy, moderationMessage, title, url }) {
@@ -482,32 +508,38 @@ export class TelegramService {
   ): Promise<TGMessage> {
     const statusForUser = 'Pending';
 
-    const payload: PublishPayload = {
-      id: String(gig._id),
+    const replyMarkup = {
+      inline_keyboard: [
+        [
+          {
+            text: `⏳ ${statusForUser}`,
+            callback_data: `${Action.Status}:${statusForUser}`,
+          },
+        ],
+      ],
+    };
+
+    const buildCaptionPayload: BuildCaptionPayload = {
       title: gig.title,
       ticketsUrl: gig.ticketsUrl,
       venue: gig.venue,
-      post: gig.post,
-      poster: gig.poster,
       date: gig.date,
       endDate: gig.endDate,
-      message: {
-        chat_id: chatId,
-        reply_markup: {
-          inline_keyboard: [
-            [
-              {
-                text: `⏳ ${statusForUser}`,
-                callback_data: `${Action.Status}:${statusForUser}`,
-              },
-            ],
-          ],
-        },
-      },
     };
 
+    const caption = this.buildCaption(buildCaptionPayload);
+    const poster = this.getPoster({ post: gig.post, poster: gig.poster });
+
     // TODO: add some language like "You've submitted, blablabla..."
-    return this.publish(payload);
+    return this.publish({
+      caption,
+      message: {
+        chat_id: chatId,
+        reply_markup: replyMarkup,
+      },
+      photo: poster,
+      gigId: String(gig._id),
+    });
   }
 
   private async getChat(chatIdOrUsername: number | string): Promise<TGChat> {
