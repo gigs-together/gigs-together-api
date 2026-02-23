@@ -13,7 +13,7 @@ interface GigTGPost {
   to: Messenger.Telegram;
 }
 
-type GigPost = { to: Messenger } & GigTGPost;
+export type GigPost = { to: Messenger } & GigTGPost;
 
 @Schema({ _id: false })
 export class GigPoster {

@@ -9,7 +9,7 @@ import type {
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import * as crypto from 'crypto';
-import type { GigDocument } from '../gig/gig.schema';
+import { GigDocument, GigPost, GigPoster } from '../gig/gig.schema';
 import type { TGAnswerCallbackQuery } from './types/update.types';
 import FormData from 'form-data';
 import { Action } from './types/action.enum';
@@ -18,6 +18,18 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import type { TGChatId } from './types/message.types';
 import { BucketService } from '../bucket/bucket.service';
+
+interface PublishPayload {
+  id: string;
+  date: string | number | Date;
+  endDate?: string | number | Date;
+  venue: string;
+  title: string;
+  ticketsUrl: string;
+  url?: string;
+  post?: GigPost;
+  poster?: GigPoster;
+}
 
 @Injectable()
 export class TelegramService {
@@ -31,11 +43,11 @@ export class TelegramService {
 
   async send(
     payload: TGSendMessage | TGSendPhoto,
-    gig?: GigDocument,
+    gigId?: string,
   ): Promise<TGMessage | undefined> {
     try {
       if (this.isPhotoPayload(payload)) {
-        return this.sendPhoto(payload, gig);
+        return this.sendPhoto(payload, gigId);
       }
       return this.sendMessage(payload);
     } catch (e) {
@@ -54,7 +66,7 @@ export class TelegramService {
 
   private async sendPhoto(
     payload: TGSendPhoto,
-    gig?: GigDocument,
+    gigId?: string,
   ): Promise<TGMessage | undefined> {
     if (!payload) {
       throw new Error('No payload in sendPhoto');
@@ -70,10 +82,10 @@ export class TelegramService {
         if (this.isWrongWebPageContentError(e) && this.isHttpUrl(photo)) {
           const downloaded = await this.downloadRemoteFileAsInputFile(
             photo,
-            gig,
+            gigId,
           );
           if (downloaded) {
-            return this.sendPhoto({ ...payload, photo: downloaded }, gig);
+            return this.sendPhoto({ ...payload, photo: downloaded }, gigId);
           }
 
           // Last resort: send text-only message so publish doesn't silently fail.
@@ -97,7 +109,7 @@ export class TelegramService {
     }
 
     // TODO: jpg ?
-    const filename = `poster${gig?._id}.jpg`;
+    const filename = `poster${gigId}.jpg`;
     if (Buffer.isBuffer(photo)) {
       form.append('photo', photo, { filename });
     } else if (typeof photo.buffer !== 'undefined') {
@@ -146,7 +158,7 @@ export class TelegramService {
 
   private async downloadRemoteFileAsInputFile(
     url: string,
-    gig?: GigDocument,
+    gigId?: string,
   ): Promise<InputFile | undefined> {
     try {
       const res$ = this.httpService.get<ArrayBuffer>(url, {
@@ -167,8 +179,9 @@ export class TelegramService {
       }
 
       const buffer = Buffer.from(res.data);
+      // TODO: ??
       const filename =
-        this.guessFilenameFromUrl(url) ?? `poster${gig?._id ?? ''}.jpg`;
+        this.guessFilenameFromUrl(url) ?? `poster${gigId ?? ''}.jpg`;
 
       return { buffer, filename, contentType };
     } catch (e) {
@@ -258,7 +271,7 @@ export class TelegramService {
   }
 
   private async publish(
-    gig: GigDocument,
+    gig: PublishPayload,
     messagePayload: Omit<TGSendPhoto, 'photo'>,
   ): Promise<TGMessage> {
     const dateFormatter = new Intl.DateTimeFormat('en-GB', {
@@ -273,7 +286,7 @@ export class TelegramService {
     const dates = [date, endDate].filter(Boolean).join(' - ');
 
     const text = [
-      `<a href="${process.env.APP_BASE_URL}">${gig.title}</a>`, // TODO
+      gig.url ? `<a href="${gig.url}">${gig.title}</a>` : gig.title,
       '',
       `🗓 ${dates}`,
       `📍 ${gig.venue}`,
@@ -298,13 +311,25 @@ export class TelegramService {
         disable_web_page_preview: true,
         ...messagePayload,
       },
-      gig,
+      gig.id,
     );
   }
 
   async publishMain(gig: GigDocument): Promise<TGMessage> {
     const chatId = process.env.MAIN_CHANNEL_ID;
-    return this.publish(gig, { chat_id: chatId });
+
+    const payload: PublishPayload = {
+      id: String(gig._id),
+      title: gig.title,
+      ticketsUrl: gig.ticketsUrl,
+      venue: gig.venue,
+      post: gig.post,
+      poster: gig.poster,
+      date: gig.date,
+      endDate: gig.endDate,
+    };
+
+    return this.publish(payload, { chat_id: chatId });
   }
 
   async sendToModeration(gig: GigDocument): Promise<TGMessage> {
@@ -323,7 +348,22 @@ export class TelegramService {
         ],
       ],
     };
-    return this.publish(gig, { chat_id: chatId, reply_markup: replyMarkup });
+
+    const payload: PublishPayload = {
+      id: String(gig._id),
+      title: gig.title,
+      ticketsUrl: gig.ticketsUrl,
+      venue: gig.venue,
+      post: gig.post,
+      poster: gig.poster,
+      date: gig.date,
+      endDate: gig.endDate,
+    };
+
+    return this.publish(payload, {
+      chat_id: chatId,
+      reply_markup: replyMarkup,
+    });
   }
 
   async handlePostPublish({ suggestedBy, moderationMessage }) {
@@ -397,8 +437,20 @@ export class TelegramService {
     chatId: TGChatId,
   ): Promise<TGMessage> {
     const statusForUser = 'Pending';
+
+    const payload: PublishPayload = {
+      id: String(gig._id),
+      title: gig.title,
+      ticketsUrl: gig.ticketsUrl,
+      venue: gig.venue,
+      post: gig.post,
+      poster: gig.poster,
+      date: gig.date,
+      endDate: gig.endDate,
+    };
+
     // TODO: add some language like "You've submitted, blablabla..."
-    return this.publish(gig, {
+    return this.publish(payload, {
       chat_id: chatId,
       reply_markup: {
         inline_keyboard: [
