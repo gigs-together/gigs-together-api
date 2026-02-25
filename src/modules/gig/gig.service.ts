@@ -28,6 +28,8 @@ import { BucketService } from '../bucket/bucket.service';
 // TODO: add allowing only specific status transitions
 @Injectable()
 export class GigService {
+  private static readonly MAX_PUBLIC_ID_LEN = 64;
+
   constructor(
     @InjectModel(Gig.name) private gigModel: Model<Gig>,
     private readonly aiService: AiService,
@@ -60,10 +62,33 @@ export class GigService {
 
       return str3 || 'gig';
     };
-    const base = `${slugifyTitle(input.title)}-${input.yyyyMmDd}`;
+    const yyyyMmDd = String(input.yyyyMmDd ?? '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(yyyyMmDd)) {
+      throw new BadRequestException(
+        'Invalid yyyyMmDd format (expected YYYY-MM-DD)',
+      );
+    }
+
+    const buildCandidate = (n: number): string => {
+      const suffix = n === 0 ? '' : `-${n + 1}`;
+      const reserved = 1 + yyyyMmDd.length + suffix.length; // "-" + date + suffix
+      const maxSlugLen = Math.max(1, GigService.MAX_PUBLIC_ID_LEN - reserved);
+
+      let slug = slugifyTitle(input.title);
+      if (slug.length > maxSlugLen) {
+        slug = slug.slice(0, maxSlugLen).replace(/-+$/g, '');
+      }
+      if (!slug) slug = 'gig';
+
+      const candidate = `${slug}-${yyyyMmDd}${suffix}`;
+      // Safety guard (shouldn't happen, but keeps contract tight)
+      return candidate.length > GigService.MAX_PUBLIC_ID_LEN
+        ? candidate.slice(0, GigService.MAX_PUBLIC_ID_LEN).replace(/-+$/g, '')
+        : candidate;
+    };
 
     for (let n = 0; n < 50; n++) {
-      const candidate = n === 0 ? base : `${base}-${n + 1}`;
+      const candidate = buildCandidate(n);
       const existing = await this.gigModel
         .findOne(
           {
@@ -80,7 +105,13 @@ export class GigService {
 
     // Extremely unlikely fallback: add a short random suffix.
     const rnd = Math.random().toString(36).slice(2, 8);
-    return `${base}-${rnd}`;
+    // Ensure fallback respects MAX_PUBLIC_ID_LEN
+    const prefixMax = Math.max(
+      1,
+      GigService.MAX_PUBLIC_ID_LEN - (1 + rnd.length),
+    );
+    const prefix = buildCandidate(0).slice(0, prefixMax).replace(/-+$/g, '');
+    return `${prefix}-${rnd}`;
   }
 
   async saveGig(data: CreateGigInput): Promise<GigDocument> {

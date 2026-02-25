@@ -36,7 +36,7 @@ export class Gig {
    * - This is NOT MongoDB `_id`.
    * - We keep it ASCII-friendly (slug + YYYY-MM-DD).
    */
-  @Prop({ type: String, required: true })
+  @Prop({ type: String, required: true, maxlength: 64 })
   publicId: string;
 
   @Prop({ type: String, default: 'Unknown Gig' })
