@@ -393,7 +393,13 @@ export class TelegramService {
 
   async sendToModeration(gig: GigDocument): Promise<TGMessage> {
     const chatId = process.env.MODERATION_CHANNEL_ID;
-    const editGigUrl = process.env.EDIT_GIG_URL;
+    const editGigBaseUrl = (process.env.EDIT_GIG_URL ?? '').trim();
+
+    const editGigUrl =
+      editGigBaseUrl && gig.publicId
+        ? `${editGigBaseUrl}?startapp=${encodeURIComponent(String(gig.publicId))}`
+        : undefined;
+
     const replyMarkup = {
       inline_keyboard: [
         [

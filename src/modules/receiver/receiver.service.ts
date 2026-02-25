@@ -1,7 +1,16 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
 import type { TGChatId, TGMessage } from '../telegram/types/message.types';
 import { GigService } from '../gig/gig.service';
-import { CreateGigInput, GigId } from '../gig/types/gig.types';
+import {
+  CreateGigInput,
+  GigFormDataByPublicId,
+  GigId,
+} from '../gig/types/gig.types';
 import { Status } from '../gig/types/status.enum';
 import type { TGCallbackQuery } from '../telegram/types/update.types';
 import { TelegramService } from '../telegram/telegram.service';
@@ -10,6 +19,12 @@ import { getBiggestTgPhotoFileId } from '../telegram/utils/photo';
 import { V1ReceiverCreateGigRequestBodyValidated } from './types/requests/v1-receiver-create-gig-request';
 import { CalendarService } from '../calendar/calendar.service';
 import { Messenger } from '../gig/types/messenger.enum';
+import type { UpdateQuery } from 'mongoose';
+import type { Gig } from '../gig/gig.schema';
+import type {
+  V1ReceiverGetGigForEditRequestBodyValidated,
+  V1ReceiverUpdateGigByPublicIdResponseBody,
+} from './types/requests/v1-receiver-gig-by-public-id-request';
 // import { NodeHttpHandler } from '@smithy/node-http-handler';
 
 enum Command {
@@ -256,6 +271,67 @@ export class ReceiverService {
         e instanceof Error ? e.stack : undefined,
       );
     }
+  }
+
+  getGigForEdit(
+    payload: V1ReceiverGetGigForEditRequestBodyValidated,
+  ): Promise<GigFormDataByPublicId> {
+    if (payload.user?.isAdmin !== true) {
+      throw new ForbiddenException('Admin privileges required');
+    }
+    return this.gigService.getGigFormDataByPublicId(payload.publicId);
+  }
+
+  async updateGigByPublicId(payload: {
+    publicId: string;
+    body: V1ReceiverCreateGigRequestBodyValidated;
+    posterFile: Express.Multer.File | undefined;
+  }): Promise<V1ReceiverUpdateGigByPublicIdResponseBody> {
+    const { publicId, body, posterFile } = payload;
+
+    if (body.user?.isAdmin !== true) {
+      throw new ForbiddenException('Admin privileges required');
+    }
+
+    const dateMs = new Date(body.gig.date).getTime();
+
+    const endDateMs =
+      body.gig.endDate && body.gig.endDate !== body.gig.date
+        ? new Date(body.gig.endDate).getTime()
+        : undefined;
+
+    const poster = await this.gigService.uploadPoster({
+      url: body.gig.posterUrl,
+      file: posterFile,
+      context: {
+        date: body.gig.date,
+        city: body.gig.city,
+        country: body.gig.country,
+        publicId,
+      },
+    });
+
+    const update: UpdateQuery<Gig> = {
+      title: body.gig.title,
+      date: dateMs,
+      city: body.gig.city,
+      country: body.gig.country,
+      venue: body.gig.venue,
+      ticketsUrl: body.gig.ticketsUrl,
+    };
+
+    if (endDateMs) {
+      update.endDate = endDateMs;
+    } else {
+      update.$unset = { ...(update.$unset ?? {}), endDate: 1 };
+    }
+
+    if (poster) {
+      update.poster = poster;
+    }
+
+    await this.gigService.updateGigByPublicId(publicId, update);
+    return { publicId };
   }
 
   async handleGigApprove(payload: {

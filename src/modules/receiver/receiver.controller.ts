@@ -3,7 +3,9 @@ import {
   Body,
   Controller,
   HttpCode,
+  Patch,
   Post,
+  Param,
   Req,
   UploadedFile,
   UseFilters,
@@ -19,8 +21,24 @@ import { memoryStorage } from 'multer';
 import { ReceiverWebhookGuard } from './guards/receiver-webhook.guard';
 import { ReceiverWebhookExceptionFilter } from './filters/receiver-webhook-exception.filter';
 import type { ReceiverWebhookRequest } from './guards/receiver-webhook.guard';
-import { TelegramInitDataPipe } from './pipes/telegram-init-data.pipe';
+import { GigBodyPipe } from './pipes/gig-body.pipe';
+import { TelegramInitDataUserPipe } from './pipes/telegram-init-data-user.pipe';
 import { V1ReceiverCreateGigRequestBodyValidated } from './types/requests/v1-receiver-create-gig-request';
+import type {
+  V1ReceiverGetGigForEditRequestBodyValidated,
+  V1ReceiverUpdateGigByPublicIdResponseBody,
+} from './types/requests/v1-receiver-gig-by-public-id-request';
+
+const PosterFileInterceptor = FileInterceptor('posterFile', {
+  storage: memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  fileFilter: (_req, file, cb) => {
+    if (!file.mimetype?.startsWith('image/')) {
+      return cb(new BadRequestException('posterFile must be an image'), false);
+    }
+    cb(null, true);
+  },
+});
 
 @Controller('receiver')
 @UseFilters(ReceiverExceptionFilter)
@@ -52,27 +70,40 @@ export class ReceiverController {
   @Version('1')
   @Post('gig')
   @HttpCode(201)
-  @UseInterceptors(
-    FileInterceptor('posterFile', {
-      storage: memoryStorage(),
-      limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
-      fileFilter: (_req, file, cb) => {
-        if (!file.mimetype?.startsWith('image/')) {
-          return cb(
-            new BadRequestException('posterFile must be an image'),
-            false,
-          );
-        }
-        cb(null, true);
-      },
-    }),
-  )
+  @UseInterceptors(PosterFileInterceptor)
   createGig(
     @UploadedFile() posterFile: Express.Multer.File | undefined,
-    @Body(TelegramInitDataPipe)
+    @Body(TelegramInitDataUserPipe, GigBodyPipe)
     body: V1ReceiverCreateGigRequestBodyValidated,
     // JSON object (application/json) or strings (multipart/form-data)
   ): Promise<void> {
     return this.receiverService.handleGigSubmit(body, posterFile);
+  }
+
+  @Version('1')
+  @Post('gig/get')
+  @HttpCode(200)
+  getGigForEdit(
+    @Body(TelegramInitDataUserPipe)
+    body: V1ReceiverGetGigForEditRequestBodyValidated,
+  ) {
+    return this.receiverService.getGigForEdit(body);
+  }
+
+  @Version('1')
+  @Patch('gig/:publicId')
+  @HttpCode(200)
+  @UseInterceptors(PosterFileInterceptor)
+  updateGigByPublicId(
+    @Param('publicId') publicId: string,
+    @UploadedFile() posterFile: Express.Multer.File | undefined,
+    @Body(TelegramInitDataUserPipe, GigBodyPipe)
+    body: V1ReceiverCreateGigRequestBodyValidated,
+  ): Promise<V1ReceiverUpdateGigByPublicIdResponseBody> {
+    return this.receiverService.updateGigByPublicId({
+      publicId,
+      body,
+      posterFile,
+    });
   }
 }

@@ -59,3 +59,18 @@ export interface GigSuggestedBy {
   userId: TGUser['id'];
   feedbackMessageId?: TGMessage['message_id'];
 }
+
+/**
+ * Shape used to prefill gig edit form in the mini-app.
+ */
+export interface GigFormDataByPublicId {
+  publicId: string;
+  title: string;
+  date: string; // YYYY-MM-DD
+  endDate?: string; // YYYY-MM-DD
+  city: string;
+  country: string;
+  venue: string;
+  ticketsUrl: string;
+  posterUrl?: string;
+}

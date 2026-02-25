@@ -6,7 +6,12 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import type { UpdateQuery } from 'mongoose';
-import { CreateGigInput, GetGigs, GigId } from './types/gig.types';
+import {
+  CreateGigInput,
+  GetGigs,
+  GigFormDataByPublicId,
+  GigId,
+} from './types/gig.types';
 import { Gig, GigDocument } from './gig.schema';
 import { Status } from './types/status.enum';
 import { AiService } from '../ai/ai.service';
@@ -38,6 +43,23 @@ export class GigService {
     private readonly bucketService: BucketService,
     private readonly telegramService: TelegramService,
   ) {}
+
+  private normalizeAndValidatePublicIdOrThrow(publicId: string): string {
+    const id = (publicId ?? '').trim();
+    if (!id) {
+      throw new BadRequestException('publicId is required');
+    }
+    if (id.length > GigService.MAX_PUBLIC_ID_LEN) {
+      throw new BadRequestException(
+        `publicId is too long (max ${GigService.MAX_PUBLIC_ID_LEN})`,
+      );
+    }
+    // Keep it strict and URL/anchor safe (also matches our generator).
+    if (!/^[a-z0-9-]+$/.test(id)) {
+      throw new BadRequestException('publicId has invalid characters');
+    }
+    return id;
+  }
 
   async generateUniquePublicId(input: {
     title: string;
@@ -150,6 +172,68 @@ export class GigService {
     }
 
     return updatedGig;
+  }
+
+  async getGigByPublicIdOrThrow(publicId: string): Promise<GigDocument> {
+    const id = this.normalizeAndValidatePublicIdOrThrow(publicId);
+    const gig = await this.gigModel.findOne({ publicId: id });
+    if (!gig) {
+      throw new NotFoundException(`Gig with publicId "${id}" not found`);
+    }
+    return gig;
+  }
+
+  async updateGigByPublicId(
+    publicId: string,
+    data: UpdateQuery<Gig>,
+  ): Promise<GigDocument> {
+    const id = this.normalizeAndValidatePublicIdOrThrow(publicId);
+
+    const updated = await this.gigModel.findOneAndUpdate(
+      { publicId: id },
+      data,
+      { new: true },
+    );
+    if (!updated) {
+      throw new NotFoundException(`Gig with publicId "${id}" not found`);
+    }
+    return updated;
+  }
+
+  async getGigFormDataByPublicId(
+    publicId: string,
+  ): Promise<GigFormDataByPublicId> {
+    const gig = await this.getGigByPublicIdOrThrow(publicId);
+
+    const externalFallbackEnabled = envBool(
+      'EXTERNAL_POSTER_URL_FALLBACK_ENABLED',
+      true,
+    );
+
+    const msToYmd = (ms?: number): string | undefined => {
+      if (!ms) return undefined;
+      const d = new Date(ms);
+      if (Number.isNaN(d.getTime())) return undefined;
+      return d.toISOString().slice(0, 10);
+    };
+
+    const posterUrl =
+      (gig.poster?.bucketPath
+        ? this.bucketService.getPublicFileUrl(gig.poster.bucketPath)
+        : undefined) ??
+      (externalFallbackEnabled ? gig.poster?.externalUrl : undefined);
+
+    return {
+      publicId: gig.publicId,
+      title: gig.title,
+      date: msToYmd(gig.date) ?? '',
+      endDate: msToYmd(gig.endDate),
+      city: gig.city,
+      country: gig.country,
+      venue: gig.venue,
+      ticketsUrl: gig.ticketsUrl,
+      posterUrl,
+    };
   }
 
   updateGigStatus(gigId: GigId, status: Status): Promise<GigDocument> {
