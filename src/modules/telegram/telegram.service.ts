@@ -309,7 +309,7 @@ export class TelegramService {
       endDate: gig.endDate,
     });
 
-    if (opts?.updateMedia) {
+    if (opts?.updateMedia && post?.fileId) {
       const posterUrl = this.getPoster({ poster: gig.poster });
       if (posterUrl) {
         return this.editMessageMedia({
@@ -324,6 +324,18 @@ export class TelegramService {
           replyMarkup,
         });
       }
+    }
+
+    // Otherwise, update caption for photo messages, or text for text-only messages.
+    if (post?.fileId) {
+      return this.editMessageCaption({
+        chatId,
+        messageId,
+        caption,
+        parseMode: 'HTML',
+        disableWebPagePreview: true,
+        replyMarkup,
+      });
     }
   }
 
@@ -362,7 +374,7 @@ export class TelegramService {
       endDate: gig.endDate,
     });
 
-    if (opts?.updateMedia) {
+    if (opts?.updateMedia && post?.fileId) {
       const posterUrl = this.getPoster({ poster: gig.poster });
       if (posterUrl) {
         return this.editMessageMedia({
@@ -376,6 +388,16 @@ export class TelegramService {
           },
         });
       }
+    }
+
+    if (post?.fileId) {
+      return this.editMessageCaption({
+        chatId,
+        messageId,
+        caption,
+        parseMode: 'HTML',
+        disableWebPagePreview: true,
+      });
     }
   }
 
