@@ -30,6 +30,7 @@ import { GigPosterService } from './gig.poster.service';
 import { TelegramService } from '../telegram/telegram.service';
 import { BucketService } from '../bucket/bucket.service';
 import { PostType } from './types/postType.enum';
+import { Messenger } from './types/messenger.enum';
 
 // TODO: add allowing only specific status transitions
 @Injectable()
@@ -174,6 +175,29 @@ export class GigService {
     }
 
     return updatedGig;
+  }
+
+  async updateTelegramPostFileId(payload: {
+    gigId: GigId;
+    type: PostType;
+    fileId: string;
+  }): Promise<void> {
+    const { gigId, type, fileId } = payload;
+    if (!Types.ObjectId.isValid(gigId)) {
+      throw new BadRequestException(`Invalid MongoDB ID: ${gigId}`);
+    }
+
+    await this.gigModel.updateOne(
+      { _id: gigId },
+      {
+        $set: {
+          'posts.$[p].fileId': fileId,
+        },
+      },
+      {
+        arrayFilters: [{ 'p.to': Messenger.Telegram, 'p.type': type }],
+      } as any,
+    );
   }
 
   async getGigByPublicIdOrThrow(publicId: string): Promise<GigDocument> {

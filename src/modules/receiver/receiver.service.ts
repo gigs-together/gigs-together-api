@@ -352,9 +352,31 @@ export class ReceiverService {
       case Status.Approved:
       case Status.Pending: {
         try {
-          await this.telegramService.editModerationPost(updatedGig, {
-            updateMedia: !!poster,
-          });
+          const edited = await this.telegramService.editModerationPost(
+            updatedGig,
+            {
+              updateMedia: !!poster,
+            },
+          );
+
+          if (poster && edited?.photo?.length) {
+            const newFileId = getBiggestTgPhotoFileId(edited.photo);
+            if (newFileId) {
+              try {
+                await this.gigService.updateTelegramPostFileId({
+                  gigId: updatedGig._id,
+                  type: PostType.Moderation,
+                  fileId: newFileId,
+                });
+              } catch (e) {
+                this.logger.warn(
+                  `updateTelegramPostFileId (Moderation) failed for publicId=${publicId}: ${JSON.stringify(
+                    e?.response?.data ?? e?.message ?? e,
+                  )}`,
+                );
+              }
+            }
+          }
         } catch (e) {
           // Telegram failures must not break the update flow.
           this.logger.warn(
@@ -367,9 +389,28 @@ export class ReceiverService {
       }
       case Status.Published: {
         try {
-          await this.telegramService.editMainPost(updatedGig, {
+          const edited = await this.telegramService.editMainPost(updatedGig, {
             updateMedia: !!poster,
           });
+
+          if (poster && edited?.photo?.length) {
+            const newFileId = getBiggestTgPhotoFileId(edited.photo);
+            if (newFileId) {
+              try {
+                await this.gigService.updateTelegramPostFileId({
+                  gigId: updatedGig._id,
+                  type: PostType.Publish,
+                  fileId: newFileId,
+                });
+              } catch (e) {
+                this.logger.warn(
+                  `updateTelegramPostFileId (Publish) failed for publicId=${publicId}: ${JSON.stringify(
+                    e?.response?.data ?? e?.message ?? e,
+                  )}`,
+                );
+              }
+            }
+          }
         } catch (e) {
           // Telegram failures must not break the update flow.
           this.logger.warn(
