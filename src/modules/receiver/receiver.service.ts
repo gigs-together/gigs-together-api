@@ -341,7 +341,46 @@ export class ReceiverService {
       update.poster = poster;
     }
 
-    await this.gigService.updateGigByPublicId(publicId, update);
+    const updatedGig = await this.gigService.updateGigByPublicId(
+      publicId,
+      update,
+    );
+
+    switch (updatedGig.status) {
+      case Status.New:
+      case Status.Rejected:
+      case Status.Approved:
+      case Status.Pending: {
+        try {
+          await this.telegramService.editModerationPost(updatedGig, {
+            updateMedia: !!poster,
+          });
+        } catch (e) {
+          // Telegram failures must not break the update flow.
+          this.logger.warn(
+            `editModerationPost failed for publicId=${publicId}: ${JSON.stringify(
+              e?.response?.data ?? e?.message ?? e,
+            )}`,
+          );
+        }
+        break;
+      }
+      case Status.Published: {
+        try {
+          await this.telegramService.editMainPost(updatedGig, {
+            updateMedia: !!poster,
+          });
+        } catch (e) {
+          // Telegram failures must not break the update flow.
+          this.logger.warn(
+            `editMainPost failed for publicId=${publicId}: ${JSON.stringify(
+              e?.response?.data ?? e?.message ?? e,
+            )}`,
+          );
+        }
+        break;
+      }
+    }
     return { publicId };
   }
 
@@ -385,7 +424,7 @@ export class ReceiverService {
       suggestedBy: updatedGig.suggestedBy,
       moderationMessage: { chatId, messageId },
       url: this.telegramService.getPostLink({
-        username: tgPost.sender_chat?.username ?? tgPost.chat?.username,
+        username: tgPost.chat.username,
         id: tgPost.message_id,
       }),
     });

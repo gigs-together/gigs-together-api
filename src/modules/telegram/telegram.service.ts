@@ -2,7 +2,9 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import {
   InputFile,
   TGEditMessageCaption,
+  TGEditMessageMedia,
   TGEditMessageReplyMarkup,
+  TGEditMessageText,
   TGMessage,
   TGSendMessage,
   TGSendPhoto,
@@ -21,6 +23,7 @@ import type { TGChatId } from './types/message.types';
 import { BucketService } from '../bucket/bucket.service';
 import { PostType } from '../gig/types/postType.enum';
 import { Messenger } from '../gig/types/messenger.enum';
+import { Status } from '../gig/types/status.enum';
 
 interface PublishPayload {
   caption: string;
@@ -251,18 +254,222 @@ export class TelegramService {
     return res.data.result;
   }
 
+  async editMessageText(payload: TGEditMessageText): Promise<TGMessage> {
+    const {
+      chatId,
+      messageId,
+      text,
+      replyMarkup,
+      parseMode,
+      disableWebPagePreview,
+    } = payload;
+    const res = await firstValueFrom(
+      this.httpService.post('editMessageText', {
+        chat_id: chatId,
+        message_id: messageId,
+        text,
+        parse_mode: parseMode,
+        disable_web_page_preview: disableWebPagePreview,
+        reply_markup: replyMarkup,
+      }),
+    );
+    return res.data.result;
+  }
+
   async editMessageCaption(payload: TGEditMessageCaption): Promise<TGMessage> {
-    const { chatId, messageId, caption, replyMarkup } = payload;
+    const {
+      chatId,
+      messageId,
+      caption,
+      replyMarkup,
+      parseMode,
+      disableWebPagePreview,
+    } = payload;
+
     const res = await firstValueFrom(
       this.httpService.post('editMessageCaption', {
         chat_id: chatId,
         message_id: messageId,
         caption,
+        parse_mode: parseMode,
+        disable_web_page_preview: disableWebPagePreview,
         reply_markup: replyMarkup,
       }),
     );
 
     return res.data.result;
+  }
+
+  async editMessageMedia(payload: TGEditMessageMedia): Promise<TGMessage> {
+    const { chatId, messageId, media, replyMarkup } = payload;
+    const res = await firstValueFrom(
+      this.httpService.post('editMessageMedia', {
+        chat_id: chatId,
+        message_id: messageId,
+        media,
+        reply_markup: replyMarkup,
+      }),
+    );
+
+    return res.data.result;
+  }
+
+  async editModerationPost(
+    gig: GigDocument,
+    opts?: { updateMedia?: boolean },
+  ): Promise<TGMessage | undefined> {
+    const post = this.pickTgPost(gig.posts, PostType.Moderation);
+    const chatId = post?.chatId;
+    const messageId = post?.id;
+    if (!chatId || !messageId) return;
+
+    const editGigBaseUrl = (process.env.EDIT_GIG_URL ?? '').trim();
+    const editGigUrl =
+      editGigBaseUrl && gig.publicId
+        ? `${editGigBaseUrl}?startapp=${encodeURIComponent(String(gig.publicId))}`
+        : undefined;
+
+    const replyMarkup =
+      gig.status === Status.Rejected
+        ? {
+            inline_keyboard: [
+              [
+                {
+                  text: '❌ Rejected',
+                  callback_data: `${Action.Rejected}:${gig._id}`,
+                },
+              ],
+            ],
+          }
+        : gig.status === Status.Approved
+          ? {
+              inline_keyboard: [
+                [
+                  {
+                    text: '✅ Approved',
+                    callback_data: `${Action.Status}:${Status.Approved}`,
+                  },
+                ],
+              ],
+            }
+          : {
+              inline_keyboard: [
+                [
+                  {
+                    text: '✅ Approve',
+                    callback_data: `${Action.Approve}:${gig._id}`,
+                  },
+                  editGigUrl
+                    ? {
+                        text: '✏️ Edit',
+                        url: editGigUrl,
+                      }
+                    : undefined,
+                  {
+                    text: '❌ Reject',
+                    callback_data: `${Action.Reject}:${gig._id}`,
+                  },
+                ].filter(Boolean),
+              ],
+            };
+
+    const caption = this.buildCaption({
+      title: gig.title,
+      ticketsUrl: gig.ticketsUrl,
+      venue: gig.venue,
+      date: gig.date,
+      endDate: gig.endDate,
+    });
+
+    if (opts?.updateMedia) {
+      const posterUrl = this.getPoster({ poster: gig.poster });
+      if (posterUrl) {
+        return this.editMessageMedia({
+          chatId,
+          messageId,
+          media: {
+            type: 'photo',
+            media: posterUrl,
+            caption,
+            parse_mode: 'HTML',
+          },
+          replyMarkup,
+        });
+      }
+    }
+
+    // If it's a photo message, update caption; otherwise update text.
+    if (post?.fileId) {
+      return this.editMessageCaption({
+        chatId,
+        messageId,
+        caption,
+        parseMode: 'HTML',
+        disableWebPagePreview: true,
+        replyMarkup,
+      });
+    }
+
+    return this.editMessageText({
+      chatId,
+      messageId,
+      text: caption,
+      parseMode: 'HTML',
+      disableWebPagePreview: true,
+      replyMarkup,
+    });
+  }
+
+  /**
+   * Updates an already published post in the main channel (caption/text).
+   * Does nothing if the gig has no stored post reference.
+   *
+   * NOTE: Can optionally update the media (poster) via editMessageMedia.
+   */
+  async editMainPost(
+    gig: GigDocument,
+    opts?: { updateMedia?: boolean },
+  ): Promise<TGMessage | undefined> {
+    const post = this.pickTgPost(gig.posts, PostType.Publish);
+    const chatId = post?.chatId;
+    const messageId = post?.id;
+    if (!chatId || !messageId) return;
+
+    const appBaseUrl = (process.env.APP_BASE_URL ?? '').trim();
+    const url =
+      appBaseUrl && gig.publicId && gig.country && gig.city
+        ? this.buildGigPermalink({
+            baseUrl: appBaseUrl,
+            publicId: gig.publicId,
+            country: gig.country,
+            city: gig.city,
+          })
+        : undefined;
+
+    const caption = this.buildCaption({
+      url,
+      title: gig.title,
+      ticketsUrl: gig.ticketsUrl,
+      venue: gig.venue,
+      date: gig.date,
+      endDate: gig.endDate,
+    });
+
+    if (opts?.updateMedia) {
+      const posterUrl = this.getPoster({ poster: gig.poster });
+      if (posterUrl) {
+        return this.editMessageMedia({
+          chatId,
+          messageId,
+          media: {
+            type: 'photo',
+            media: posterUrl,
+            caption,
+            parse_mode: 'HTML',
+          },
+        });
+      }
+    }
   }
 
   parseTelegramInitDataString(initData: string): {

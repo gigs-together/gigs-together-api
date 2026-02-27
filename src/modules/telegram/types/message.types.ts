@@ -36,10 +36,37 @@ export interface TGEditMessageReplyMarkup {
   replyMarkup?: TGInlineKeyboardMarkup;
 }
 
+export interface TGEditMessageText {
+  chatId?: TGChatId;
+  messageId?: number;
+  text?: string;
+  parseMode?: string;
+  disableWebPagePreview?: boolean;
+  replyMarkup?: TGInlineKeyboardMarkup;
+}
+
 export interface TGEditMessageCaption {
   chatId?: TGChatId;
   messageId?: number;
   caption?: string;
+  parseMode?: string;
+  disableWebPagePreview?: boolean;
+  replyMarkup?: TGInlineKeyboardMarkup;
+}
+
+export interface TGInputMediaPhoto {
+  type: 'photo';
+  media: string;
+  caption?: string;
+  parse_mode?: string;
+  show_caption_above_media?: boolean;
+  has_spoiler?: boolean;
+}
+
+export interface TGEditMessageMedia {
+  chatId?: TGChatId;
+  messageId?: number;
+  media?: TGInputMediaPhoto;
   replyMarkup?: TGInlineKeyboardMarkup;
 }
 
