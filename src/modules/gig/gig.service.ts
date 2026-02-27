@@ -12,7 +12,7 @@ import {
   GigFormDataByPublicId,
   GigId,
 } from './types/gig.types';
-import { Gig, GigDocument } from './gig.schema';
+import { Gig, GigDocument, GigPost } from './gig.schema';
 import { Status } from './types/status.enum';
 import { AiService } from '../ai/ai.service';
 import type {
@@ -29,6 +29,7 @@ import {
 import { GigPosterService } from './gig.poster.service';
 import { TelegramService } from '../telegram/telegram.service';
 import { BucketService } from '../bucket/bucket.service';
+import { PostType } from './types/postType.enum';
 
 // TODO: add allowing only specific status transitions
 @Injectable()
@@ -149,6 +150,7 @@ export class GigService {
       ticketsUrl: data.ticketsUrl,
       poster: data.poster,
       status: Status.New,
+      posts: [],
       suggestedBy: data.suggestedBy,
     };
     if (data.endDate) {
@@ -273,7 +275,6 @@ export class GigService {
       .limit(size);
   }
 
-  // TODO: add cache
   async getPublishedGigsV1(
     query: V1GigGetRequestQuery,
   ): Promise<V1GetGigsResponseBody> {
@@ -299,19 +300,27 @@ export class GigService {
 
     const mapped: V1GetGigsResponseBody['gigs'] = [];
     for (const gig of gigs) {
+      const publishedPost = this.telegramService.pickTgPost(
+        gig.posts,
+        PostType.Publish,
+      );
+
+      const chatUsername = publishedPost?.chatId
+        ? await this.telegramService.getChatUsername(publishedPost.chatId)
+        : undefined;
+
+      const postUrl =
+        chatUsername && publishedPost?.id
+          ? this.telegramService.getPostLink({
+              username: chatUsername,
+              id: publishedPost.id,
+            })
+          : undefined;
+
       const calendarPayload = this.gigToCalendarPayload(gig);
       const calendarUrl =
         this.calendarService.getCreateCalendarEventUrl(calendarPayload);
-      const chatUsername = gig.post?.chatId
-        ? await this.telegramService.getChatUsername(gig.post.chatId)
-        : undefined;
-      const postUrl =
-        chatUsername && gig.post.id
-          ? this.telegramService.getPostLink({
-              username: chatUsername,
-              id: gig.post.id,
-            })
-          : undefined;
+
       mapped.push({
         id: gig.publicId,
         title: gig.title,

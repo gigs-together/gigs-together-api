@@ -19,6 +19,7 @@ import { getBiggestTgPhotoFileId } from '../telegram/utils/photo';
 import { V1ReceiverCreateGigRequestBodyValidated } from './types/requests/v1-receiver-create-gig-request';
 import { CalendarService } from '../calendar/calendar.service';
 import { Messenger } from '../gig/types/messenger.enum';
+import { PostType } from '../gig/types/postType.enum';
 import type { UpdateQuery } from 'mongoose';
 import type { Gig } from '../gig/gig.schema';
 import type {
@@ -221,7 +222,6 @@ export class ReceiverService {
       gig.endDate = body.gig.endDate;
     }
 
-    // TODO: add transaction?
     const savedGig = await this.gigService.saveGig(gig);
     let res: TGMessage | undefined;
     try {
@@ -236,13 +236,24 @@ export class ReceiverService {
 
     const biggestTgPhotoFileId = getBiggestTgPhotoFileId(res?.photo);
 
-    const updateGigPayload = {
-      post: {
-        fileId: biggestTgPhotoFileId,
-        to: Messenger.Telegram,
-      },
+    const moderationChatId = res?.sender_chat?.id ?? res?.chat?.id;
+    const moderationMessageId = res?.message_id;
+
+    const updateGigPayload: UpdateQuery<Gig> = {
       status: Status.Pending,
     };
+
+    if (moderationChatId && moderationMessageId) {
+      updateGigPayload.$push = {
+        posts: {
+          id: moderationMessageId,
+          chatId: moderationChatId,
+          fileId: biggestTgPhotoFileId,
+          to: Messenger.Telegram,
+          type: PostType.Moderation,
+        },
+      };
+    }
 
     // Notify the author in DM (but never notify admins).
     // NOTE: Telegram may reject sending DMs if the user hasn't started the bot.
@@ -339,18 +350,34 @@ export class ReceiverService {
     chatId: TGChatId;
     messageId: TGMessage['message_id'];
   }): Promise<void> {
-    // TODO: add transaction?
     const { gigId, chatId, messageId } = payload;
     const updatedGig = await this.gigService.updateGigStatus(
       gigId,
       Status.Approved,
     );
     const tgPost = await this.telegramService.publishMain(updatedGig);
-    await this.gigService.updateGig(gigId, {
+
+    const publishedChatId = tgPost.sender_chat?.id ?? tgPost.chat?.id;
+    const publishedMessageId = tgPost.message_id;
+    const publishedFileId = getBiggestTgPhotoFileId(tgPost.photo); // but should be the same as in moderation one
+
+    const updateGigPayload: UpdateQuery<Gig> = {
       status: Status.Published,
-      'post.id': tgPost.message_id,
-      'post.chatId': tgPost.sender_chat?.id ?? tgPost.chat?.id,
-    });
+    };
+
+    if (publishedChatId && publishedMessageId) {
+      updateGigPayload.$push = {
+        posts: {
+          id: publishedMessageId,
+          chatId: publishedChatId,
+          fileId: publishedFileId,
+          to: Messenger.Telegram,
+          type: PostType.Publish,
+        },
+      };
+    }
+
+    await this.gigService.updateGig(gigId, updateGigPayload);
     this.logger.log(`Gig #${gigId} approved`);
 
     await this.telegramService.handlePostPublish({
@@ -358,7 +385,7 @@ export class ReceiverService {
       suggestedBy: updatedGig.suggestedBy,
       moderationMessage: { chatId, messageId },
       url: this.telegramService.getPostLink({
-        username: tgPost.chat.username,
+        username: tgPost.sender_chat?.username ?? tgPost.chat?.username,
         id: tgPost.message_id,
       }),
     });

@@ -19,6 +19,8 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import type { TGChatId } from './types/message.types';
 import { BucketService } from '../bucket/bucket.service';
+import { PostType } from '../gig/types/postType.enum';
+import { Messenger } from '../gig/types/messenger.enum';
 
 interface PublishPayload {
   caption: string;
@@ -327,12 +329,26 @@ export class TelegramService {
     ].join('\n');
   }
 
-  private getPoster({ poster, post }: GetPosterPayload): string | undefined {
-    if (!poster) return;
+  pickTgPost(
+    posts: GigPost[] | undefined,
+    type: PostType,
+  ): GigPost | undefined {
+    return posts?.find((post) => {
+      return !!(
+        post?.to === Messenger.Telegram &&
+        post?.type === type &&
+        post?.chatId &&
+        post?.id
+      );
+    });
+  }
 
+  private getPoster({ poster, post }: GetPosterPayload): string | undefined {
     if (post?.fileId) {
       return post.fileId;
     }
+
+    if (!poster) return;
 
     const { bucketPath, externalUrl } = poster;
     if (bucketPath) {
@@ -381,7 +397,8 @@ export class TelegramService {
     };
 
     const caption = this.buildCaption(buildCaptionPayload);
-    const poster = this.getPoster({ post: gig.post, poster: gig.poster });
+    const moderationPost = this.pickTgPost(gig.posts, PostType.Moderation);
+    const poster = this.getPoster({ post: moderationPost, poster: gig.poster });
 
     return this.publish({
       caption,
@@ -430,7 +447,7 @@ export class TelegramService {
     };
 
     const caption = this.buildCaption(buildCaptionPayload);
-    const poster = this.getPoster({ post: gig.post, poster: gig.poster });
+    const poster = this.getPoster({ poster: gig.poster });
 
     return this.publish({
       caption,
@@ -541,7 +558,8 @@ export class TelegramService {
     };
 
     const caption = this.buildCaption(buildCaptionPayload);
-    const poster = this.getPoster({ post: gig.post, poster: gig.poster });
+    const moderationPost = this.pickTgPost(gig.posts, PostType.Moderation);
+    const poster = this.getPoster({ post: moderationPost, poster: gig.poster });
 
     // TODO: add some language like "You've submitted, blablabla..."
     return this.publish({

@@ -5,6 +5,7 @@ import { TGMessage } from '../telegram/types/message.types';
 import { TGChat } from '../telegram/types/chat.types';
 import { Messenger } from './types/messenger.enum';
 import { GigSuggestedBy } from './types/gig.types';
+import { PostType } from './types/postType.enum';
 
 interface GigTGPost {
   id: TGMessage['message_id'];
@@ -13,7 +14,10 @@ interface GigTGPost {
   to: Messenger.Telegram;
 }
 
-export type GigPost = { to: Messenger } & GigTGPost;
+export type GigPost = {
+  to: Messenger;
+  type: PostType;
+} & GigTGPost;
 
 @Schema({ _id: false })
 export class GigPoster {
@@ -79,8 +83,8 @@ export class Gig {
   @Prop({ type: String, enum: Status, default: Status.New })
   status: Status;
 
-  @Prop({ type: Object, required: false })
-  post?: GigPost;
+  @Prop({ type: Array, required: false, default: [] })
+  posts: GigPost[];
 
   @Prop({ type: Object, required: true })
   suggestedBy: GigSuggestedBy;
