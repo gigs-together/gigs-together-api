@@ -1,13 +1,13 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import {
+import type {
   InputFile,
   TGEditMessageCaption,
   TGEditMessageMedia,
   TGEditMessageReplyMarkup,
-  TGEditMessageText,
   TGMessage,
   TGSendMessage,
   TGSendPhoto,
+  TGChatId,
 } from './types/message.types';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
@@ -19,11 +19,9 @@ import { Action } from './types/action.enum';
 import { TGChat } from './types/chat.types';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
-import type { TGChatId } from './types/message.types';
 import { BucketService } from '../bucket/bucket.service';
 import { PostType } from '../gig/types/postType.enum';
 import { Messenger } from '../gig/types/messenger.enum';
-import { Status } from '../gig/types/status.enum';
 
 interface PublishPayload {
   caption: string;
@@ -254,28 +252,6 @@ export class TelegramService {
     return res.data.result;
   }
 
-  async editMessageText(payload: TGEditMessageText): Promise<TGMessage> {
-    const {
-      chatId,
-      messageId,
-      text,
-      replyMarkup,
-      parseMode,
-      disableWebPagePreview,
-    } = payload;
-    const res = await firstValueFrom(
-      this.httpService.post('editMessageText', {
-        chat_id: chatId,
-        message_id: messageId,
-        text,
-        parse_mode: parseMode,
-        disable_web_page_preview: disableWebPagePreview,
-        reply_markup: replyMarkup,
-      }),
-    );
-    return res.data.result;
-  }
-
   async editMessageCaption(payload: TGEditMessageCaption): Promise<TGMessage> {
     const {
       chatId,
@@ -323,55 +299,7 @@ export class TelegramService {
     const messageId = post?.id;
     if (!chatId || !messageId) return;
 
-    const editGigBaseUrl = (process.env.EDIT_GIG_URL ?? '').trim();
-    const editGigUrl =
-      editGigBaseUrl && gig.publicId
-        ? `${editGigBaseUrl}?startapp=${encodeURIComponent(String(gig.publicId))}`
-        : undefined;
-
-    const replyMarkup =
-      gig.status === Status.Rejected
-        ? {
-            inline_keyboard: [
-              [
-                {
-                  text: '❌ Rejected',
-                  callback_data: `${Action.Rejected}:${gig._id}`,
-                },
-              ],
-            ],
-          }
-        : gig.status === Status.Approved
-          ? {
-              inline_keyboard: [
-                [
-                  {
-                    text: '✅ Approved',
-                    callback_data: `${Action.Status}:${Status.Approved}`,
-                  },
-                ],
-              ],
-            }
-          : {
-              inline_keyboard: [
-                [
-                  {
-                    text: '✅ Approve',
-                    callback_data: `${Action.Approve}:${gig._id}`,
-                  },
-                  editGigUrl
-                    ? {
-                        text: '✏️ Edit',
-                        url: editGigUrl,
-                      }
-                    : undefined,
-                  {
-                    text: '❌ Reject',
-                    callback_data: `${Action.Reject}:${gig._id}`,
-                  },
-                ].filter(Boolean),
-              ],
-            };
+    const replyMarkup = this.buildModerationPostReplyMarkup(gig);
 
     const caption = this.buildCaption({
       title: gig.title,
@@ -397,27 +325,6 @@ export class TelegramService {
         });
       }
     }
-
-    // If it's a photo message, update caption; otherwise update text.
-    if (post?.fileId) {
-      return this.editMessageCaption({
-        chatId,
-        messageId,
-        caption,
-        parseMode: 'HTML',
-        disableWebPagePreview: true,
-        replyMarkup,
-      });
-    }
-
-    return this.editMessageText({
-      chatId,
-      messageId,
-      text: caption,
-      parseMode: 'HTML',
-      disableWebPagePreview: true,
-      replyMarkup,
-    });
   }
 
   /**
@@ -617,33 +524,7 @@ export class TelegramService {
 
   async sendToModeration(gig: GigDocument): Promise<TGMessage> {
     const chatId = process.env.MODERATION_CHANNEL_ID;
-    const editGigBaseUrl = (process.env.EDIT_GIG_URL ?? '').trim();
-
-    const editGigUrl =
-      editGigBaseUrl && gig.publicId
-        ? `${editGigBaseUrl}?startapp=${encodeURIComponent(String(gig.publicId))}`
-        : undefined;
-
-    const replyMarkup = {
-      inline_keyboard: [
-        [
-          {
-            text: '✅ Approve',
-            callback_data: `${Action.Approve}:${gig._id}`,
-          },
-          editGigUrl
-            ? {
-                text: '✏️ Edit',
-                url: editGigUrl,
-              }
-            : undefined,
-          {
-            text: '❌ Reject',
-            callback_data: `${Action.Reject}:${gig._id}`,
-          },
-        ].filter(Boolean),
-      ],
-    };
+    const replyMarkup = this.buildModerationPostReplyMarkup(gig);
 
     const buildCaptionPayload: BuildCaptionPayload = {
       title: gig.title,
@@ -665,6 +546,36 @@ export class TelegramService {
       photo: poster,
       gigId: String(gig._id),
     });
+  }
+
+  private buildModerationPostReplyMarkup(gig: GigDocument) {
+    const editGigBaseUrl = (process.env.EDIT_GIG_URL ?? '').trim();
+
+    const editGigUrl =
+      editGigBaseUrl && gig.publicId
+        ? `${editGigBaseUrl}?startapp=${encodeURIComponent(String(gig.publicId))}`
+        : undefined;
+
+    return {
+      inline_keyboard: [
+        [
+          {
+            text: '✅ Approve',
+            callback_data: `${Action.Approve}:${gig._id}`,
+          },
+          editGigUrl
+            ? {
+                text: '✏️ Edit',
+                url: editGigUrl,
+              }
+            : undefined,
+          {
+            text: '❌ Reject',
+            callback_data: `${Action.Reject}:${gig._id}`,
+          },
+        ].filter(Boolean),
+      ],
+    };
   }
 
   async handlePostPublish({ suggestedBy, moderationMessage, title, url }) {
