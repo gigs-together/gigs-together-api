@@ -48,13 +48,15 @@ export class ReceiverService {
     if (tgDescription) return `Failed: ${tgDescription}`;
 
     if (e instanceof BadRequestException) {
-      const res = e.getResponse() as any;
+      const res = e.getResponse() as unknown;
       const msg =
         typeof res === 'string'
           ? res
-          : Array.isArray(res?.message)
-            ? res.message.join(', ')
-            : (res?.message ?? e.message);
+          : typeof res === 'object' && res !== null && 'message' in res
+            ? Array.isArray((res as { message?: unknown }).message)
+              ? (res as { message: string[] }).message.join(', ')
+              : String((res as { message?: unknown }).message ?? e.message)
+            : e.message;
       return `Failed: ${String(msg)}`;
     }
 
@@ -462,6 +464,7 @@ export class ReceiverService {
 
     await this.telegramService.handlePostPublish({
       title: updatedGig.title,
+      publicId: updatedGig.publicId,
       suggestedBy: updatedGig.suggestedBy,
       moderationMessage: { chatId, messageId },
       url: this.telegramService.getPostLink({

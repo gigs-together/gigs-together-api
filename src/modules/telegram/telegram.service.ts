@@ -4,6 +4,7 @@ import type {
   TGEditMessageCaption,
   TGEditMessageMedia,
   TGEditMessageReplyMarkup,
+  TGEditMessageText,
   TGMessage,
   TGSendMessage,
   TGSendPhoto,
@@ -52,6 +53,14 @@ interface EditSubmissionFeedbackPayload {
   url?: string;
 }
 
+interface HandlePostPublishPayload {
+  suggestedBy: GigDocument['suggestedBy'];
+  moderationMessage: { chatId: TGChatId; messageId: number };
+  title: string;
+  url?: string;
+  publicId?: string;
+}
+
 @Injectable()
 export class TelegramService {
   constructor(
@@ -61,6 +70,20 @@ export class TelegramService {
   ) {}
 
   private readonly logger = new Logger(TelegramService.name);
+
+  private addCacheBustToUrl(url: string, cacheBust: string): string {
+    const sep = url.includes('?') ? '&' : '?';
+    return `${url}${sep}tgcb=${encodeURIComponent(cacheBust)}`;
+  }
+
+  private getPosterUrlForEdit(poster?: GigPoster): string | undefined {
+    const url = this.getPosterUrl(poster);
+    if (!url) return;
+    // Poster URLs may stay stable (S3 key overwrite, CDN caching, etc). Telegram compares
+    // the "media" string and may return 400 "message is not modified" if the URL is unchanged.
+    // Cache-bust makes the URL string unique per edit.
+    return this.addCacheBustToUrl(url, String(Date.now()));
+  }
 
   async send(
     payload: TGSendMessage | TGSendPhoto,
@@ -252,6 +275,28 @@ export class TelegramService {
     return res.data.result;
   }
 
+  async editMessageText(payload: TGEditMessageText): Promise<TGMessage> {
+    const {
+      chatId,
+      messageId,
+      text,
+      replyMarkup,
+      parseMode,
+      disableWebPagePreview,
+    } = payload;
+    const res = await firstValueFrom(
+      this.httpService.post('editMessageText', {
+        chat_id: chatId,
+        message_id: messageId,
+        text,
+        parse_mode: parseMode,
+        disable_web_page_preview: disableWebPagePreview,
+        reply_markup: replyMarkup,
+      }),
+    );
+    return res.data.result;
+  }
+
   async editMessageCaption(payload: TGEditMessageCaption): Promise<TGMessage> {
     const {
       chatId,
@@ -310,7 +355,7 @@ export class TelegramService {
     });
 
     if (opts?.updateMedia && post?.fileId) {
-      const posterUrl = this.getPoster({ poster: gig.poster });
+      const posterUrl = this.getPosterUrlForEdit(gig.poster);
       if (posterUrl) {
         return this.editMessageMedia({
           chatId,
@@ -375,7 +420,7 @@ export class TelegramService {
     });
 
     if (opts?.updateMedia && post?.fileId) {
-      const posterUrl = this.getPoster({ poster: gig.poster });
+      const posterUrl = this.getPosterUrlForEdit(gig.poster);
       if (posterUrl) {
         return this.editMessageMedia({
           chatId,
@@ -479,11 +524,7 @@ export class TelegramService {
     });
   }
 
-  private getPoster({ poster, post }: GetPosterPayload): string | undefined {
-    if (post?.fileId) {
-      return post.fileId;
-    }
-
+  private getPosterUrl(poster?: GigPoster): string | undefined {
     if (!poster) return;
 
     const { bucketPath, externalUrl } = poster;
@@ -491,6 +532,14 @@ export class TelegramService {
       return this.bucketService.getPublicFileUrl(bucketPath) ?? externalUrl;
     }
     return externalUrl;
+  }
+
+  private getPoster({ poster, post }: GetPosterPayload): string | undefined {
+    if (post?.fileId) {
+      return post.fileId;
+    }
+
+    return this.getPosterUrl(poster);
   }
 
   private publish(payload: PublishPayload): Promise<TGMessage> {

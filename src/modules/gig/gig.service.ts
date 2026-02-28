@@ -12,7 +12,7 @@ import {
   GigFormDataByPublicId,
   GigId,
 } from './types/gig.types';
-import { Gig, GigDocument, GigPost } from './gig.schema';
+import { Gig, GigDocument } from './gig.schema';
 import { Status } from './types/status.enum';
 import { AiService } from '../ai/ai.service';
 import type {
@@ -188,15 +188,15 @@ export class GigService {
     }
 
     await this.gigModel.updateOne(
-      { _id: gigId },
       {
-        $set: {
-          'posts.$[p].fileId': fileId,
-        },
+        _id: gigId,
+        posts: { $elemMatch: { to: Messenger.Telegram, type } },
       },
       {
-        arrayFilters: [{ 'p.to': Messenger.Telegram, 'p.type': type }],
-      } as any,
+        $set: {
+          'posts.$.fileId': fileId,
+        },
+      },
     );
   }
 
