@@ -273,10 +273,10 @@ export class ReceiverService {
       };
     }
 
-    // Notify the author in DM (but never notify admins).
+    // Notify the author in DM.
     // NOTE: Telegram may reject sending DMs if the user hasn't started the bot.
     const authorTelegramId = body.user?.tgUser?.id;
-    if (authorTelegramId && body.user?.isAdmin !== true) {
+    if (authorTelegramId) {
       try {
         const res: TGMessage =
           await this.telegramService.sendSubmissionFeedback(
