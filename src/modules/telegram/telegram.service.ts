@@ -571,12 +571,7 @@ export class TelegramService {
   }
 
   private buildModerationPostReplyMarkup(gig: GigDocument) {
-    const editGigBaseUrl = (process.env.EDIT_GIG_URL ?? '').trim();
-
-    const editGigUrl =
-      editGigBaseUrl && gig.publicId
-        ? `${editGigBaseUrl}?startapp=${encodeURIComponent(String(gig.publicId))}`
-        : undefined;
+    const editGigUrl = this.buildEditGigUrl(gig.publicId);
 
     return {
       inline_keyboard: [
@@ -600,15 +595,48 @@ export class TelegramService {
     };
   }
 
-  async handlePostPublish({ suggestedBy, moderationMessage, title, url }) {
-    // TODO:
-    // await this.editMessageCaption({
-    await this.editMessageReplyMarkup({
+  private buildEditGigUrl(publicId?: string): string | undefined {
+    const editGigBaseUrl = (process.env.EDIT_GIG_URL ?? '').trim();
+    return editGigBaseUrl && publicId
+      ? `${editGigBaseUrl}?startapp=${encodeURIComponent(String(publicId))}`
+      : undefined;
+  }
+
+  async handlePostPublish(payload: HandlePostPublishPayload) {
+    const {
+      suggestedBy,
+      moderationMessage,
+      title,
+      url: publishedPostUrl,
+      publicId,
+    } = payload;
+    const editGigUrl = publicId ? this.buildEditGigUrl(publicId) : undefined;
+    const cleanedText = publishedPostUrl
+      ? `${title}\n${publishedPostUrl}`
+      : title;
+    const replyMarkup = editGigUrl
+      ? {
+          inline_keyboard: [
+            [
+              {
+                text: '✏️ Edit',
+                url: editGigUrl,
+              },
+            ],
+          ],
+        }
+      : undefined;
+
+    // Clean moderation post content & keep only Edit button.
+    // NOTE: Telegram can't remove media from a photo message via edit APIs,
+    // so the poster will remain, but the caption/text will be cleaned.
+    await this.editMessageCaption({
       chatId: moderationMessage.chatId,
       messageId: moderationMessage.messageId,
-      replyMarkup: {
-        inline_keyboard: [],
-      },
+      caption: cleanedText,
+      parseMode: 'HTML',
+      disableWebPagePreview: true,
+      replyMarkup,
     });
 
     await this.editSubmissionFeedback({
@@ -616,7 +644,7 @@ export class TelegramService {
       messageId: suggestedBy.feedbackMessageId,
       title,
       status: 'Published',
-      url,
+      url: publishedPostUrl,
     });
   }
 
