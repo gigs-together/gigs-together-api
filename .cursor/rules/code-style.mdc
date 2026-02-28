@@ -10,6 +10,9 @@ globs:
 - **Prefer explicit, strict typing**: keep types narrow, avoid widening to `string | number | ...` when the domain is known.
 - **Comments must be in English (Latin alphabet) only**: do not write comments in Cyrillic.
 - **Boolean naming**: boolean variables (and flags) should preferably start with `is` (e.g. `isActive`, `isAdmin`, `isValid`).
+- **No builds/tests/dev servers without explicit request**:
+  - Do not run `build`, `test`, `lint`, `typecheck`, `dev`, or start watchers/servers unless the user explicitly asks.
+  - If execution is needed to validate a change, ask first instead of running it proactively.
 - **`any` is forbidden by default**:
   - Use `unknown` + type guards / narrowing instead of `any`.
   - If you need a flexible object shape, prefer `Record<string, unknown>` (or a specific interface) over `any`.
