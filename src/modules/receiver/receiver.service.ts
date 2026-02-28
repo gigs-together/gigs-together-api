@@ -32,6 +32,14 @@ enum Command {
   Start = 'start',
 }
 
+interface HandleGigApprovePayload {
+  gigId: GigId;
+  moderationPost: {
+    chatId: TGChatId;
+    messageId: TGMessage['message_id'];
+  };
+}
+
 @Injectable()
 export class ReceiverService {
   constructor(
@@ -122,8 +130,10 @@ export class ReceiverService {
       case Action.Approve: {
         await this.handleGigApprove({
           gigId: data,
-          messageId: callbackQuery.message.message_id,
-          chatId: callbackQuery.message.chat.id,
+          moderationPost: {
+            messageId: callbackQuery.message.message_id,
+            chatId: callbackQuery.message.chat.id,
+          },
         });
         break;
       }
@@ -427,21 +437,18 @@ export class ReceiverService {
     return { publicId };
   }
 
-  async handleGigApprove(payload: {
-    gigId: GigId;
-    chatId: TGChatId;
-    messageId: TGMessage['message_id'];
-  }): Promise<void> {
-    const { gigId, chatId, messageId } = payload;
+  async handleGigApprove(payload: HandleGigApprovePayload): Promise<void> {
+    const { gigId, moderationPost } = payload;
     const updatedGig = await this.gigService.updateGigStatus(
       gigId,
       Status.Approved,
     );
-    const tgPost = await this.telegramService.publishMain(updatedGig);
+    const tgPublishPost = await this.telegramService.publishMain(updatedGig);
 
-    const publishedChatId = tgPost.sender_chat?.id ?? tgPost.chat?.id;
-    const publishedMessageId = tgPost.message_id;
-    const publishedFileId = getBiggestTgPhotoFileId(tgPost.photo); // but should be the same as in moderation one
+    const publishedChatId =
+      tgPublishPost.sender_chat?.id ?? tgPublishPost.chat?.id;
+    const publishedMessageId = tgPublishPost.message_id;
+    const publishedFileId = getBiggestTgPhotoFileId(tgPublishPost.photo); // but should be the same as in moderation one
 
     const updateGigPayload: UpdateQuery<Gig> = {
       status: Status.Published,
@@ -466,11 +473,12 @@ export class ReceiverService {
       title: updatedGig.title,
       publicId: updatedGig.publicId,
       suggestedBy: updatedGig.suggestedBy,
-      moderationMessage: { chatId, messageId },
-      url: this.telegramService.getPostLink({
-        username: tgPost.chat.username,
-        id: tgPost.message_id,
-      }),
+      moderationPost,
+      publishPost: {
+        username: tgPublishPost.chat.username,
+        chatId: tgPublishPost.chat.id,
+        messageId: tgPublishPost.message_id,
+      },
     });
 
     const calendarGig = this.gigService.gigToCalendarPayload(updatedGig);

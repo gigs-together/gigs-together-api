@@ -336,8 +336,8 @@ export class GigService {
       const postUrl =
         chatUsername && publishedPost?.id
           ? this.telegramService.getPostLink({
-              username: chatUsername,
-              id: publishedPost.id,
+              chatUsername,
+              messageId: publishedPost.id,
             })
           : undefined;
 

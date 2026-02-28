@@ -55,10 +55,23 @@ interface EditSubmissionFeedbackPayload {
 
 interface HandlePostPublishPayload {
   suggestedBy: GigDocument['suggestedBy'];
-  moderationMessage: { chatId: TGChatId; messageId: number };
+  moderationPost: {
+    chatId: TGChatId;
+    messageId: TGMessage['message_id'];
+  };
+  publishPost: {
+    chatId: TGChatId;
+    username: TGChat['username'];
+    messageId: TGMessage['message_id'];
+  };
   title: string;
-  url?: string;
   publicId?: string;
+}
+
+interface GetPostLinkPayload {
+  chatId?: TGChatId;
+  chatUsername?: TGChat['username'];
+  messageId: TGMessage['message_id'];
 }
 
 @Injectable()
@@ -652,40 +665,52 @@ export class TelegramService {
   }
 
   async handlePostPublish(payload: HandlePostPublishPayload) {
-    const {
-      suggestedBy,
-      moderationMessage,
-      title,
-      url: publishedPostUrl,
-      publicId,
-    } = payload;
+    const { suggestedBy, moderationPost, publishPost, title, publicId } =
+      payload;
     const editGigUrl = publicId ? this.buildEditGigUrl(publicId) : undefined;
-    const cleanedText = publishedPostUrl
-      ? `${title}\n${publishedPostUrl}`
-      : title;
-    const replyMarkup = editGigUrl
-      ? {
-          inline_keyboard: [
-            [
-              {
-                text: '✏️ Edit',
-                url: editGigUrl,
-              },
-            ],
-          ],
-        }
-      : undefined;
+
+    const publishPostChatIdUrl = this.getPostLink({
+      messageId: publishPost.messageId,
+      chatId: publishPost.chatId,
+    });
+
+    const replyButtons = [
+      publishPostChatIdUrl
+        ? {
+            text: '🔗 Post',
+            url: publishPostChatIdUrl,
+          }
+        : undefined,
+      editGigUrl
+        ? {
+            text: '✏️ Edit',
+            url: editGigUrl,
+          }
+        : undefined,
+    ].filter(Boolean);
+
+    const replyMarkup =
+      replyButtons.length > 0
+        ? {
+            inline_keyboard: [replyButtons],
+          }
+        : undefined;
 
     // Clean moderation post content & keep only Edit button.
     // NOTE: Telegram can't remove media from a photo message via edit APIs,
     // so the poster will remain, but the caption/text will be cleaned.
     await this.editMessageCaption({
-      chatId: moderationMessage.chatId,
-      messageId: moderationMessage.messageId,
-      caption: cleanedText,
+      chatId: moderationPost.chatId,
+      messageId: moderationPost.messageId,
+      caption: title,
       parseMode: 'HTML',
       disableWebPagePreview: true,
       replyMarkup,
+    });
+
+    const publishPostUsernameUrl = this.getPostLink({
+      chatUsername: publishPost.username,
+      messageId: publishPost.messageId,
     });
 
     await this.editSubmissionFeedback({
@@ -693,7 +718,7 @@ export class TelegramService {
       messageId: suggestedBy.feedbackMessageId,
       title,
       status: 'Published',
-      url: publishedPostUrl,
+      url: publishPostUsernameUrl,
     });
   }
 
@@ -739,7 +764,7 @@ export class TelegramService {
             inline_keyboard: [
               [
                 {
-                  text: 'See post',
+                  text: '🔗 Post',
                   url,
                 },
               ],
@@ -837,8 +862,18 @@ export class TelegramService {
     return u.toString();
   }
 
-  getPostLink({ username, id }): string | undefined {
-    if (!username || !id) return;
-    return `https://t.me/${username}/${id}`;
+  getPostLink(payload: GetPostLinkPayload): string | undefined {
+    const { chatUsername, messageId, chatId } = payload;
+    if (!messageId) return;
+    if (chatUsername) {
+      return `https://t.me/${chatUsername}/${messageId}`;
+    }
+    if (chatId) {
+      const rawChatId = String(chatId);
+      const internalChatId = rawChatId.startsWith('-100')
+        ? rawChatId.slice(4)
+        : rawChatId;
+      return `https://t.me/c/${internalChatId}/${messageId}`;
+    }
   }
 }
