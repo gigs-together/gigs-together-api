@@ -207,8 +207,14 @@ export class ReceiverService {
       yyyyMmDd,
     });
 
+    const explicitPosterUrl = (body.gig.posterUrl ?? '').trim() || undefined;
+    const defaultPosterUrl =
+      (process.env.DEFAULT_GIG_POSTER_URL ?? '').trim() || undefined;
+    const posterUrl =
+      explicitPosterUrl ?? (posterFile ? undefined : defaultPosterUrl);
+
     const poster = await this.gigService.uploadPoster({
-      url: body.gig.posterUrl,
+      url: posterUrl,
       file: posterFile,
       context: {
         date: body.gig.date,
