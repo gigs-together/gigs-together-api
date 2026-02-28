@@ -395,6 +395,15 @@ export class TelegramService {
         replyMarkup,
       });
     }
+
+    return this.editMessageText({
+      chatId,
+      messageId,
+      text: caption,
+      parseMode: 'HTML',
+      disableWebPagePreview: true,
+      replyMarkup,
+    });
   }
 
   /**
@@ -457,6 +466,14 @@ export class TelegramService {
         disableWebPagePreview: true,
       });
     }
+
+    return this.editMessageText({
+      chatId,
+      messageId,
+      text: caption,
+      parseMode: 'HTML',
+      disableWebPagePreview: true,
+    });
   }
 
   parseTelegramInitDataString(initData: string): {
