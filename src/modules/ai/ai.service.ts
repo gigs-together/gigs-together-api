@@ -12,10 +12,27 @@ import { V1ReceiverCreateGigRequestBodyGig } from '../receiver/types/requests/v1
 export class AiService {
   constructor(private readonly configService: ConfigService) {}
 
+  private static isRecord(v: unknown): v is Record<string, unknown> {
+    return !!v && typeof v === 'object' && !Array.isArray(v);
+  }
+
+  private getAxiosNestedErrorMessage(rawData: unknown): string | undefined {
+    if (!AiService.isRecord(rawData)) return undefined;
+    const err = rawData.error;
+    if (!AiService.isRecord(err)) return undefined;
+    const msg = err.message;
+    return typeof msg === 'string' && msg.trim() ? msg.trim() : undefined;
+  }
+
   private normalizeLookUpedGig(
     raw: unknown,
   ): V1ReceiverCreateGigRequestBodyGig {
-    const obj = (raw ?? {}) as any;
+    if (!AiService.isRecord(raw)) {
+      throw new InternalServerErrorException(
+        'Invalid AI response: expected a JSON object',
+      );
+    }
+    const obj: Record<string, unknown> = raw;
 
     const title = typeof obj.title === 'string' ? obj.title : '';
     const city = typeof obj.city === 'string' ? obj.city : '';
@@ -27,6 +44,7 @@ export class AiService {
     const venue = typeof obj.venue === 'string' ? obj.venue : '';
     const ticketsUrl = typeof obj.ticketsUrl === 'string' ? obj.ticketsUrl : '';
     const posterUrl = typeof obj.posterUrl === 'string' ? obj.posterUrl : '';
+    const endDateRaw = typeof obj.endDate === 'string' ? obj.endDate : '';
 
     let date = '';
     if (typeof obj.date === 'string') date = obj.date;
@@ -34,9 +52,12 @@ export class AiService {
       date = new Date(obj.date).toISOString();
     }
 
+    const endDate = endDateRaw.trim() ? endDateRaw : undefined;
+
     return {
       title,
       date,
+      ...(endDate ? { endDate } : {}),
       city,
       country,
       venue,
@@ -66,7 +87,7 @@ export class AiService {
     }
 
     const url = this.configService.get<string>('AI_URL') ?? process.env.AI_URL;
-    if (!model) {
+    if (!url) {
       throw new InternalServerErrorException('AI_URL is not set on the server');
     }
 
@@ -132,10 +153,9 @@ export class AiService {
     } catch (err: unknown) {
       if (axios.isAxiosError(err)) {
         const status = err.response?.status;
-        const message =
-          (err.response?.data as any)?.error?.message ??
-          err.message ??
-          'AI request failed';
+        const nested =
+          this.getAxiosNestedErrorMessage(err.response?.data) ?? undefined;
+        const message = nested ?? err.message ?? 'AI request failed';
         throw new InternalServerErrorException(
           `AI request failed${status ? ` (HTTP ${status})` : ''}: ${message}`,
         );
