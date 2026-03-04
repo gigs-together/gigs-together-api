@@ -26,54 +26,57 @@ export function logError(
   const { error, note, context, meta } = input;
 
   if (isAxiosError(error)) {
-    logger.error(
-      {
-        note,
-        ...(meta ? { meta } : {}),
-        upstream: {
-          code: error.code,
-          status: error.response?.status ?? null,
-          message: error.message,
-          request: {
-            method: error.config?.method,
-            url: error.config?.url,
-            timeout: error.config?.timeout,
-            params: toShortJson(error.config?.params),
-          },
-          response: {
-            data: toShortJson(error.response?.data ?? null),
-          },
+    const payload = {
+      note,
+      ...(context ? { context } : {}),
+      ...(meta ? { meta } : {}),
+      upstream: {
+        code: error.code,
+        status: error.response?.status ?? null,
+        message: error.message,
+        request: {
+          method: error.config?.method,
+          url: error.config?.url,
+          timeout: error.config?.timeout,
+          params: toShortJson(error.config?.params),
         },
-        timestamp: new Date().toISOString(),
+        response: {
+          data: toShortJson(error.response?.data ?? null),
+        },
       },
-      undefined,
-      context,
-    );
+      timestamp: new Date().toISOString(),
+    };
+
+    // Avoid passing `undefined` as stack/trace: Nest prints it as an extra "undefined" line.
+    logger.error(payload);
     return;
   }
 
   if (error instanceof Error) {
-    logger.error(
-      {
-        note,
-        ...(meta ? { meta } : {}),
-        message: error.message,
-        timestamp: new Date().toISOString(),
-      },
-      error.stack,
-      context,
-    );
+    const payload = {
+      note,
+      ...(context ? { context } : {}),
+      ...(meta ? { meta } : {}),
+      message: error.message,
+      timestamp: new Date().toISOString(),
+    };
+
+    if (context) {
+      logger.error(payload, error.stack, context);
+    } else {
+      logger.error(payload, error.stack);
+    }
     return;
   }
 
-  logger.error(
-    {
-      note,
-      ...(meta ? { meta } : {}),
-      message: typeof error === 'string' ? error : toShortJson(error),
-      timestamp: new Date().toISOString(),
-    },
-    undefined,
-    context,
-  );
+  const payload = {
+    note,
+    ...(context ? { context } : {}),
+    ...(meta ? { meta } : {}),
+    message: typeof error === 'string' ? error : toShortJson(error),
+    timestamp: new Date().toISOString(),
+  };
+
+  // Same reasoning: don't pass `undefined` trace.
+  logger.error(payload);
 }

@@ -862,7 +862,7 @@ export class TelegramService {
     } catch (e: unknown) {
       logError(this.logger, {
         error: e,
-        note: 'Error getting post url',
+        note: 'Error getting chat username',
         context: TelegramService.name,
         meta: { chatId },
       });
