@@ -1,5 +1,5 @@
 import { Module, ConsoleLogger, ValidationPipe } from '@nestjs/common';
-import { APP_PIPE } from '@nestjs/core';
+import { APP_FILTER, APP_PIPE } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -14,6 +14,7 @@ import { BucketModule } from './modules/bucket/bucket.module';
 import { AiModule } from './modules/ai/ai.module';
 import { LocationModule } from './modules/location/location.module';
 import { LanguageModule } from './modules/language/language.module';
+import { GlobalExceptionFilter } from './filters/global-exception.filter';
 
 const nodeEnv = (process.env.NODE_ENV ?? 'dev').trim();
 const envFilePath = [`.env.${nodeEnv}`, '.env'];
@@ -49,6 +50,10 @@ const envFilePath = [`.env.${nodeEnv}`, '.env'];
   providers: [
     AppService,
     ConsoleLogger,
+    {
+      provide: APP_FILTER,
+      useClass: GlobalExceptionFilter,
+    },
     {
       provide: APP_PIPE,
       useValue: new ValidationPipe({
