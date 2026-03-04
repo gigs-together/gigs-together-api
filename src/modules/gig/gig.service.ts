@@ -7,7 +7,6 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import type { UpdateQuery } from 'mongoose';
-import { logError } from '../../shared/utils/logging';
 import {
   CreateGigInput,
   GetGigs,
@@ -311,30 +310,21 @@ export class GigService {
     payload: GetPostUrlPayload,
   ): Promise<string | undefined> {
     const { postId, chatId } = payload;
+
     if (!chatId) {
       return;
     }
 
-    try {
-      const chatUsername = chatId
-        ? await this.telegramService.getChatUsername(chatId)
-        : undefined;
+    const chatUsername = chatId
+      ? await this.telegramService.getChatUsername(chatId)
+      : undefined;
 
-      return chatUsername && postId
-        ? this.telegramService.getPostUrl({
-            chatUsername,
-            messageId: postId,
-          })
-        : undefined;
-    } catch (e: unknown) {
-      logError(this.logger, {
-        error: e,
-        note: 'Error getting post url',
-        context: GigService.name,
-        meta: { postId, chatId },
-      });
-      return undefined;
-    }
+    return chatUsername && postId
+      ? this.telegramService.getPostUrl({
+          chatUsername,
+          messageId: postId,
+        })
+      : undefined;
   }
 
   async getPublishedGigsV1(
