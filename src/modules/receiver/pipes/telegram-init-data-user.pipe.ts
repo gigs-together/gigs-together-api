@@ -17,10 +17,10 @@ type AnyBody = Record<string, unknown> & { telegramInitDataString?: unknown };
  * don't accidentally rely on it.
  */
 @Injectable()
-export class TelegramInitDataUserPipe
-  implements
-    PipeTransform<AnyBody, Promise<Record<string, unknown> & { user: User }>>
-{
+export class TelegramInitDataUserPipe implements PipeTransform<
+  AnyBody,
+  Promise<Record<string, unknown> & { user: User }>
+> {
   constructor(
     private readonly telegramService: TelegramService,
     private readonly authService: AuthService,

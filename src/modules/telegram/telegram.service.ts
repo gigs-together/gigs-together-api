@@ -23,6 +23,7 @@ import type { Cache } from 'cache-manager';
 import { BucketService } from '../bucket/bucket.service';
 import { PostType } from '../gig/types/postType.enum';
 import { Messenger } from '../gig/types/messenger.enum';
+import { logError } from '../../shared/utils/logging';
 
 interface PublishPayload {
   caption: string;
@@ -68,7 +69,7 @@ interface HandlePostPublishPayload {
   publicId?: string;
 }
 
-interface GetPostLinkPayload {
+interface GetPostUrlPayload {
   chatId?: TGChatId;
   chatUsername?: TGChat['username'];
   messageId: TGMessage['message_id'];
@@ -83,6 +84,8 @@ export class TelegramService {
   ) {}
 
   private readonly logger = new Logger(TelegramService.name);
+
+  private static readonly CHAT_ERROR_TTL_MS = 60_000 * 5;
 
   private addCacheBustToUrl(url: string, cacheBust: string): string {
     const sep = url.includes('?') ? '&' : '?';
@@ -135,7 +138,7 @@ export class TelegramService {
         const res = await firstValueFrom(res$);
         return res.data.result;
       } catch (e) {
-        // Telegram can't fetch the file from provided URL (often HTML/redirect/webp/etc).
+        // Telegram can't fetch the file from the provided URL (often HTML/redirect/webp/etc).
         if (this.isWrongWebPageContentError(e) && this.isHttpUrl(photo)) {
           const downloaded = await this.downloadRemoteFileAsInputFile(
             photo,
@@ -145,7 +148,7 @@ export class TelegramService {
             return this.sendPhoto({ ...payload, photo: downloaded }, gigId);
           }
 
-          // Last resort: send text-only message so publish doesn't silently fail.
+          // Last resort: send a text-only message so publish doesn't silently fail.
           const text =
             payload.caption ??
             (payload as unknown as { text?: string }).text ??
@@ -686,7 +689,7 @@ export class TelegramService {
       payload;
     const editGigUrl = publicId ? this.buildEditGigUrl(publicId) : undefined;
 
-    const publishPostChatIdUrl = this.getPostLink({
+    const publishPostChatIdUrl = this.getPostUrl({
       messageId: publishPost.messageId,
       chatId: publishPost.chatId,
     });
@@ -725,7 +728,7 @@ export class TelegramService {
       replyMarkup,
     });
 
-    const publishPostUsernameUrl = this.getPostLink({
+    const publishPostUsernameUrl = this.getPostUrl({
       chatUsername: publishPost.username,
       messageId: publishPost.messageId,
     });
@@ -837,26 +840,35 @@ export class TelegramService {
       params: { chat_id: chatIdOrUsername },
     });
     const { data } = await firstValueFrom(res$);
-
-    if (!data.ok) {
-      throw new Error(
-        `Telegram getChat error ${data.error_code}: ${data.description}`,
-      );
-    }
-
     return data.result;
   }
 
   public async getChatUsername(
     chatId: TGChat['id'],
   ): Promise<TGChat['username']> {
-    const key = `chat:${chatId}`;
-    const cachedChat = await this.cache.get<TGChat>(key);
+    const chatKey = `chat:${chatId}`;
+    const errorKey = `chat-error:${chatId}`;
+
+    const cachedChat = await this.cache.get<TGChat>(chatKey);
     if (cachedChat) return cachedChat.username;
 
-    const chat = await this.getChat(chatId);
-    await this.cache.set(key, chat);
-    return chat.username;
+    const cachedError = await this.cache.get<boolean>(errorKey);
+    if (cachedError) return undefined;
+
+    try {
+      const chat = await this.getChat(chatId);
+      await this.cache.set(chatKey, chat);
+      return chat.username;
+    } catch (e: unknown) {
+      logError(this.logger, {
+        error: e,
+        note: 'Error getting chat username',
+        context: TelegramService.name,
+        meta: { chatId },
+      });
+      await this.cache.set(errorKey, true, TelegramService.CHAT_ERROR_TTL_MS);
+      return undefined;
+    }
   }
 
   private buildGigPermalink(input: {
@@ -879,7 +891,7 @@ export class TelegramService {
     return u.toString();
   }
 
-  getPostLink(payload: GetPostLinkPayload): string | undefined {
+  getPostUrl(payload: GetPostUrlPayload): string | undefined {
     const { chatUsername, messageId, chatId } = payload;
     if (!messageId) return;
     if (chatUsername) {

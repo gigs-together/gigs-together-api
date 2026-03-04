@@ -13,13 +13,10 @@ type AnyBodyWithGig = Record<string, unknown> & { gig?: unknown };
  * Needed because in multipart/form-data, nested objects are sent as strings.
  */
 @Injectable()
-export class GigBodyPipe
-  implements
-    PipeTransform<
-      AnyBodyWithGig,
-      AnyBodyWithGig & { gig: V1ReceiverCreateGigRequestBodyGig }
-    >
-{
+export class GigBodyPipe implements PipeTransform<
+  AnyBodyWithGig,
+  AnyBodyWithGig & { gig: V1ReceiverCreateGigRequestBodyGig }
+> {
   private parseGig(value: unknown): V1ReceiverCreateGigRequestBodyGig {
     // When using multipart/form-data (e.g. uploading a file), non-file fields
     // are strings. Nested objects must be provided as JSON strings by the client.
