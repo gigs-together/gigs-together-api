@@ -1,11 +1,13 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import type { UpdateQuery } from 'mongoose';
+import { logError } from '../../shared/utils/logging';
 import {
   CreateGigInput,
   GetGigs,
@@ -32,10 +34,16 @@ import { BucketService } from '../bucket/bucket.service';
 import { PostType } from './types/postType.enum';
 import { Messenger } from './types/messenger.enum';
 
+interface GetPostUrlPayload {
+  postId?: number;
+  chatId?: number;
+}
+
 // TODO: add allowing only specific status transitions
 @Injectable()
 export class GigService {
   private static readonly MAX_PUBLIC_ID_LEN = 64;
+  private readonly logger = new Logger(GigService.name);
 
   constructor(
     @InjectModel(Gig.name) private gigModel: Model<Gig>,
@@ -299,6 +307,36 @@ export class GigService {
       .limit(size);
   }
 
+  private async getPostUrl(
+    payload: GetPostUrlPayload,
+  ): Promise<string | undefined> {
+    const { postId, chatId } = payload;
+    if (!chatId) {
+      return;
+    }
+
+    try {
+      const chatUsername = chatId
+        ? await this.telegramService.getChatUsername(chatId)
+        : undefined;
+
+      return chatUsername && postId
+        ? this.telegramService.getPostUrl({
+            chatUsername,
+            messageId: postId,
+          })
+        : undefined;
+    } catch (e: unknown) {
+      logError(this.logger, {
+        error: e,
+        note: 'Error getting post url',
+        context: GigService.name,
+        meta: { postId, chatId },
+      });
+      return undefined;
+    }
+  }
+
   async getPublishedGigsV1(
     query: V1GigGetRequestQuery,
   ): Promise<V1GetGigsResponseBody> {
@@ -329,17 +367,10 @@ export class GigService {
         PostType.Publish,
       );
 
-      const chatUsername = publishedPost?.chatId
-        ? await this.telegramService.getChatUsername(publishedPost.chatId)
-        : undefined;
-
-      const postUrl =
-        chatUsername && publishedPost?.id
-          ? this.telegramService.getPostLink({
-              chatUsername,
-              messageId: publishedPost.id,
-            })
-          : undefined;
+      const postUrl = await this.getPostUrl({
+        postId: publishedPost?.id,
+        chatId: publishedPost?.chatId,
+      });
 
       const calendarPayload = this.gigToCalendarPayload(gig);
       const calendarUrl =

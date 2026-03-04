@@ -68,7 +68,7 @@ interface HandlePostPublishPayload {
   publicId?: string;
 }
 
-interface GetPostLinkPayload {
+interface GetPostUrlPayload {
   chatId?: TGChatId;
   chatUsername?: TGChat['username'];
   messageId: TGMessage['message_id'];
@@ -686,7 +686,7 @@ export class TelegramService {
       payload;
     const editGigUrl = publicId ? this.buildEditGigUrl(publicId) : undefined;
 
-    const publishPostChatIdUrl = this.getPostLink({
+    const publishPostChatIdUrl = this.getPostUrl({
       messageId: publishPost.messageId,
       chatId: publishPost.chatId,
     });
@@ -725,7 +725,7 @@ export class TelegramService {
       replyMarkup,
     });
 
-    const publishPostUsernameUrl = this.getPostLink({
+    const publishPostUsernameUrl = this.getPostUrl({
       chatUsername: publishPost.username,
       messageId: publishPost.messageId,
     });
@@ -837,13 +837,6 @@ export class TelegramService {
       params: { chat_id: chatIdOrUsername },
     });
     const { data } = await firstValueFrom(res$);
-
-    if (!data.ok) {
-      throw new Error(
-        `Telegram getChat error ${data.error_code}: ${data.description}`,
-      );
-    }
-
     return data.result;
   }
 
@@ -879,7 +872,7 @@ export class TelegramService {
     return u.toString();
   }
 
-  getPostLink(payload: GetPostLinkPayload): string | undefined {
+  getPostUrl(payload: GetPostUrlPayload): string | undefined {
     const { chatUsername, messageId, chatId } = payload;
     if (!messageId) return;
     if (chatUsername) {
