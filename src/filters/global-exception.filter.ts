@@ -9,19 +9,7 @@ import {
 } from '@nestjs/common';
 import { isAxiosError } from 'axios';
 import type { Request, Response } from 'express';
-
-function toShortJson(value: unknown, maxLen = 2000): unknown {
-  if (value === undefined) return undefined;
-  if (value === null) return null;
-  if (typeof value === 'string')
-    return value.length > maxLen ? `${value.slice(0, maxLen)}…` : value;
-  try {
-    const s = JSON.stringify(value);
-    return s.length > maxLen ? `${s.slice(0, maxLen)}…` : value;
-  } catch {
-    return '[unserializable]';
-  }
-}
+import { logError } from '../shared/utils/logging';
 
 @Catch()
 @Injectable()
@@ -38,33 +26,17 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const request = ctx.getRequest<Request>();
 
     if (isAxiosError(exception)) {
-      // Never log the raw AxiosError object — it may include huge internals and secrets in baseURL/headers.
-      this.logger.error(
-        {
-          note: 'Upstream Axios request failed',
+      logError(this.logger, {
+        error: exception,
+        note: 'Upstream Axios request failed',
+        context: GlobalExceptionFilter.name,
+        meta: {
           request: {
             path: request.url,
             method: request.method,
           },
-          upstream: {
-            code: exception.code,
-            status: exception.response?.status ?? null,
-            message: exception.message,
-            request: {
-              method: exception.config?.method,
-              url: exception.config?.url,
-              timeout: exception.config?.timeout,
-              params: toShortJson(exception.config?.params),
-            },
-            response: {
-              data: toShortJson(exception.response?.data ?? null),
-            },
-          },
-          timestamp: new Date().toISOString(),
         },
-        undefined,
-        GlobalExceptionFilter.name,
-      );
+      });
 
       return response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
         statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
