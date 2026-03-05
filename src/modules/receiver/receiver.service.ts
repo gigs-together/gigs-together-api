@@ -475,7 +475,10 @@ export class ReceiverService {
     await this.gigService.updateGig(gigId, updateGigPayload);
     this.logger.log(`Gig #${gigId} approved`);
 
-    await this.telegramService.handlePostPublish({
+    // Optional: update the feed cache on the frontend (ISR on-demand).
+    await this.revalidateFrontendFeed();
+
+    await this.telegramService.handleAfterPublish({
       title: updatedGig.title,
       publicId: updatedGig.publicId,
       suggestedBy: updatedGig.suggestedBy,
@@ -489,6 +492,43 @@ export class ReceiverService {
 
     const calendarGig = this.gigService.gigToCalendarPayload(updatedGig);
     await this.calendarService.addEvent(calendarGig);
+  }
+
+  private async revalidateFrontendFeed(): Promise<void> {
+    const baseUrl = (process.env.APP_BASE_URL ?? '').trim();
+    const secret = (process.env.REVALIDATE_SECRET ?? '').trim();
+    if (!baseUrl || !secret) return;
+
+    if (!/^https?:\/\//i.test(baseUrl)) {
+      this.logger.warn(
+        `APP_BASE_URL must be an absolute http(s) URL for revalidation (got "${baseUrl}")`,
+      );
+      return;
+    }
+
+    const url = new URL('/api/revalidate/feed', baseUrl).toString();
+
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-revalidate-secret': secret,
+        },
+        body: JSON.stringify({ paths: ['/feed/es/barcelona'] }),
+      });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        this.logger.warn(
+          `Frontend revalidate failed: ${res.status} ${res.statusText}${text ? ` - ${text}` : ''}`,
+        );
+      }
+    } catch (e) {
+      this.logger.warn(
+        `Frontend revalidate request failed: ${e instanceof Error ? e.message : String(e)}`,
+      );
+    }
   }
 
   async handleGigReject(payload: {
