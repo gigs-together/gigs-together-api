@@ -54,7 +54,7 @@ interface EditSubmissionFeedbackPayload {
   url?: string;
 }
 
-interface HandlePostPublishPayload {
+interface HandleAfterPublishPayload {
   suggestedBy: GigDocument['suggestedBy'];
   moderationPost: {
     chatId: TGChatId;
@@ -684,7 +684,7 @@ export class TelegramService {
       : undefined;
   }
 
-  async handlePostPublish(payload: HandlePostPublishPayload) {
+  async handleAfterPublish(payload: HandleAfterPublishPayload) {
     const { suggestedBy, moderationPost, publishPost, title, publicId } =
       payload;
     const editGigUrl = publicId ? this.buildEditGigUrl(publicId) : undefined;

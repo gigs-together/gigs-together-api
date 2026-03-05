@@ -475,7 +475,13 @@ export class ReceiverService {
     await this.gigService.updateGig(gigId, updateGigPayload);
     this.logger.log(`Gig #${gigId} approved`);
 
-    await this.telegramService.handlePostPublish({
+    // Optional: update the feed cache on the frontend (ISR on-demand).
+    await this.revalidateFrontendFeed({
+      country: updatedGig.country,
+      city: updatedGig.city,
+    });
+
+    await this.telegramService.handleAfterPublish({
       title: updatedGig.title,
       publicId: updatedGig.publicId,
       suggestedBy: updatedGig.suggestedBy,
@@ -489,6 +495,68 @@ export class ReceiverService {
 
     const calendarGig = this.gigService.gigToCalendarPayload(updatedGig);
     await this.calendarService.addEvent(calendarGig);
+  }
+
+  private buildFeedPath(input: { country: string; city: string }): string {
+    const country = (input.country ?? '').trim().toLowerCase();
+    const city = (input.city ?? '').trim().toLowerCase();
+    if (!country || !city) {
+      throw new Error('Missing country/city for feed path');
+    }
+    return `/feed/${encodeURIComponent(country)}/${encodeURIComponent(city)}`;
+  }
+
+  private async revalidateFrontendFeed(input: {
+    readonly country?: string;
+    readonly city?: string;
+  }): Promise<void> {
+    const baseUrl = (process.env.APP_BASE_URL ?? '').trim();
+    const secret = (process.env.REVALIDATE_SECRET ?? '').trim();
+    if (!baseUrl || !secret) return;
+
+    if (!/^https?:\/\//i.test(baseUrl)) {
+      this.logger.warn(
+        `APP_BASE_URL must be an absolute http(s) URL for revalidation (got "${baseUrl}")`,
+      );
+      return;
+    }
+
+    const url = new URL('/api/revalidate/feed', baseUrl).toString();
+    let path: string | undefined;
+    try {
+      if (input.country && input.city) {
+        path = this.buildFeedPath({ country: input.country, city: input.city });
+      }
+    } catch (e) {
+      this.logger.warn(
+        `Failed to build feed path for revalidation: ${
+          e instanceof Error ? e.message : String(e)
+        }`,
+      );
+      path = undefined;
+    }
+
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-revalidate-secret': secret,
+        },
+        body: JSON.stringify(path ? { paths: [path] } : {}),
+      });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        this.logger.warn(
+          `Frontend revalidate failed: ${res.status} ${res.statusText}${text ? ` - ${text}` : ''}`,
+        );
+      }
+    } catch (e) {
+      this.logger.warn(
+        `Frontend revalidate request failed: ${e instanceof Error ? e.message : String(e)}`,
+      );
+    }
   }
 
   async handleGigReject(payload: {
