@@ -20,6 +20,10 @@ import type {
   V1GigGetRequestQuery,
   V1GetGigsResponseBody,
 } from './types/requests/v1-gig-get-request';
+import type {
+  V1GigDatesGetRequestQuery,
+  V1GigDatesGetResponseBody,
+} from './types/requests/v1-gig-dates-get-request';
 import type { V1GigLookupRequestBody } from './types/requests/v1-gig-lookup-request';
 import type { V1GigLookupResponseBody } from './types/requests/v1-gig-lookup-request';
 import { envBool } from '../../shared/utils/env';
@@ -387,6 +391,44 @@ export class GigService {
 
     return {
       gigs: mapped,
+    };
+  }
+
+  async getPublishedGigDatesV1(
+    query: V1GigDatesGetRequestQuery,
+  ): Promise<V1GigDatesGetResponseBody> {
+    const { from, to, city, country } = query;
+
+    if (to !== undefined && to < from) {
+      throw new BadRequestException('to must be >= from');
+    }
+
+    const dateFilter: { $gte: number; $lte?: number } = { $gte: from };
+    if (to !== undefined) dateFilter.$lte = to;
+
+    const filter: Record<string, unknown> = {
+      status: Status.Published,
+      date: dateFilter,
+    };
+
+    if (city && country) {
+      filter.city = city;
+      filter.country = country;
+    }
+
+    // Aggregate unique dates without loading full docs.
+    const rows = await this.gigModel
+      .aggregate<{
+        _id: number;
+      }>([
+        { $match: filter },
+        { $group: { _id: '$date' } },
+        { $sort: { _id: 1 } },
+      ])
+      .allowDiskUse(true);
+
+    return {
+      dates: rows.map((r) => String(r._id)),
     };
   }
 
