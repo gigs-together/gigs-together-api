@@ -511,7 +511,7 @@ export class ReceiverService {
     readonly city?: string;
   }): Promise<void> {
     const baseUrl = (process.env.APP_BASE_URL ?? '').trim();
-    const secret = (process.env.REVALIDATE_SECRET ?? '').trim();
+    const secret = (process.env.FEED_REVALIDATE_SECRET ?? '').trim();
     if (!baseUrl || !secret) return;
 
     if (!/^https?:\/\//i.test(baseUrl)) {
