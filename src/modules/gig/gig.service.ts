@@ -24,6 +24,11 @@ import type {
   V1GigDatesGetRequestQuery,
   V1GigDatesGetResponseBody,
 } from './types/requests/v1-gig-dates-get-request';
+import type {
+  V1GigAroundGetRequestQuery,
+  V1GigAroundGetResponseBody,
+} from './types/requests/v1-gig-around-get-request';
+import { startOfTodayMs } from './types/requests/v1-gig-date-range.shared';
 import type { V1GigLookupRequestBody } from './types/requests/v1-gig-lookup-request';
 import type { V1GigLookupResponseBody } from './types/requests/v1-gig-lookup-request';
 import { envBool } from '../../shared/utils/env';
@@ -330,6 +335,52 @@ export class GigService {
       : undefined;
   }
 
+  private async mapGigsToV1Gigs(
+    gigs: GigDocument[],
+  ): Promise<V1GetGigsResponseBody['gigs']> {
+    const externalFallbackEnabled = envBool(
+      'EXTERNAL_POSTER_URL_FALLBACK_ENABLED',
+      true,
+    );
+
+    const mapped: V1GetGigsResponseBody['gigs'] = [];
+    for (const gig of gigs) {
+      const publishedPost = this.telegramService.pickTgPost(
+        gig.posts,
+        PostType.Publish,
+      );
+
+      const postUrl = await this.getPostUrl({
+        postId: publishedPost?.id,
+        chatId: publishedPost?.chatId,
+      });
+
+      const calendarPayload = this.gigToCalendarPayload(gig);
+      const calendarUrl =
+        this.calendarService.getCreateCalendarEventUrl(calendarPayload);
+
+      mapped.push({
+        id: gig.publicId,
+        title: gig.title,
+        date: gig.date.toString(), // TODO
+        endDate: gig.endDate?.toString(),
+        city: gig.city,
+        country: gig.country,
+        venue: gig.venue,
+        ticketsUrl: gig.ticketsUrl,
+        calendarUrl,
+        postUrl,
+        posterUrl:
+          (gig.poster?.bucketPath
+            ? this.bucketService.getPublicFileUrl(gig.poster.bucketPath)
+            : undefined) ??
+          (externalFallbackEnabled ? gig.poster?.externalUrl : undefined),
+      });
+    }
+
+    return mapped;
+  }
+
   async getPublishedGigsV1(
     query: V1GigGetRequestQuery,
   ): Promise<V1GetGigsResponseBody> {
@@ -381,45 +432,7 @@ export class GigService {
 
     const hasNext = docs.length > limit;
     const gigs = hasNext ? docs.slice(0, limit) : docs;
-    const externalFallbackEnabled = envBool(
-      'EXTERNAL_POSTER_URL_FALLBACK_ENABLED',
-      true,
-    );
-
-    const mapped: V1GetGigsResponseBody['gigs'] = [];
-    for (const gig of gigs) {
-      const publishedPost = this.telegramService.pickTgPost(
-        gig.posts,
-        PostType.Publish,
-      );
-
-      const postUrl = await this.getPostUrl({
-        postId: publishedPost?.id,
-        chatId: publishedPost?.chatId,
-      });
-
-      const calendarPayload = this.gigToCalendarPayload(gig);
-      const calendarUrl =
-        this.calendarService.getCreateCalendarEventUrl(calendarPayload);
-
-      mapped.push({
-        id: gig.publicId,
-        title: gig.title,
-        date: gig.date.toString(), // TODO
-        endDate: gig.endDate?.toString(),
-        city: gig.city,
-        country: gig.country,
-        venue: gig.venue,
-        ticketsUrl: gig.ticketsUrl,
-        calendarUrl,
-        postUrl,
-        posterUrl:
-          (gig.poster?.bucketPath
-            ? this.bucketService.getPublicFileUrl(gig.poster.bucketPath)
-            : undefined) ??
-          (externalFallbackEnabled ? gig.poster?.externalUrl : undefined),
-      });
-    }
+    const mapped = await this.mapGigsToV1Gigs(gigs);
 
     const nextCursor =
       hasNext && gigs.length > 0
@@ -433,6 +446,88 @@ export class GigService {
       gigs: mapped,
       nextCursor,
     };
+  }
+
+  async getPublishedGigsAroundV1(
+    query: V1GigAroundGetRequestQuery,
+  ): Promise<V1GigAroundGetResponseBody> {
+    const {
+      anchor,
+      beforeLimit = 100,
+      afterLimit = 100,
+      city,
+      country,
+    } = query;
+
+    if (
+      beforeLimit > GigService.MAX_LIMIT ||
+      afterLimit > GigService.MAX_LIMIT
+    ) {
+      throw new BadRequestException(
+        `Size limit exceeded. Maximum size is ${GigService.MAX_LIMIT}.`,
+      );
+    }
+
+    const baseFilter: Record<string, unknown> = {
+      status: Status.Published,
+    };
+    if (city && country) {
+      baseFilter.city = city;
+      baseFilter.country = country;
+    }
+
+    const beforeDocsDesc =
+      beforeLimit === 0
+        ? []
+        : await this.gigModel
+            .find({
+              ...baseFilter,
+              date: { $gte: startOfTodayMs(), $lt: anchor },
+            })
+            .collation({ locale: 'en', strength: 2 })
+            .sort({ date: -1, _id: -1 })
+            .limit(beforeLimit + 1);
+
+    const hasPrev = beforeDocsDesc.length > beforeLimit;
+    const beforeDesc = hasPrev
+      ? beforeDocsDesc.slice(0, beforeLimit)
+      : beforeDocsDesc;
+    const beforeDocsAsc = beforeDesc.slice().reverse();
+
+    const afterDocsAsc0 = await this.gigModel
+      .find({
+        ...baseFilter,
+        date: { $gte: anchor },
+      })
+      .collation({ locale: 'en', strength: 2 })
+      .sort({ date: 1, _id: 1 })
+      .limit(afterLimit + 1);
+
+    const hasNext = afterDocsAsc0.length > afterLimit;
+    const afterDocsAsc = hasNext
+      ? afterDocsAsc0.slice(0, afterLimit)
+      : afterDocsAsc0;
+
+    const before = await this.mapGigsToV1Gigs(beforeDocsAsc);
+    const after = await this.mapGigsToV1Gigs(afterDocsAsc);
+
+    const prevCursor =
+      hasPrev && beforeDocsAsc.length > 0
+        ? encodeGigCursor({
+            date: beforeDocsAsc[0].date,
+            mongoId: String(beforeDocsAsc[0]._id),
+          })
+        : undefined;
+
+    const nextCursor =
+      hasNext && afterDocsAsc.length > 0
+        ? encodeGigCursor({
+            date: afterDocsAsc[afterDocsAsc.length - 1].date,
+            mongoId: String(afterDocsAsc[afterDocsAsc.length - 1]._id),
+          })
+        : undefined;
+
+    return { before, after, prevCursor, nextCursor };
   }
 
   async getPublishedGigDatesV1(

@@ -13,6 +13,8 @@ import { V1GigGetRequestQuery } from './types/requests/v1-gig-get-request';
 import type { V1GetGigsResponseBody } from './types/requests/v1-gig-get-request';
 import { V1GigDatesGetRequestQuery } from './types/requests/v1-gig-dates-get-request';
 import type { V1GigDatesGetResponseBody } from './types/requests/v1-gig-dates-get-request';
+import { V1GigAroundGetRequestQuery } from './types/requests/v1-gig-around-get-request';
+import type { V1GigAroundGetResponseBody } from './types/requests/v1-gig-around-get-request';
 import type { V1GigLookupResponseBody } from './types/requests/v1-gig-lookup-request';
 import { V1GigLookupRequestBody } from './types/requests/v1-gig-lookup-request';
 
@@ -38,6 +40,17 @@ export class GigController {
     @Query() query: V1GigDatesGetRequestQuery,
   ): Promise<V1GigDatesGetResponseBody> {
     return this.gigService.getPublishedGigDatesV1(query);
+  }
+
+  /**
+   * Loads a chunk before + a chunk from the anchor date in a single request.
+   */
+  @Version('1')
+  @Get('around')
+  getGigsAroundV1(
+    @Query() query: V1GigAroundGetRequestQuery,
+  ): Promise<V1GigAroundGetResponseBody> {
+    return this.gigService.getPublishedGigsAroundV1(query);
   }
 
   /**
