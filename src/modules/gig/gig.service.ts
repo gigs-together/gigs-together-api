@@ -1,19 +1,19 @@
 import {
   BadRequestException,
   Injectable,
-  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
-import type { UpdateQuery } from 'mongoose';
-import {
+import { Types } from 'mongoose';
+import type { Model, UpdateQuery } from 'mongoose';
+import type {
   CreateGigInput,
   GetGigs,
   GigFormDataByPublicId,
   GigId,
 } from './types/gig.types';
-import { Gig, GigDocument } from './gig.schema';
+import { Gig } from './gig.schema';
+import type { GigDocument } from './gig.schema';
 import { Status } from './types/status.enum';
 import { AiService } from '../ai/ai.service';
 import type {
@@ -27,15 +27,14 @@ import type {
 import type { V1GigLookupRequestBody } from './types/requests/v1-gig-lookup-request';
 import type { V1GigLookupResponseBody } from './types/requests/v1-gig-lookup-request';
 import { envBool } from '../../shared/utils/env';
-import {
-  CalendarishEvent,
-  CalendarService,
-} from '../calendar/calendar.service';
+import { CalendarService } from '../calendar/calendar.service';
+import type { CalendarishEvent } from '../calendar/calendar.service';
 import { GigPosterService } from './gig.poster.service';
 import { TelegramService } from '../telegram/telegram.service';
 import { BucketService } from '../bucket/bucket.service';
 import { PostType } from './types/postType.enum';
 import { Messenger } from './types/messenger.enum';
+import { decodeGigCursorOrThrow, encodeGigCursor } from './utils/gig-cursor';
 
 interface GetPostUrlPayload {
   postId?: number;
@@ -46,7 +45,7 @@ interface GetPostUrlPayload {
 @Injectable()
 export class GigService {
   private static readonly MAX_PUBLIC_ID_LEN = 64;
-  private readonly logger = new Logger(GigService.name);
+  private static readonly MAX_LIMIT = 100;
 
   constructor(
     @InjectModel(Gig.name) private gigModel: Model<Gig>,
@@ -334,21 +333,54 @@ export class GigService {
   async getPublishedGigsV1(
     query: V1GigGetRequestQuery,
   ): Promise<V1GetGigsResponseBody> {
-    const { page = 1, size = 100, from, to, city, country } = query;
+    const { limit = 100, cursor, from, to, city, country } = query;
 
     if (to !== undefined && to < from) {
       throw new BadRequestException('to must be >= from');
     }
 
-    const gigs = await this.getGigs({
-      page,
-      size,
-      from,
-      to,
+    if (limit > GigService.MAX_LIMIT) {
+      throw new BadRequestException(
+        `Size limit exceeded. Maximum size is ${GigService.MAX_LIMIT}.`,
+      );
+    }
+
+    const dateFilter: { $gte: number; $lte?: number } = { $gte: from };
+    if (to !== undefined) dateFilter.$lte = to;
+
+    const baseFilter: Record<string, unknown> = {
       status: Status.Published,
-      city,
-      country,
-    });
+      date: dateFilter,
+    };
+    if (city && country) {
+      baseFilter.city = city;
+      baseFilter.country = country;
+    }
+
+    const and: Record<string, unknown>[] = [baseFilter];
+
+    if (cursor) {
+      const decoded = decodeGigCursorOrThrow(cursor);
+      const cursorId = new Types.ObjectId(decoded.mongoId);
+      and.push({
+        $or: [
+          { date: { $gt: decoded.date } },
+          { date: decoded.date, _id: { $gt: cursorId } },
+        ],
+      });
+    }
+
+    const filter: Record<string, unknown> =
+      and.length === 1 ? and[0] : { $and: and };
+
+    const docs = await this.gigModel
+      .find(filter)
+      .collation({ locale: 'en', strength: 2 })
+      .sort({ date: 1, _id: 1 })
+      .limit(limit + 1);
+
+    const hasNext = docs.length > limit;
+    const gigs = hasNext ? docs.slice(0, limit) : docs;
     const externalFallbackEnabled = envBool(
       'EXTERNAL_POSTER_URL_FALLBACK_ENABLED',
       true,
@@ -389,8 +421,17 @@ export class GigService {
       });
     }
 
+    const nextCursor =
+      hasNext && gigs.length > 0
+        ? encodeGigCursor({
+            date: gigs[gigs.length - 1].date,
+            mongoId: String(gigs[gigs.length - 1]._id),
+          })
+        : undefined;
+
     return {
       gigs: mapped,
+      nextCursor,
     };
   }
 

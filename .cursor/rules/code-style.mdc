@@ -10,8 +10,11 @@ globs:
 - **Prefer explicit, strict typing**: keep types narrow, avoid widening to `string | number | ...` when the domain is known.
 - **Comments must be in English (Latin alphabet) only**: do not write comments in Cyrillic.
 - **Boolean naming**: boolean variables (and flags) should preferably start with `is` (e.g. `isActive`, `isAdmin`, `isValid`).
+- **Line endings must be LF**:
+  - Keep `LF` endings in tracked files (no `CRLF`).
+  - If you hit `prettier/prettier` errors like `Delete ␍`, convert the file to `LF` and reformat.
 - **No builds/tests/dev servers without explicit request**:
-  - Do not run `build`, `test`, `lint`, `typecheck`, `dev`, or start watchers/servers unless the user explicitly asks.
+  - Do not run `build`, `test`, `typecheck`, `dev`, or start watchers/servers unless the user explicitly asks.
   - If execution is needed to validate a change, ask first instead of running it proactively.
 - **`any` is forbidden by default**:
   - Use `unknown` + type guards / narrowing instead of `any`.

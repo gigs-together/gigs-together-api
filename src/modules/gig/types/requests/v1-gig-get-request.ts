@@ -16,19 +16,19 @@ import { parseYyyyMmDdToMs, startOfTodayMs } from './v1-gig-date-range.shared';
 
 export class V1GigGetRequestQuery {
   /**
-   * Pagination.
+   * Cursor pagination.
    */
   @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  page: number = 1;
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @MaxLength(500)
+  cursor?: string;
 
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  size: number = 100;
+  limit: number = 100;
 
   /**
    * Date range bounds (inclusive), format: "YYYY-MM-DD" (local).
@@ -78,4 +78,5 @@ export class V1GigGetRequestQuery {
 
 export interface V1GetGigsResponseBody {
   gigs: V1GetGigsResponseBodyGig[];
+  nextCursor?: string;
 }
