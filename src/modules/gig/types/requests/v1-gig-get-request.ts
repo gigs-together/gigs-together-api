@@ -1,6 +1,7 @@
 import type { V1GetGigsResponseBodyGig } from '../gig.types';
 import { Transform, Type } from 'class-transformer';
 import {
+  IsIn,
   IsInt,
   IsNumber,
   IsOptional,
@@ -15,6 +16,18 @@ import {
 import { parseYyyyMmDdToMs, startOfTodayMs } from './v1-gig-date-range.shared';
 
 export class V1GigGetRequestQuery {
+  /**
+   * Pagination direction.
+   * - next (default): results strictly after cursor (ascending)
+   * - prev: results strictly before cursor (descending internally, returned ascending)
+   */
+  @IsOptional()
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim().toLowerCase() : value,
+  )
+  @IsIn(['next', 'prev'])
+  direction?: 'next' | 'prev';
+
   /**
    * Cursor pagination.
    */
@@ -78,5 +91,6 @@ export class V1GigGetRequestQuery {
 
 export interface V1GetGigsResponseBody {
   gigs: V1GetGigsResponseBodyGig[];
+  prevCursor?: string;
   nextCursor?: string;
 }

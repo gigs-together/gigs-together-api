@@ -384,7 +384,15 @@ export class GigService {
   async getPublishedGigsV1(
     query: V1GigGetRequestQuery,
   ): Promise<V1GetGigsResponseBody> {
-    const { limit = 100, cursor, from, to, city, country } = query;
+    const {
+      limit = 100,
+      cursor,
+      from,
+      to,
+      city,
+      country,
+      direction = 'next',
+    } = query;
 
     if (to !== undefined && to < from) {
       throw new BadRequestException('to must be >= from');
@@ -413,39 +421,63 @@ export class GigService {
     if (cursor) {
       const decoded = decodeGigCursorOrThrow(cursor);
       const cursorId = new Types.ObjectId(decoded.mongoId);
-      and.push({
-        $or: [
-          { date: { $gt: decoded.date } },
-          { date: decoded.date, _id: { $gt: cursorId } },
-        ],
-      });
+      and.push(
+        direction === 'prev'
+          ? {
+              $or: [
+                { date: { $lt: decoded.date } },
+                { date: decoded.date, _id: { $lt: cursorId } },
+              ],
+            }
+          : {
+              $or: [
+                { date: { $gt: decoded.date } },
+                { date: decoded.date, _id: { $gt: cursorId } },
+              ],
+            },
+      );
     }
 
     const filter: Record<string, unknown> =
       and.length === 1 ? and[0] : { $and: and };
 
+    const sort: Record<string, 1 | -1> =
+      direction === 'prev' ? { date: -1, _id: -1 } : { date: 1, _id: 1 };
+
     const docs = await this.gigModel
       .find(filter)
       .collation({ locale: 'en', strength: 2 })
-      .sort({ date: 1, _id: 1 })
+      .sort(sort)
       .limit(limit + 1);
 
-    const hasNext = docs.length > limit;
-    const gigs = hasNext ? docs.slice(0, limit) : docs;
-    const mapped = await this.mapGigsToV1Gigs(gigs);
+    const hasMore = docs.length > limit;
+    const page = hasMore ? docs.slice(0, limit) : docs;
+
+    // Keep the public API consistent: always return gigs ordered ascending.
+    const gigsAsc = direction === 'prev' ? page.slice().reverse() : page;
+    const mapped = await this.mapGigsToV1Gigs(gigsAsc);
+
+    if (direction === 'prev') {
+      const prevCursor =
+        hasMore && gigsAsc.length > 0
+          ? encodeGigCursor({
+              date: gigsAsc[0].date,
+              mongoId: String(gigsAsc[0]._id),
+            })
+          : undefined;
+
+      return { gigs: mapped, prevCursor };
+    }
 
     const nextCursor =
-      hasNext && gigs.length > 0
+      hasMore && gigsAsc.length > 0
         ? encodeGigCursor({
-            date: gigs[gigs.length - 1].date,
-            mongoId: String(gigs[gigs.length - 1]._id),
+            date: gigsAsc[gigsAsc.length - 1].date,
+            mongoId: String(gigsAsc[gigsAsc.length - 1]._id),
           })
         : undefined;
 
-    return {
-      gigs: mapped,
-      nextCursor,
-    };
+    return { gigs: mapped, nextCursor };
   }
 
   async getPublishedGigsAroundV1(
