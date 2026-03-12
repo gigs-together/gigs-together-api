@@ -469,6 +469,16 @@ export class GigService {
       return { gigs: mapped, prevCursor };
     }
 
+    // Provide a cursor for loading items before the current window without additional lookups.
+    // Note: this cursor does NOT guarantee that earlier items exist.
+    const prevCursor =
+      gigsAsc.length > 0
+        ? encodeGigCursor({
+            date: gigsAsc[0].date,
+            mongoId: String(gigsAsc[0]._id),
+          })
+        : undefined;
+
     const nextCursor =
       hasMore && gigsAsc.length > 0
         ? encodeGigCursor({
@@ -477,7 +487,7 @@ export class GigService {
           })
         : undefined;
 
-    return { gigs: mapped, nextCursor };
+    return { gigs: mapped, prevCursor, nextCursor };
   }
 
   async getPublishedGigsAroundV1(
