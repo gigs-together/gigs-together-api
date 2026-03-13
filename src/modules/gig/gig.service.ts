@@ -1,37 +1,45 @@
 import {
   BadRequestException,
   Injectable,
-  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
-import type { UpdateQuery } from 'mongoose';
-import {
+import { Types } from 'mongoose';
+import type { Model, UpdateQuery } from 'mongoose';
+import type {
   CreateGigInput,
   GetGigs,
   GigFormDataByPublicId,
   GigId,
 } from './types/gig.types';
-import { Gig, GigDocument } from './gig.schema';
+import { Gig } from './gig.schema';
+import type { GigDocument } from './gig.schema';
 import { Status } from './types/status.enum';
 import { AiService } from '../ai/ai.service';
 import type {
   V1GigGetRequestQuery,
   V1GetGigsResponseBody,
 } from './types/requests/v1-gig-get-request';
+import type {
+  V1GigDatesGetRequestQuery,
+  V1GigDatesGetResponseBody,
+} from './types/requests/v1-gig-dates-get-request';
+import type {
+  V1GigAroundGetRequestQuery,
+  V1GigAroundGetResponseBody,
+} from './types/requests/v1-gig-around-get-request';
+import { startOfTodayMs } from './types/requests/v1-gig-date-range.shared';
 import type { V1GigLookupRequestBody } from './types/requests/v1-gig-lookup-request';
 import type { V1GigLookupResponseBody } from './types/requests/v1-gig-lookup-request';
 import { envBool } from '../../shared/utils/env';
-import {
-  CalendarishEvent,
-  CalendarService,
-} from '../calendar/calendar.service';
+import { CalendarService } from '../calendar/calendar.service';
+import type { CalendarishEvent } from '../calendar/calendar.service';
 import { GigPosterService } from './gig.poster.service';
 import { TelegramService } from '../telegram/telegram.service';
 import { BucketService } from '../bucket/bucket.service';
 import { PostType } from './types/postType.enum';
 import { Messenger } from './types/messenger.enum';
+import { decodeGigCursorOrThrow, encodeGigCursor } from './utils/gig-cursor';
 
 interface GetPostUrlPayload {
   postId?: number;
@@ -42,7 +50,7 @@ interface GetPostUrlPayload {
 @Injectable()
 export class GigService {
   private static readonly MAX_PUBLIC_ID_LEN = 64;
-  private readonly logger = new Logger(GigService.name);
+  private static readonly MAX_LIMIT = 100;
 
   constructor(
     @InjectModel(Gig.name) private gigModel: Model<Gig>,
@@ -327,24 +335,9 @@ export class GigService {
       : undefined;
   }
 
-  async getPublishedGigsV1(
-    query: V1GigGetRequestQuery,
-  ): Promise<V1GetGigsResponseBody> {
-    const { page = 1, size = 100, from, to, city, country } = query;
-
-    if (to !== undefined && to < from) {
-      throw new BadRequestException('to must be >= from');
-    }
-
-    const gigs = await this.getGigs({
-      page,
-      size,
-      from,
-      to,
-      status: Status.Published,
-      city,
-      country,
-    });
+  private async mapGigsToV1Gigs(
+    gigs: GigDocument[],
+  ): Promise<V1GetGigsResponseBody['gigs']> {
     const externalFallbackEnabled = envBool(
       'EXTERNAL_POSTER_URL_FALLBACK_ENABLED',
       true,
@@ -385,8 +378,235 @@ export class GigService {
       });
     }
 
+    return mapped;
+  }
+
+  async getPublishedGigsV1(
+    query: V1GigGetRequestQuery,
+  ): Promise<V1GetGigsResponseBody> {
+    const {
+      limit = 100,
+      cursor,
+      from,
+      to,
+      city,
+      country,
+      direction = 'next',
+    } = query;
+
+    if (to !== undefined && to < from) {
+      throw new BadRequestException('to must be >= from');
+    }
+
+    if (limit > GigService.MAX_LIMIT) {
+      throw new BadRequestException(
+        `Size limit exceeded. Maximum size is ${GigService.MAX_LIMIT}.`,
+      );
+    }
+
+    const dateFilter: { $gte: number; $lte?: number } = { $gte: from };
+    if (to !== undefined) dateFilter.$lte = to;
+
+    const baseFilter: Record<string, unknown> = {
+      status: Status.Published,
+      date: dateFilter,
+    };
+    if (city && country) {
+      baseFilter.city = city;
+      baseFilter.country = country;
+    }
+
+    const and: Record<string, unknown>[] = [baseFilter];
+
+    if (cursor) {
+      const decoded = decodeGigCursorOrThrow(cursor);
+      const cursorId = new Types.ObjectId(decoded.mongoId);
+      and.push(
+        direction === 'prev'
+          ? {
+              $or: [
+                { date: { $lt: decoded.date } },
+                { date: decoded.date, _id: { $lt: cursorId } },
+              ],
+            }
+          : {
+              $or: [
+                { date: { $gt: decoded.date } },
+                { date: decoded.date, _id: { $gt: cursorId } },
+              ],
+            },
+      );
+    }
+
+    const filter: Record<string, unknown> =
+      and.length === 1 ? and[0] : { $and: and };
+
+    const sort: Record<string, 1 | -1> =
+      direction === 'prev' ? { date: -1, _id: -1 } : { date: 1, _id: 1 };
+
+    const docs = await this.gigModel
+      .find(filter)
+      .collation({ locale: 'en', strength: 2 })
+      .sort(sort)
+      .limit(limit + 1);
+
+    const hasMore = docs.length > limit;
+    const page = hasMore ? docs.slice(0, limit) : docs;
+
+    // Keep the public API consistent: always return gigs ordered ascending.
+    const gigsAsc = direction === 'prev' ? page.slice().reverse() : page;
+    const mapped = await this.mapGigsToV1Gigs(gigsAsc);
+
+    if (direction === 'prev') {
+      const prevCursor =
+        hasMore && gigsAsc.length > 0
+          ? encodeGigCursor({
+              date: gigsAsc[0].date,
+              mongoId: String(gigsAsc[0]._id),
+            })
+          : undefined;
+
+      return { gigs: mapped, prevCursor };
+    }
+
+    // Provide a cursor for loading items before the current window without additional lookups.
+    // Note: this cursor does NOT guarantee that earlier items exist.
+    const prevCursor =
+      gigsAsc.length > 0
+        ? encodeGigCursor({
+            date: gigsAsc[0].date,
+            mongoId: String(gigsAsc[0]._id),
+          })
+        : undefined;
+
+    const nextCursor =
+      hasMore && gigsAsc.length > 0
+        ? encodeGigCursor({
+            date: gigsAsc[gigsAsc.length - 1].date,
+            mongoId: String(gigsAsc[gigsAsc.length - 1]._id),
+          })
+        : undefined;
+
+    return { gigs: mapped, prevCursor, nextCursor };
+  }
+
+  async getPublishedGigsAroundV1(
+    query: V1GigAroundGetRequestQuery,
+  ): Promise<V1GigAroundGetResponseBody> {
+    const {
+      anchor,
+      beforeLimit = 100,
+      afterLimit = 100,
+      city,
+      country,
+    } = query;
+
+    if (
+      beforeLimit > GigService.MAX_LIMIT ||
+      afterLimit > GigService.MAX_LIMIT
+    ) {
+      throw new BadRequestException(
+        `Size limit exceeded. Maximum size is ${GigService.MAX_LIMIT}.`,
+      );
+    }
+
+    const baseFilter: Record<string, unknown> = {
+      status: Status.Published,
+    };
+    if (city && country) {
+      baseFilter.city = city;
+      baseFilter.country = country;
+    }
+
+    const beforeDocsDesc =
+      beforeLimit === 0
+        ? []
+        : await this.gigModel
+            .find({
+              ...baseFilter,
+              date: { $gte: startOfTodayMs(), $lt: anchor },
+            })
+            .collation({ locale: 'en', strength: 2 })
+            .sort({ date: -1, _id: -1 })
+            .limit(beforeLimit + 1);
+
+    const hasPrev = beforeDocsDesc.length > beforeLimit;
+    const beforeDesc = hasPrev
+      ? beforeDocsDesc.slice(0, beforeLimit)
+      : beforeDocsDesc;
+    const beforeDocsAsc = beforeDesc.slice().reverse();
+
+    const afterDocsAsc0 = await this.gigModel
+      .find({
+        ...baseFilter,
+        date: { $gte: anchor },
+      })
+      .collation({ locale: 'en', strength: 2 })
+      .sort({ date: 1, _id: 1 })
+      .limit(afterLimit + 1);
+
+    const hasNext = afterDocsAsc0.length > afterLimit;
+    const afterDocsAsc = hasNext
+      ? afterDocsAsc0.slice(0, afterLimit)
+      : afterDocsAsc0;
+
+    const before = await this.mapGigsToV1Gigs(beforeDocsAsc);
+    const after = await this.mapGigsToV1Gigs(afterDocsAsc);
+
+    const prevCursor =
+      hasPrev && beforeDocsAsc.length > 0
+        ? encodeGigCursor({
+            date: beforeDocsAsc[0].date,
+            mongoId: String(beforeDocsAsc[0]._id),
+          })
+        : undefined;
+
+    const nextCursor =
+      hasNext && afterDocsAsc.length > 0
+        ? encodeGigCursor({
+            date: afterDocsAsc[afterDocsAsc.length - 1].date,
+            mongoId: String(afterDocsAsc[afterDocsAsc.length - 1]._id),
+          })
+        : undefined;
+
+    return { before, after, prevCursor, nextCursor };
+  }
+
+  async getPublishedGigDatesV1(
+    query: V1GigDatesGetRequestQuery,
+  ): Promise<V1GigDatesGetResponseBody> {
+    const { from, to, city, country } = query;
+
+    if (to !== undefined && to < from) {
+      throw new BadRequestException('to must be >= from');
+    }
+
+    const dateFilter: { $gte: number; $lte?: number } = { $gte: from };
+    if (to !== undefined) dateFilter.$lte = to;
+
+    const filter: Record<string, unknown> = {
+      status: Status.Published,
+      date: dateFilter,
+    };
+
+    if (city && country) {
+      filter.city = city;
+      filter.country = country;
+    }
+
+    // Aggregate unique dates without loading full docs.
+    const rows = await this.gigModel
+      .aggregate<{
+        _id: number;
+      }>([
+        { $match: filter },
+        { $group: { _id: '$date' } },
+        { $sort: { _id: 1 } },
+      ])
+      .allowDiskUse(true);
+
     return {
-      gigs: mapped,
+      dates: rows.map((r) => String(r._id)),
     };
   }
 
