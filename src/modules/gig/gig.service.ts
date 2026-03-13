@@ -28,6 +28,10 @@ import type {
   V1GigAroundGetRequestQuery,
   V1GigAroundGetResponseBody,
 } from './types/requests/v1-gig-around-get-request';
+import type {
+  V1GigByPublicIdGetInput,
+  V1GigByPublicIdGetResponseBody,
+} from './types/requests/v1-gig-by-public-id-get-request';
 import { startOfTodayMs } from './types/requests/v1-gig-date-range.shared';
 import type { V1GigLookupRequestBody } from './types/requests/v1-gig-lookup-request';
 import type { V1GigLookupResponseBody } from './types/requests/v1-gig-lookup-request';
@@ -488,6 +492,37 @@ export class GigService {
         : undefined;
 
     return { gigs: mapped, prevCursor, nextCursor };
+  }
+
+  async getPublishedGigByPublicIdV1(
+    input: V1GigByPublicIdGetInput,
+  ): Promise<V1GigByPublicIdGetResponseBody> {
+    const publicId = this.normalizeAndValidatePublicIdOrThrow(input.publicId);
+
+    const filter: Record<string, unknown> = {
+      publicId,
+      status: Status.Published,
+      date: { $gte: startOfTodayMs() },
+    };
+    if (input.city && input.country) {
+      filter.city = input.city;
+      filter.country = input.country;
+    }
+
+    const doc = await this.gigModel
+      .findOne(filter)
+      .collation({ locale: 'en', strength: 2 });
+
+    if (!doc) {
+      throw new NotFoundException(`Gig with publicId "${publicId}" not found`);
+    }
+
+    const mapped = await this.mapGigsToV1Gigs([doc]);
+    if (!mapped[0]) {
+      throw new Error('Failed to map gig');
+    }
+
+    return { gig: mapped[0] };
   }
 
   async getPublishedGigsAroundV1(

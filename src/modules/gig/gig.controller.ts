@@ -4,6 +4,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Param,
   Post,
   Query,
   Version,
@@ -17,6 +18,11 @@ import { V1GigAroundGetRequestQuery } from './types/requests/v1-gig-around-get-r
 import type { V1GigAroundGetResponseBody } from './types/requests/v1-gig-around-get-request';
 import type { V1GigLookupResponseBody } from './types/requests/v1-gig-lookup-request';
 import { V1GigLookupRequestBody } from './types/requests/v1-gig-lookup-request';
+import {
+  V1GigByPublicIdGetRequestParams,
+  V1GigByPublicIdGetRequestQuery,
+} from './types/requests/v1-gig-by-public-id-get-request';
+import type { V1GigByPublicIdGetResponseBody } from './types/requests/v1-gig-by-public-id-get-request';
 
 @Controller('gig')
 export class GigController {
@@ -51,6 +57,23 @@ export class GigController {
     @Query() query: V1GigAroundGetRequestQuery,
   ): Promise<V1GigAroundGetResponseBody> {
     return this.gigService.getPublishedGigsAroundV1(query);
+  }
+
+  /**
+   * Loads a single gig by its public id.
+   * Used to resolve deep links (e.g. #publicId) when the feed window doesn't contain the target yet.
+   */
+  @Version('1')
+  @Get(':publicId')
+  getGigByPublicIdV1(
+    @Param() params: V1GigByPublicIdGetRequestParams,
+    @Query() query: V1GigByPublicIdGetRequestQuery,
+  ): Promise<V1GigByPublicIdGetResponseBody> {
+    return this.gigService.getPublishedGigByPublicIdV1({
+      publicId: params.publicId,
+      city: query.city,
+      country: query.country,
+    });
   }
 
   /**
