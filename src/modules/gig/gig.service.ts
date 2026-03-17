@@ -502,7 +502,6 @@ export class GigService {
     const filter: Record<string, unknown> = {
       publicId,
       status: Status.Published,
-      date: { $gte: startOfTodayMs() },
     };
     if (input.city && input.country) {
       filter.city = input.city;
