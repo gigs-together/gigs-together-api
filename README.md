@@ -318,6 +318,94 @@ npm run test:debug
 npm run test:e2e
 ```
 
+## NestJS CLI
+
+The project uses Nest CLI and keeps source code under `src/`.
+
+Check the CLI version:
+
+```bash
+npx nest --version
+```
+
+### Generate a module
+
+To generate a new module:
+
+```bash
+npx nest generate module modules/<name>
+```
+
+Example:
+
+```bash
+npx nest generate module modules/example
+```
+
+This creates:
+
+```text
+src/modules/example/example.module.ts
+```
+
+### Generate a controller or service inside a module
+
+Controller:
+
+```bash
+npx nest generate controller modules/<name>
+```
+
+Service:
+
+```bash
+npx nest generate service modules/<name>
+```
+
+Examples:
+
+```bash
+npx nest generate controller modules/example
+npx nest generate service modules/example
+```
+
+### Generate a full resource
+
+If you want Nest to scaffold a resource in one go:
+
+```bash
+npx nest generate resource modules/<name>
+```
+
+This is useful for quick scaffolding, but in this repository you will usually still need to adjust:
+
+- Mongoose schemas
+- DTOs and request types
+- module imports/exports
+- integration wiring with Telegram, Calendar, Bucket, or AI services
+
+### Short aliases
+
+Nest CLI also supports aliases:
+
+```bash
+npx nest g mo modules/example
+npx nest g co modules/example
+npx nest g s modules/example
+```
+
+### Recommendation for this repo
+
+When adding a new feature area, keep it under `src/modules/<feature>`.
+
+Typical sequence:
+
+```bash
+npx nest g mo modules/example
+npx nest g co modules/example
+npx nest g s modules/example
+```
+
 ## Database migrations
 
 Run migrations with:
