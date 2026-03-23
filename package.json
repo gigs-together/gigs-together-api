@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "",
   "author": "Arina M",
-  "private": true,
   "license": "UNLICENSED",
   "scripts": {
     "start:dev": "cross-env NODE_ENV=dev nest start --watch",
