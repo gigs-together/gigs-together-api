@@ -1,7 +1,8 @@
 {
   "name": "gigs-together-api",
   "version": "1.0.0",
-  "description": "",
+  "description": "NestJS API for Gigs Together with Telegram, MongoDB, and media integrations.",
+  "private": false,
   "author": "Arina M",
   "license": "UNLICENSED",
   "scripts": {
