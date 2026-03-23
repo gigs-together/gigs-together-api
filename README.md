@@ -54,6 +54,10 @@ docker-compose.yml         local MongoDB
 .env.example               environment template
 ```
 
+## Architecture
+
+Detailed architecture notes live in [ARCHITECTURE.md](./ARCHITECTURE.md).
+
 ## Prerequisites
 
 Install the following before you start:
