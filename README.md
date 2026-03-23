@@ -360,6 +360,14 @@ npm run build
 npm test
 ```
 
+## CI and branch automation
+
+The repository currently includes one GitHub Actions workflow:
+
+- on push to `main`, GitHub Actions automatically merges `main` into `stg`
+
+There is no general CI workflow for linting, tests, or builds in this repository at the moment.
+
 ## Known caveats
 
 - `README.md` assumes npm as the package manager because the repository contains `package-lock.json`
