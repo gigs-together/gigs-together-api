@@ -112,35 +112,35 @@ Depending on which flows you want to exercise, you may also need:
 
 Current variables defined in `.env.example`:
 
-| Variable | Required | Purpose |
-| --- | --- | --- |
-| `PORT` | No | NestJS port. Defaults to `3000`. |
-| `BOT_ADMINS` | Usually yes | Telegram admin map used by bot workflows. |
-| `BOT_TOKEN` | For Telegram flows | Telegram bot token. |
-| `BOT_SECRET` | For Telegram webhook flows | Shared secret for webhook protection. |
-| `MAIN_CHANNEL_ID` | For Telegram flows | Main Telegram channel id. |
-| `MODERATION_CHANNEL_ID` | For moderation flows | Moderation Telegram channel id. |
-| `DIRECT_MESSAGES_URL` | For Telegram UX | Link used in bot/admin flows. |
-| `EDIT_GIG_URL` | For edit flows | Frontend or app URL for editing gigs. |
-| `MONGO_URI` | Yes | MongoDB connection string. |
-| `MONGO_DB` | Yes for Docker/local setup | MongoDB database name. |
-| `MONGO_PORT` | Yes for Docker/local setup | Local MongoDB port mapping. |
-| `CALENDAR_ID` | Optional | Google Calendar id. |
-| `GOOGLE_AUTH_JSON` | Optional | Base64-encoded or raw Google auth JSON. |
-| `S3_BUCKET` | Optional | Bucket name for poster storage. |
-| `S3_ENDPOINT` | Optional | S3-compatible endpoint, for example Cloudflare R2. |
-| `S3_ACCESS_KEY_ID` | Optional | Storage access key. |
-| `S3_SECRET_ACCESS_KEY` | Optional | Storage secret key. |
-| `S3_POSTERS_PREFIX` | No | Poster object prefix. Defaults to `gigs`. |
-| `S3_PUBLIC_BASE_URL` | Optional but required for public bucket mode | Public URL base for uploaded posters. |
-| `CORS_ORIGINS` | No | CORS mode or comma-separated allowlist. |
-| `EXTERNAL_POSTER_URL_FALLBACK_ENABLED` | No | Enables fallback poster URL behavior. |
-| `DEFAULT_GIG_POSTER_URL` | No | Default public poster URL for gigs without posters. |
-| `AI_URL` | Optional | AI service base URL. |
-| `AI_API_KEY` | Optional | AI service key. |
-| `AI_MODEL` | Optional | AI model identifier. |
-| `APP_BASE_URL` | Optional | Frontend base URL. |
-| `FEED_REVALIDATE_SECRET` | Optional | Secret for frontend feed revalidation. |
+| Variable                               | Required                                     | Purpose                                             |
+| -------------------------------------- | -------------------------------------------- | --------------------------------------------------- |
+| `PORT`                                 | No                                           | NestJS port. Defaults to `3000`.                    |
+| `BOT_ADMINS`                           | Usually yes                                  | Telegram admin map used by bot workflows.           |
+| `BOT_TOKEN`                            | For Telegram flows                           | Telegram bot token.                                 |
+| `BOT_SECRET`                           | For Telegram webhook flows                   | Shared secret for webhook protection.               |
+| `MAIN_CHANNEL_ID`                      | For Telegram flows                           | Main Telegram channel id.                           |
+| `MODERATION_CHANNEL_ID`                | For moderation flows                         | Moderation Telegram channel id.                     |
+| `DIRECT_MESSAGES_URL`                  | For Telegram UX                              | Link used in bot/admin flows.                       |
+| `EDIT_GIG_URL`                         | For edit flows                               | Frontend or app URL for editing gigs.               |
+| `MONGO_URI`                            | Yes                                          | MongoDB connection string.                          |
+| `MONGO_DB`                             | Yes for Docker/local setup                   | MongoDB database name.                              |
+| `MONGO_PORT`                           | Yes for Docker/local setup                   | Local MongoDB port mapping.                         |
+| `CALENDAR_ID`                          | Optional                                     | Google Calendar id.                                 |
+| `GOOGLE_AUTH_JSON`                     | Optional                                     | Base64-encoded or raw Google auth JSON.             |
+| `S3_BUCKET`                            | Optional                                     | Bucket name for poster storage.                     |
+| `S3_ENDPOINT`                          | Optional                                     | S3-compatible endpoint, for example Cloudflare R2.  |
+| `S3_ACCESS_KEY_ID`                     | Optional                                     | Storage access key.                                 |
+| `S3_SECRET_ACCESS_KEY`                 | Optional                                     | Storage secret key.                                 |
+| `S3_POSTERS_PREFIX`                    | No                                           | Poster object prefix. Defaults to `gigs`.           |
+| `S3_PUBLIC_BASE_URL`                   | Optional but required for public bucket mode | Public URL base for uploaded posters.               |
+| `CORS_ORIGINS`                         | No                                           | CORS mode or comma-separated allowlist.             |
+| `EXTERNAL_POSTER_URL_FALLBACK_ENABLED` | No                                           | Enables fallback poster URL behavior.               |
+| `DEFAULT_GIG_POSTER_URL`               | No                                           | Default public poster URL for gigs without posters. |
+| `AI_URL`                               | Optional                                     | AI service base URL.                                |
+| `AI_API_KEY`                           | Optional                                     | AI service key.                                     |
+| `AI_MODEL`                             | Optional                                     | AI model identifier.                                |
+| `APP_BASE_URL`                         | Optional                                     | Frontend base URL.                                  |
+| `FEED_REVALIDATE_SECRET`               | Optional                                     | Secret for frontend feed revalidation.              |
 
 ### CORS behavior
 
@@ -258,7 +258,6 @@ Quick checks:
 curl http://localhost:3000/
 curl http://localhost:3000/health
 ```
-
 
 ## Build, lint, format, and test
 
@@ -447,6 +446,26 @@ npm run lint:format:fix
 npm run build
 npm test
 ```
+
+## Git hooks and commit rules
+
+The repo uses Husky:
+
+- `pre-commit` runs `npx --no-install lint-staged`
+- `commit-msg` runs `npx --no -- commitlint --edit $1`
+
+`lint-staged` currently does:
+
+- for `*.{js,ts}`: Prettier write + ESLint fix
+- for `*.{json,md,yml,yaml}`: Prettier write
+
+Commit messages are validated against the Conventional Commits config from `@commitlint/config-conventional`.
+
+Example valid commits:
+
+- `feat: add city filter to feed`
+- `fix: handle missing Telegram link`
+- `docs: expand local setup instructions`
 
 ## CI and branch automation
 
