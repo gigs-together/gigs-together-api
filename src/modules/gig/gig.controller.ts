@@ -16,8 +16,12 @@ import { V1GigDatesGetRequestQuery } from './types/requests/v1-gig-dates-get-req
 import type { V1GigDatesGetResponseBody } from './types/requests/v1-gig-dates-get-request';
 import { V1GigAroundGetRequestQuery } from './types/requests/v1-gig-around-get-request';
 import type { V1GigAroundGetResponseBody } from './types/requests/v1-gig-around-get-request';
-import type { V1GigLookupResponseBody } from './types/requests/v1-gig-lookup-request';
-import { V1GigLookupRequestBody } from './types/requests/v1-gig-lookup-request';
+import type {
+  V1GigLookupRequestBodyValidated,
+  V1GigLookupResponseBody,
+} from './types/requests/v1-gig-lookup-request';
+import { GigLookupBodyPipe } from './pipes/gig-lookup-body.pipe';
+import { TelegramInitDataUserPipe } from '../telegram/pipes/telegram-init-data-user.pipe';
 import {
   V1GigByPublicIdGetRequestParams,
   V1GigByPublicIdGetRequestQuery,
@@ -83,9 +87,9 @@ export class GigController {
   @Version('1')
   @Post('lookup')
   @HttpCode(HttpStatus.OK)
-  // TODO: some security
   async lookupGigV1(
-    @Body() body: V1GigLookupRequestBody,
+    @Body(TelegramInitDataUserPipe, GigLookupBodyPipe)
+    body: V1GigLookupRequestBodyValidated,
   ): Promise<V1GigLookupResponseBody> {
     return this.gigService.lookupGigV1(body);
   }

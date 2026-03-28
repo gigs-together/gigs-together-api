@@ -7,19 +7,16 @@ import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { buildV1FutureGigLookupPrompt } from './prompts/v1-gig-lookup-prompt';
 import { V1ReceiverCreateGigRequestBodyGig } from '../receiver/types/requests/v1-receiver-create-gig-request';
+import { isRecord } from '../../shared/utils/is-record';
 
 @Injectable()
 export class AiService {
   constructor(private readonly configService: ConfigService) {}
 
-  private static isRecord(v: unknown): v is Record<string, unknown> {
-    return !!v && typeof v === 'object' && !Array.isArray(v);
-  }
-
   private getAxiosNestedErrorMessage(rawData: unknown): string | undefined {
-    if (!AiService.isRecord(rawData)) return undefined;
+    if (!isRecord(rawData)) return undefined;
     const err = rawData.error;
-    if (!AiService.isRecord(err)) return undefined;
+    if (!isRecord(err)) return undefined;
     const msg = err.message;
     return typeof msg === 'string' && msg.trim() ? msg.trim() : undefined;
   }
@@ -27,7 +24,7 @@ export class AiService {
   private normalizeLookUpedGig(
     raw: unknown,
   ): V1ReceiverCreateGigRequestBodyGig {
-    if (!AiService.isRecord(raw)) {
+    if (!isRecord(raw)) {
       throw new InternalServerErrorException(
         'Invalid AI response: expected a JSON object',
       );

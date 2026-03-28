@@ -33,8 +33,10 @@ import type {
   V1GigByPublicIdGetResponseBody,
 } from './types/requests/v1-gig-by-public-id-get-request';
 import { startOfTodayMs } from './types/requests/v1-gig-date-range.shared';
-import type { V1GigLookupRequestBody } from './types/requests/v1-gig-lookup-request';
-import type { V1GigLookupResponseBody } from './types/requests/v1-gig-lookup-request';
+import type {
+  V1GigLookupRequestBodyValidated,
+  V1GigLookupResponseBody,
+} from './types/requests/v1-gig-lookup-request';
 import { envBool } from '../../shared/utils/env';
 import { CalendarService } from '../calendar/calendar.service';
 import type { CalendarishEvent } from '../calendar/calendar.service';
@@ -682,12 +684,10 @@ export class GigService {
   }
 
   async lookupGigV1(
-    body: V1GigLookupRequestBody,
+    body: V1GigLookupRequestBodyValidated,
   ): Promise<V1GigLookupResponseBody> {
-    const gig = await this.aiService.lookupGigV1({
-      name: body.name,
-      location: body.location,
-    });
+    const { name, location } = body;
+    const gig = await this.aiService.lookupGigV1({ name, location });
     return { gig };
   }
 

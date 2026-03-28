@@ -4,6 +4,8 @@ import { HttpModule } from '@nestjs/axios';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { CacheModule } from '@nestjs/cache-manager';
 import { BucketModule } from '../bucket/bucket.module';
+import { AuthModule } from '../auth/auth.module';
+import { TelegramInitDataUserPipe } from './pipes/telegram-init-data-user.pipe';
 
 @Module({
   imports: [
@@ -18,8 +20,9 @@ import { BucketModule } from '../bucket/bucket.module';
       ttl: 60_000 * 60,
     }),
     BucketModule,
+    AuthModule,
   ],
-  providers: [TelegramService],
-  exports: [TelegramService],
+  providers: [TelegramService, TelegramInitDataUserPipe],
+  exports: [TelegramService, TelegramInitDataUserPipe, AuthModule],
 })
 export class TelegramModule {}

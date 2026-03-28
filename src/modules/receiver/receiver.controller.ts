@@ -22,7 +22,7 @@ import { ReceiverWebhookGuard } from './guards/receiver-webhook.guard';
 import { ReceiverWebhookExceptionFilter } from './filters/receiver-webhook-exception.filter';
 import type { ReceiverWebhookRequest } from './guards/receiver-webhook.guard';
 import { GigBodyPipe } from './pipes/gig-body.pipe';
-import { TelegramInitDataUserPipe } from './pipes/telegram-init-data-user.pipe';
+import { TelegramInitDataUserPipe } from '../telegram/pipes/telegram-init-data-user.pipe';
 import { V1ReceiverCreateGigRequestBodyValidated } from './types/requests/v1-receiver-create-gig-request';
 import type {
   V1ReceiverGetGigForEditRequestBodyValidated,

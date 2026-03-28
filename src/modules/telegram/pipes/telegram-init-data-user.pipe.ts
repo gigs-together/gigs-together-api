@@ -1,12 +1,12 @@
+import type { PipeTransform } from '@nestjs/common';
 import {
   BadRequestException,
   ForbiddenException,
   Injectable,
-  type PipeTransform,
 } from '@nestjs/common';
-import { TelegramService } from '../../telegram/telegram.service';
 import { AuthService } from '../../auth/auth.service';
-import type { TGUser, User } from '../../telegram/types/user.types';
+import { TelegramService } from '../telegram.service';
+import type { TGUser, User } from '../types/user.types';
 
 type AnyBody = Record<string, unknown> & { telegramInitDataString?: unknown };
 
