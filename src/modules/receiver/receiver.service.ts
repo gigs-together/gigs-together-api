@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  ForbiddenException,
-  Injectable,
-  Logger,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import type { TGChatId, TGMessage } from '../telegram/types/message.types';
 import { GigService } from '../gig/gig.service';
 import { GigFormDataByPublicId, GigId } from '../gig/types/gig.types';
@@ -271,12 +266,9 @@ export class ReceiverService {
   }
 
   getGigForEdit(
-    payload: V1ReceiverGetGigForEditRequestBodyValidated,
+    body: V1ReceiverGetGigForEditRequestBodyValidated,
   ): Promise<GigFormDataByPublicId> {
-    if (payload.user?.isAdmin !== true) {
-      throw new ForbiddenException('Admin privileges required');
-    }
-    return this.gigService.getGigFormDataByPublicId(payload.publicId);
+    return this.gigService.getGigFormDataByPublicId(body.publicId);
   }
 
   async updateGigByPublicId(

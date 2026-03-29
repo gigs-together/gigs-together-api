@@ -12,7 +12,6 @@ import {
   UseGuards,
   UseInterceptors,
   Version,
-  ForbiddenException,
 } from '@nestjs/common';
 import { ReceiverService } from './receiver.service';
 import { TGUpdate } from '../telegram/types/update.types';
@@ -24,6 +23,7 @@ import { ReceiverWebhookExceptionFilter } from './filters/receiver-webhook-excep
 import type { ReceiverWebhookRequest } from './guards/receiver-webhook.guard';
 import { GigBodyPipe } from './pipes/gig-body.pipe';
 import { TelegramInitDataUserPipe } from '../telegram/pipes/telegram-init-data-user.pipe';
+import { RequireTelegramAdminPipe } from '../telegram/pipes/require-telegram-admin.pipe';
 import { V1ReceiverCreateGigRequestBodyValidated } from './types/requests/v1-receiver-create-gig-request';
 import type {
   V1ReceiverGetGigForEditRequestBodyValidated,
@@ -85,7 +85,7 @@ export class ReceiverController {
   @Post('gig/get')
   @HttpCode(200)
   getGigForEdit(
-    @Body(TelegramInitDataUserPipe)
+    @Body(TelegramInitDataUserPipe, RequireTelegramAdminPipe)
     body: V1ReceiverGetGigForEditRequestBodyValidated,
   ) {
     return this.receiverService.getGigForEdit(body);
@@ -98,14 +98,9 @@ export class ReceiverController {
   updateGigByPublicId(
     @Param('publicId') publicId: string,
     @UploadedFile() posterFile: Express.Multer.File | undefined,
-    @Body(TelegramInitDataUserPipe, GigBodyPipe)
+    @Body(TelegramInitDataUserPipe, RequireTelegramAdminPipe, GigBodyPipe)
     body: V1ReceiverCreateGigRequestBodyValidated,
   ): Promise<V1ReceiverUpdateGigByPublicIdResponseBody> {
-    // TODO: extract into a guard
-    if (body.user?.isAdmin !== true) {
-      throw new ForbiddenException('Admin privileges required');
-    }
-
     return this.receiverService.updateGigByPublicId({
       publicId,
       body,

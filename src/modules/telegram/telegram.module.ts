@@ -6,6 +6,7 @@ import { CacheModule } from '@nestjs/cache-manager';
 import { BucketModule } from '../bucket/bucket.module';
 import { AuthModule } from '../auth/auth.module';
 import { TelegramInitDataUserPipe } from './pipes/telegram-init-data-user.pipe';
+import { RequireTelegramAdminPipe } from './pipes/require-telegram-admin.pipe';
 
 @Module({
   imports: [
@@ -22,7 +23,16 @@ import { TelegramInitDataUserPipe } from './pipes/telegram-init-data-user.pipe';
     BucketModule,
     AuthModule,
   ],
-  providers: [TelegramService, TelegramInitDataUserPipe],
-  exports: [TelegramService, TelegramInitDataUserPipe, AuthModule],
+  providers: [
+    TelegramService,
+    TelegramInitDataUserPipe,
+    RequireTelegramAdminPipe,
+  ],
+  exports: [
+    TelegramService,
+    TelegramInitDataUserPipe,
+    RequireTelegramAdminPipe,
+    AuthModule,
+  ],
 })
 export class TelegramModule {}
