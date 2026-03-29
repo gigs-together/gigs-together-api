@@ -132,19 +132,6 @@ export class GigPosterService {
 
     if (!url) return;
 
-    // Reuse already downloaded poster if exists
-    const existing = await this.gigModel.findOne({
-      'poster.externalUrl': url,
-    });
-
-    // TODO: also look by poster equality?
-    if (existing?.poster?.bucketPath) {
-      return {
-        bucketPath: existing.poster.bucketPath,
-        externalUrl: url,
-      };
-    }
-
     const downloaded = await this.download(url);
     return {
       bucketPath: await this.uploadToBucket(downloaded, context),
