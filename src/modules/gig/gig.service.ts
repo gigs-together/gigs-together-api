@@ -8,7 +8,6 @@ import { Types } from 'mongoose';
 import type { Model, UpdateQuery } from 'mongoose';
 import type {
   CreateGigInput,
-  GetGigs,
   GigFormDataByPublicId,
   GigId,
 } from './types/gig.types';
@@ -285,39 +284,6 @@ export class GigService {
 
   updateGigStatus(gigId: GigId, status: Status): Promise<GigDocument> {
     return this.updateGig(gigId, { status });
-  }
-
-  async getGigs(data: GetGigs): Promise<GigDocument[]> {
-    const { page, size, from, to, status, city, country } = data;
-
-    const MAX_SIZE = 100;
-    if (size > MAX_SIZE) {
-      throw new BadRequestException(
-        `Size limit exceeded. Maximum size is ${MAX_SIZE}.`,
-      );
-    }
-
-    const skip = (page - 1) * size;
-
-    const dateFilter: { $gte: number; $lte?: number } = { $gte: from };
-    if (to !== undefined) dateFilter.$lte = to;
-
-    const filter: Record<string, unknown> = { date: dateFilter };
-    if (status) filter.status = status;
-    if (city && country) {
-      filter.city = city;
-      filter.country = country;
-    }
-
-    // Always keep pagination deterministic.
-    // - date: primary sort
-    // - _id: tie-breaker for equal dates
-    return this.gigModel
-      .find(filter)
-      .collation({ locale: 'en', strength: 2 })
-      .sort({ date: 1, _id: 1 })
-      .skip(skip)
-      .limit(size);
   }
 
   private async getPostUrl(
