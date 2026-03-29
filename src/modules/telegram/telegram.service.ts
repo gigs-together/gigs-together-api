@@ -567,7 +567,8 @@ export class TelegramService {
     return externalUrl;
   }
 
-  private getPoster({ poster, post }: GetPosterPayload): string | undefined {
+  private getPosterUrlOrFileId(payload: GetPosterPayload): string | undefined {
+    const { post, poster } = payload;
     if (post?.fileId) {
       return post.fileId;
     }
@@ -616,7 +617,10 @@ export class TelegramService {
 
     const caption = this.buildCaption(buildCaptionPayload);
     const moderationPost = this.pickTgPost(gig.posts, PostType.Moderation);
-    const poster = this.getPoster({ post: moderationPost, poster: gig.poster });
+    const poster = this.getPosterUrlOrFileId({
+      post: moderationPost,
+      poster: gig.poster,
+    });
 
     return this.publish({
       caption,
@@ -639,7 +643,7 @@ export class TelegramService {
     };
 
     const caption = this.buildCaption(buildCaptionPayload);
-    const poster = this.getPoster({ poster: gig.poster });
+    const poster = this.getPosterUrlOrFileId({ poster: gig.poster });
 
     return this.publish({
       caption,
@@ -821,7 +825,10 @@ export class TelegramService {
 
     const caption = this.buildCaption(buildCaptionPayload);
     const moderationPost = this.pickTgPost(gig.posts, PostType.Moderation);
-    const poster = this.getPoster({ post: moderationPost, poster: gig.poster });
+    const poster = this.getPosterUrlOrFileId({
+      post: moderationPost,
+      poster: gig.poster,
+    });
 
     // TODO: add some language like "You've submitted, blablabla..."
     return this.publish({
