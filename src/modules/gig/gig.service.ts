@@ -11,7 +11,7 @@ import type {
   GigFormDataByPublicId,
   GigId,
 } from './types/gig.types';
-import { Gig } from './gig.schema';
+import { Gig, GigPoster } from './gig.schema';
 import type { GigDocument } from './gig.schema';
 import { Status } from './types/status.enum';
 import { AiService } from '../ai/ai.service';
@@ -45,10 +45,28 @@ import { BucketService } from '../bucket/bucket.service';
 import { PostType } from './types/postType.enum';
 import { Messenger } from './types/messenger.enum';
 import { decodeGigCursorOrThrow, encodeGigCursor } from './utils/gig-cursor';
+import { V1ReceiverCreateGigRequestBodyValidated } from '../receiver/types/requests/v1-receiver-create-gig-request';
 
 interface GetPostUrlPayload {
   postId?: number;
   chatId?: number;
+}
+
+interface UpdateGigByPublicIdPayload {
+  publicId: string;
+  body: V1ReceiverCreateGigRequestBodyValidated;
+  posterFile: Express.Multer.File | undefined;
+}
+
+interface SaveGigPayload {
+  body: V1ReceiverCreateGigRequestBodyValidated;
+  posterFile: Express.Multer.File | undefined;
+}
+
+interface GenerateUniquePublicIdPayload {
+  title: string;
+  yyyyMmDd: string;
+  excludeMongoId?: Types.ObjectId;
 }
 
 // TODO: add allowing only specific status transitions
@@ -83,11 +101,9 @@ export class GigService {
     return id;
   }
 
-  async generateUniquePublicId(input: {
-    title: string;
-    yyyyMmDd: string;
-    excludeMongoId?: Types.ObjectId;
-  }): Promise<string> {
+  private async generateUniquePublicId(
+    input: GenerateUniquePublicIdPayload,
+  ): Promise<string> {
     const slugifyTitle = (rawTitle: string): string => {
       const str0 = (rawTitle ?? '').trim().toLowerCase();
       const str1 = str0
@@ -158,8 +174,48 @@ export class GigService {
     return `${prefix}-${rnd}`;
   }
 
-  async saveGig(data: CreateGigInput): Promise<GigDocument> {
-    const date = new Date(data.date);
+  async saveGig(payload: SaveGigPayload): Promise<GigDocument> {
+    const { body, posterFile } = payload;
+
+    const date = new Date(body.gig.date);
+    const yyyyMmDd = date.toISOString().split('T')[0];
+    const publicId = await this.generateUniquePublicId({
+      title: body.gig.title,
+      yyyyMmDd,
+    });
+
+    const explicitPosterUrl = (body.gig.posterUrl ?? '').trim() || undefined;
+    const defaultPosterUrl =
+      (process.env.DEFAULT_GIG_POSTER_URL ?? '').trim() || undefined;
+    const posterUrl =
+      explicitPosterUrl ?? (posterFile ? undefined : defaultPosterUrl);
+
+    const poster = await this.uploadPoster({
+      url: posterUrl,
+      file: posterFile,
+      context: {
+        date: body.gig.date,
+        city: body.gig.city,
+        country: body.gig.country,
+        publicId,
+      },
+    });
+
+    const data: CreateGigInput = {
+      publicId,
+      title: body.gig.title,
+      date: body.gig.date,
+      city: body.gig.city,
+      country: body.gig.country,
+      venue: body.gig.venue,
+      ticketsUrl: body.gig.ticketsUrl,
+      poster,
+      suggestedBy: { userId: body.user.tgUser.id },
+    };
+
+    if (body.gig.endDate && body.gig.endDate !== body.gig.date) {
+      data.endDate = body.gig.endDate;
+    }
 
     const mappedData: Gig = {
       publicId: data.publicId,
@@ -230,14 +286,52 @@ export class GigService {
   }
 
   async updateGigByPublicId(
-    publicId: string,
-    data: UpdateQuery<Gig>,
+    payload: UpdateGigByPublicIdPayload,
   ): Promise<GigDocument> {
+    const { publicId, body, posterFile } = payload;
+
     const id = this.normalizeAndValidatePublicIdOrThrow(publicId);
+
+    const dateMs = new Date(body.gig.date).getTime();
+
+    const endDateMs =
+      body.gig.endDate && body.gig.endDate !== body.gig.date
+        ? new Date(body.gig.endDate).getTime()
+        : undefined;
+
+    const poster: GigPoster | undefined = await this.uploadPoster({
+      url: body.gig.posterUrl,
+      file: posterFile,
+      context: {
+        date: body.gig.date,
+        city: body.gig.city,
+        country: body.gig.country,
+        publicId,
+      },
+    });
+
+    const dataToUpdate: UpdateQuery<Gig> = {
+      title: body.gig.title,
+      date: dateMs,
+      city: body.gig.city,
+      country: body.gig.country,
+      venue: body.gig.venue,
+      ticketsUrl: body.gig.ticketsUrl,
+    };
+
+    if (endDateMs) {
+      dataToUpdate.endDate = endDateMs;
+    } else {
+      dataToUpdate.$unset = { ...(dataToUpdate.$unset ?? {}), endDate: 1 };
+    }
+
+    if (poster) {
+      dataToUpdate.poster = poster;
+    }
 
     const updated = await this.gigModel.findOneAndUpdate(
       { publicId: id },
-      data,
+      dataToUpdate,
       { new: true },
     );
     if (!updated) {
@@ -657,7 +751,6 @@ export class GigService {
     return { gig };
   }
 
-  uploadPoster: GigPosterService['upload'] = this.gigPosterService.upload.bind(
-    this.gigPosterService,
-  );
+  private uploadPoster: GigPosterService['upload'] =
+    this.gigPosterService.upload.bind(this.gigPosterService);
 }

@@ -12,6 +12,7 @@ import {
   UseGuards,
   UseInterceptors,
   Version,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ReceiverService } from './receiver.service';
 import { TGUpdate } from '../telegram/types/update.types';
@@ -100,6 +101,11 @@ export class ReceiverController {
     @Body(TelegramInitDataUserPipe, GigBodyPipe)
     body: V1ReceiverCreateGigRequestBodyValidated,
   ): Promise<V1ReceiverUpdateGigByPublicIdResponseBody> {
+    // TODO: extract into a guard
+    if (body.user?.isAdmin !== true) {
+      throw new ForbiddenException('Admin privileges required');
+    }
+
     return this.receiverService.updateGigByPublicId({
       publicId,
       body,
