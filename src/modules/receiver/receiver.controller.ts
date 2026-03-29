@@ -25,10 +25,7 @@ import { GigBodyPipe } from './pipes/gig-body.pipe';
 import { TelegramInitDataUserPipe } from '../telegram/pipes/telegram-init-data-user.pipe';
 import { RequireTelegramAdminPipe } from '../telegram/pipes/require-telegram-admin.pipe';
 import { V1ReceiverCreateGigRequestBodyValidated } from './types/requests/v1-receiver-create-gig-request';
-import type {
-  V1ReceiverGetGigForEditRequestBodyValidated,
-  V1ReceiverUpdateGigByPublicIdResponseBody,
-} from './types/requests/v1-receiver-gig-by-public-id-request';
+import type { V1ReceiverUpdateGigByPublicIdResponseBody } from './types/requests/v1-receiver-gig-by-public-id-request';
 
 const PosterFileInterceptor = FileInterceptor('posterFile', {
   storage: memoryStorage(),
@@ -79,16 +76,6 @@ export class ReceiverController {
     // JSON object (application/json) or strings (multipart/form-data)
   ): Promise<void> {
     return this.receiverService.handleGigSubmit(body, posterFile);
-  }
-
-  @Version('1')
-  @Post('gig/get')
-  @HttpCode(200)
-  getGigForEdit(
-    @Body(TelegramInitDataUserPipe, RequireTelegramAdminPipe)
-    body: V1ReceiverGetGigForEditRequestBodyValidated,
-  ) {
-    return this.receiverService.getGigForEdit(body);
   }
 
   @Version('1')

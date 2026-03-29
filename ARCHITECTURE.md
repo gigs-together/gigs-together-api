@@ -229,8 +229,8 @@ Examples:
 
 - `/v1/receiver/webhook`
 - `/v1/receiver/gig`
-- `/v1/receiver/gig/get`
-- `/v1/receiver/gig/:publicId`
+- `/v1/gig/get` (admin: gig draft for edit form)
+- `/v1/receiver/gig/:publicId` (PATCH update)
 
 ## Persistence Model
 

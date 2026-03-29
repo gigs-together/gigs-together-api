@@ -27,6 +27,9 @@ import {
   V1GigByPublicIdGetRequestQuery,
 } from './types/requests/v1-gig-by-public-id-get-request';
 import type { V1GigByPublicIdGetResponseBody } from './types/requests/v1-gig-by-public-id-get-request';
+import type { V1GigGetForEditRequestBodyValidated } from './types/requests/v1-gig-get-for-edit-request';
+import type { GigFormDataByPublicId } from './types/gig.types';
+import { RequireTelegramAdminPipe } from '../telegram/pipes/require-telegram-admin.pipe';
 
 @Controller('gig')
 export class GigController {
@@ -61,6 +64,19 @@ export class GigController {
     @Query() query: V1GigAroundGetRequestQuery,
   ): Promise<V1GigAroundGetResponseBody> {
     return this.gigService.getPublishedGigsAroundV1(query);
+  }
+
+  /**
+   * Loads draft gig data for the edit form (authenticated admin via Telegram WebApp).
+   */
+  @Version('1')
+  @Post('get')
+  @HttpCode(HttpStatus.OK)
+  getGigForEditV1(
+    @Body(TelegramInitDataUserPipe, RequireTelegramAdminPipe)
+    body: V1GigGetForEditRequestBodyValidated,
+  ): Promise<GigFormDataByPublicId> {
+    return this.gigService.getGigFormDataByPublicId(body.publicId);
   }
 
   /**

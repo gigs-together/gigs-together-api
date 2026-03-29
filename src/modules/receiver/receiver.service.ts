@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import type { TGChatId, TGMessage } from '../telegram/types/message.types';
 import { GigService } from '../gig/gig.service';
-import { GigFormDataByPublicId, GigId } from '../gig/types/gig.types';
+import { GigId } from '../gig/types/gig.types';
 import { Status } from '../gig/types/status.enum';
 import type { TGCallbackQuery } from '../telegram/types/update.types';
 import { TelegramService } from '../telegram/telegram.service';
@@ -13,10 +13,7 @@ import { Messenger } from '../gig/types/messenger.enum';
 import { PostType } from '../gig/types/postType.enum';
 import type { UpdateQuery } from 'mongoose';
 import type { Gig } from '../gig/gig.schema';
-import type {
-  V1ReceiverGetGigForEditRequestBodyValidated,
-  V1ReceiverUpdateGigByPublicIdResponseBody,
-} from './types/requests/v1-receiver-gig-by-public-id-request';
+import type { V1ReceiverUpdateGigByPublicIdResponseBody } from './types/requests/v1-receiver-gig-by-public-id-request';
 // import { NodeHttpHandler } from '@smithy/node-http-handler';
 
 enum Command {
@@ -263,12 +260,6 @@ export class ReceiverService {
         e instanceof Error ? e.stack : undefined,
       );
     }
-  }
-
-  getGigForEdit(
-    body: V1ReceiverGetGigForEditRequestBodyValidated,
-  ): Promise<GigFormDataByPublicId> {
-    return this.gigService.getGigFormDataByPublicId(body.publicId);
   }
 
   async updateGigByPublicId(
