@@ -1,4 +1,3 @@
-import type { V1GetGigsResponseBodyGig } from '../gig.types';
 import { Transform } from 'class-transformer';
 import {
   IsOptional,
@@ -52,6 +51,15 @@ export interface V1GigByPublicIdGetInput {
   country?: string;
 }
 
+/**
+ * Minimal published gig payload for resolving deep links (e.g. hash → scroll anchor date).
+ * Intentionally omits feed-only fields (poster, calendarUrl, postUrl, …) to avoid extra work.
+ */
+export interface V1PublishedGigByPublicIdGig {
+  id: string;
+  date: string;
+}
+
 export interface V1GigByPublicIdGetResponseBody {
-  gig: V1GetGigsResponseBodyGig;
+  gig: V1PublishedGigByPublicIdGig;
 }

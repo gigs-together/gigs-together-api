@@ -67,29 +67,28 @@ export class GigController {
   }
 
   /**
-   * Loads draft gig data for the edit form (authenticated admin via Telegram WebApp).
+   * Admin: draft gig fields for the edit form (Telegram WebApp).
    */
   @Version('1')
   @Post('get')
   @HttpCode(HttpStatus.OK)
-  getGigForEditV1(
+  getGigDraftForEdit(
     @Body(TelegramInitDataUserPipe, RequireTelegramAdminPipe)
     body: V1GigGetForEditRequestBodyValidated,
   ): Promise<GigFormDataByPublicId> {
-    return this.gigService.getGigFormDataByPublicId(body.publicId);
+    return this.gigService.getGigDraftForEditByPublicId(body.publicId);
   }
 
   /**
-   * Loads a single gig by its public id.
-   * Used to resolve deep links (e.g. #publicId) when the feed window doesn't contain the target yet.
+   * Public: minimal published gig by public id (id + date) for hash / deep-link anchor.
    */
   @Version('1')
   @Get(':publicId')
-  getGigByPublicIdV1(
+  getPublishedGigSummaryByPublicId(
     @Param() params: V1GigByPublicIdGetRequestParams,
     @Query() query: V1GigByPublicIdGetRequestQuery,
   ): Promise<V1GigByPublicIdGetResponseBody> {
-    return this.gigService.getPublishedGigByPublicIdV1({
+    return this.gigService.getPublishedGigSummaryByPublicId({
       publicId: params.publicId,
       city: query.city,
       country: query.country,

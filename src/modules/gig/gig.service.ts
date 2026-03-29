@@ -340,7 +340,8 @@ export class GigService {
     return updated;
   }
 
-  async getGigFormDataByPublicId(
+  /** Admin edit form: full draft fields (any status). */
+  async getGigDraftForEditByPublicId(
     publicId: string,
   ): Promise<GigFormDataByPublicId> {
     const gig = await this.getGigByPublicIdOrThrow(publicId);
@@ -556,7 +557,10 @@ export class GigService {
     return { gigs: mapped, prevCursor, nextCursor };
   }
 
-  async getPublishedGigByPublicIdV1(
+  /**
+   * Published gig by public id — minimal fields for hash / deep-link resolution (feed client).
+   */
+  async getPublishedGigSummaryByPublicId(
     input: V1GigByPublicIdGetInput,
   ): Promise<V1GigByPublicIdGetResponseBody> {
     const publicId = this.normalizeAndValidatePublicIdOrThrow(input.publicId);
@@ -578,12 +582,12 @@ export class GigService {
       throw new NotFoundException(`Gig with publicId "${publicId}" not found`);
     }
 
-    const mapped = await this.mapGigsToV1Gigs([doc]);
-    if (!mapped[0]) {
-      throw new Error('Failed to map gig');
-    }
-
-    return { gig: mapped[0] };
+    return {
+      gig: {
+        id: doc.publicId,
+        date: doc.date.toString(),
+      },
+    };
   }
 
   async getPublishedGigsAroundV1(
