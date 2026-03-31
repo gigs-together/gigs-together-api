@@ -5,8 +5,13 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { AuthService } from '../../auth/auth.service';
+import { TelegramInitDataAuthExpiredError } from '../telegram-init-data.errors';
 import { TelegramService } from '../telegram.service';
 import type { TGUser, User } from '../types/user.types';
+
+/** Returned in JSON as `code` when initData `auth_date` is outside the allowed window. */
+export const TELEGRAM_INIT_DATA_EXPIRED_CODE =
+  'TELEGRAM_INIT_DATA_EXPIRED' as const;
 
 type AnyBody = Record<string, unknown> & { telegramInitDataString?: unknown };
 
@@ -55,6 +60,9 @@ export class TelegramInitDataUserPipe implements PipeTransform<
         dataCheckString,
         parsedData.hash,
       );
+      this.telegramService.validateTelegramInitDataAuthDate(
+        parsedData.auth_date,
+      );
 
       const tgUser: TGUser = JSON.parse(parsedData.user);
 
@@ -71,7 +79,17 @@ export class TelegramInitDataUserPipe implements PipeTransform<
         ...rest,
         user,
       };
-    } catch {
+    } catch (e) {
+      if (e instanceof TelegramInitDataAuthExpiredError) {
+        throw new ForbiddenException({
+          message:
+            'Your Telegram session data is out of date. Please reload this page so Telegram can send fresh data — for example pull to refresh in the mini app, or close and reopen the app from the bot chat.',
+          code: TELEGRAM_INIT_DATA_EXPIRED_CODE,
+        });
+      }
+      if (e instanceof ForbiddenException) {
+        throw e;
+      }
       // Keep the error stable for the client.
       throw new ForbiddenException('Invalid Telegram user data');
     }

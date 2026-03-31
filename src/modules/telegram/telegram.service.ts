@@ -24,6 +24,7 @@ import { BucketService } from '../bucket/bucket.service';
 import { PostType } from '../gig/types/postType.enum';
 import { Messenger } from '../gig/types/messenger.enum';
 import { logError } from '../../shared/utils/logging';
+import { TelegramInitDataAuthExpiredError } from './telegram-init-data.errors';
 
 interface PublishPayload {
   caption: string;
@@ -516,6 +517,30 @@ export class TelegramService {
 
     if (computedHash !== receivedHash) {
       throw new Error('Invalid initData');
+    }
+  }
+
+  /**
+   * Rejects initData whose auth_date is too old (replay protection).
+   * Default max age 24h; override with TELEGRAM_INIT_DATA_MAX_AGE_SEC.
+   */
+  validateTelegramInitDataAuthDate(authDateRaw: string | undefined): void {
+    if (authDateRaw === undefined || authDateRaw === '') {
+      throw new Error('Missing auth_date in Telegram initData');
+    }
+    const authDate = Number(authDateRaw);
+    if (!Number.isFinite(authDate) || authDate <= 0) {
+      throw new Error('Invalid auth_date in Telegram initData');
+    }
+    const maxAgeSec = Number(
+      process.env.TELEGRAM_INIT_DATA_MAX_AGE_SEC ?? 86_400,
+    );
+    if (!Number.isFinite(maxAgeSec) || maxAgeSec <= 0) {
+      throw new Error('Invalid TELEGRAM_INIT_DATA_MAX_AGE_SEC');
+    }
+    const nowSec = Math.floor(Date.now() / 1000);
+    if (nowSec - authDate > maxAgeSec) {
+      throw new TelegramInitDataAuthExpiredError();
     }
   }
 

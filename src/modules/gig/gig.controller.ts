@@ -69,6 +69,7 @@ export class GigController {
   /**
    * Admin: draft gig fields for the edit form (Telegram WebApp).
    */
+  // TODO: move tg auth to headers
   @Version('1')
   @Post('get')
   @HttpCode(HttpStatus.OK)
