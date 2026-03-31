@@ -18,21 +18,20 @@ import type { V1GigDatesGetResponseBody } from './types/requests/v1-gig-dates-ge
 import { V1GigAroundGetRequestQuery } from './types/requests/v1-gig-around-get-request';
 import type { V1GigAroundGetResponseBody } from './types/requests/v1-gig-around-get-request';
 import type {
-  V1GigLookupRequestBodyValidated,
+  V1GigLookupFields,
   V1GigLookupResponseBody,
 } from './types/requests/v1-gig-lookup-request';
 import { GigLookupBodyPipe } from './pipes/gig-lookup-body.pipe';
-import { TelegramInitDataUserPipe } from '../telegram/pipes/telegram-init-data-user.pipe';
 import {
   V1GigByPublicIdGetRequestParams,
   V1GigByPublicIdGetRequestQuery,
 } from './types/requests/v1-gig-by-public-id-get-request';
 import type { V1GigByPublicIdGetResponseBody } from './types/requests/v1-gig-by-public-id-get-request';
-import type { V1GigGetForEditRequestBodyValidated } from './types/requests/v1-gig-get-for-edit-request';
+import { V1GigGetForEditBody } from './types/requests/v1-gig-get-for-edit-request';
 import type { GigFormDataByPublicId } from './types/gig.types';
-import { RequireTelegramAdminPipe } from '../telegram/pipes/require-telegram-admin.pipe';
 import { AccessJwtAuthGuard } from '../telegram/guards/access-jwt-auth.guard';
 import { TelegramInitDataAuthGuard } from '../telegram/guards/telegram-init-data-auth.guard';
+import { RequireTelegramAdminGuard } from '../telegram/guards/require-telegram-admin.guard';
 
 @Controller('gig')
 export class GigController {
@@ -76,10 +75,13 @@ export class GigController {
   @Version('1')
   @Post('get')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AccessJwtAuthGuard, TelegramInitDataAuthGuard)
+  @UseGuards(
+    AccessJwtAuthGuard,
+    TelegramInitDataAuthGuard,
+    RequireTelegramAdminGuard,
+  )
   getGigDraftForEdit(
-    @Body(TelegramInitDataUserPipe, RequireTelegramAdminPipe)
-    body: V1GigGetForEditRequestBodyValidated,
+    @Body() body: V1GigGetForEditBody,
   ): Promise<GigFormDataByPublicId> {
     return this.gigService.getGigDraftForEditByPublicId(body.publicId);
   }
@@ -109,9 +111,8 @@ export class GigController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(AccessJwtAuthGuard, TelegramInitDataAuthGuard)
   async lookupGigV1(
-    @Body(TelegramInitDataUserPipe, GigLookupBodyPipe)
-    body: V1GigLookupRequestBodyValidated,
+    @Body(GigLookupBodyPipe) fields: V1GigLookupFields,
   ): Promise<V1GigLookupResponseBody> {
-    return this.gigService.lookupGigV1(body);
+    return this.gigService.lookupGigV1(fields);
   }
 }

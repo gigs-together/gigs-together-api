@@ -7,8 +7,3 @@ export interface TGUser {
 
   [key: string]: unknown;
 }
-
-export interface User {
-  tgUser: TGUser;
-  isAdmin: boolean;
-}

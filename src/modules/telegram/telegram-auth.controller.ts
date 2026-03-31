@@ -1,5 +1,4 @@
 import {
-  Body,
   Controller,
   HttpCode,
   HttpStatus,
@@ -8,11 +7,11 @@ import {
   Version,
 } from '@nestjs/common';
 import { AccessJwtService } from '../auth/access-jwt.service';
+import { AuthenticatedUser } from './decorators/authenticated-user.decorator';
 import { AccessJwtAuthGuard } from './guards/access-jwt-auth.guard';
 import { TelegramInitDataAuthGuard } from './guards/telegram-init-data-auth.guard';
 import { tgUserToTelegramAccessIdentity } from './mappers/access-token-user.mapper';
-import { TelegramInitDataUserPipe } from './pipes/telegram-init-data-user.pipe';
-import type { V1TelegramExchangeRequestBodyValidated } from './types/requests/v1-telegram-exchange-request';
+import type { User } from '../../shared/types/user.types';
 import type { V1TelegramExchangeResponseBody } from './types/requests/v1-telegram-exchange-response';
 
 @Controller('auth')
@@ -24,10 +23,9 @@ export class TelegramAuthController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(AccessJwtAuthGuard, TelegramInitDataAuthGuard)
   async exchange(
-    @Body(TelegramInitDataUserPipe)
-    body: V1TelegramExchangeRequestBodyValidated,
+    @AuthenticatedUser() user: User,
   ): Promise<V1TelegramExchangeResponseBody> {
-    const identity = tgUserToTelegramAccessIdentity(body.user.tgUser);
+    const identity = tgUserToTelegramAccessIdentity(user.tgUser);
     const accessToken = await this.accessJwtService.signAccessToken(identity);
     return {
       accessToken,

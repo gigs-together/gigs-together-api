@@ -1,6 +1,7 @@
-import type { User } from '../../../telegram/types/user.types';
+import { IsString, MinLength } from 'class-validator';
 
-export interface V1GigGetForEditRequestBodyValidated {
-  publicId: string;
-  user: User;
+export class V1GigGetForEditBody {
+  @IsString()
+  @MinLength(1)
+  publicId!: string;
 }

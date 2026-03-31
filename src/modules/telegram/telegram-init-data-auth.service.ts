@@ -5,7 +5,8 @@ import {
   TelegramInitDataAuthExpiredError,
 } from './telegram-init-data.errors';
 import { TelegramService } from './telegram.service';
-import type { TGUser, User } from './types/user.types';
+import type { User } from '../../shared/types/user.types';
+import type { TGUser } from './types/user.types';
 
 /**
  * Validates Telegram WebApp `initData` (query-string form) and builds a `User`.

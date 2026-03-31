@@ -1,7 +1,7 @@
-import type { User } from '../modules/telegram/types/user.types';
+import type { User } from '../shared/types/user.types';
 
 declare module 'express-serve-static-core' {
   interface Request {
-    authenticatedUser?: User;
+    user?: User;
   }
 }

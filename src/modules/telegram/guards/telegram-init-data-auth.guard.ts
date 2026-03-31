@@ -9,8 +9,8 @@ import { readTelegramInitDataHeader } from '../telegram-init-data-header';
 import { TelegramInitDataAuthService } from '../telegram-init-data-auth.service';
 
 /**
- * When `req.authenticatedUser` is not set (no valid Bearer JWT), validates
- * `X-Telegram-Init-Data` and sets `req.authenticatedUser`.
+ * When `req.user` is not set (no valid Bearer JWT), validates
+ * `X-Telegram-Init-Data` and sets `req.user`.
  *
  * Run after AccessJwtAuthGuard.
  */
@@ -22,14 +22,14 @@ export class TelegramInitDataAuthGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest<Request>();
-    if (req.authenticatedUser) {
+    if (req.user) {
       return true;
     }
     const initData = readTelegramInitDataHeader(req);
     if (!initData) {
       throw new ForbiddenException('Missing Telegram user data');
     }
-    req.authenticatedUser =
+    req.user =
       await this.telegramInitDataAuthService.resolveUserFromInitDataString(
         initData,
       );

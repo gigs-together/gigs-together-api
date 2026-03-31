@@ -6,10 +6,6 @@ import {
 } from '@nestjs/common';
 import { isRecord } from '../../../shared/utils/is-record';
 import { V1GigLookupFields } from '../types/requests/v1-gig-lookup-request';
-import type {
-  GigLookupBodyAfterTelegramAuth,
-  V1GigLookupRequestBodyValidated,
-} from '../types/requests/v1-gig-lookup-request';
 
 const lookupFieldsMetadata: ArgumentMetadata = {
   type: 'body',
@@ -18,13 +14,12 @@ const lookupFieldsMetadata: ArgumentMetadata = {
 };
 
 /**
- * Validates `name` and `location` via Nest {@link ValidationPipe} (same engine as the global pipe)
- * after {@link TelegramInitDataUserPipe}, then merges `user` back in.
+ * Validates `name` and `location` via Nest {@link ValidationPipe}.
  */
 @Injectable()
 export class GigLookupBodyPipe implements PipeTransform<
-  GigLookupBodyAfterTelegramAuth,
-  Promise<V1GigLookupRequestBodyValidated>
+  unknown,
+  Promise<V1GigLookupFields>
 > {
   private readonly validationPipe = new ValidationPipe({
     transform: true,
@@ -32,11 +27,12 @@ export class GigLookupBodyPipe implements PipeTransform<
     forbidUnknownValues: false,
   });
 
-  async transform(
-    body: GigLookupBodyAfterTelegramAuth,
-  ): Promise<V1GigLookupRequestBodyValidated> {
+  async transform(bodyRaw: unknown): Promise<V1GigLookupFields> {
+    if (!isRecord(bodyRaw)) {
+      throw new BadRequestException('Body must be an object');
+    }
     const partial = await this.validationPipe.transform(
-      { name: body.name, location: body.location },
+      { name: bodyRaw.name, location: bodyRaw.location },
       lookupFieldsMetadata,
     );
 
@@ -49,10 +45,6 @@ export class GigLookupBodyPipe implements PipeTransform<
       throw new BadRequestException('Invalid lookup fields shape');
     }
 
-    return {
-      user: body.user,
-      name,
-      location,
-    };
+    return { name, location };
   }
 }

@@ -33,7 +33,7 @@ import type {
 } from './types/requests/v1-gig-by-public-id-get-request';
 import { startOfTodayMs } from './types/requests/v1-gig-date-range.shared';
 import type {
-  V1GigLookupRequestBodyValidated,
+  V1GigLookupFields,
   V1GigLookupResponseBody,
 } from './types/requests/v1-gig-lookup-request';
 import { envBool } from '../../shared/utils/env';
@@ -45,7 +45,8 @@ import { BucketService } from '../bucket/bucket.service';
 import { PostType } from './types/postType.enum';
 import { Messenger } from './types/messenger.enum';
 import { decodeGigCursorOrThrow, encodeGigCursor } from './utils/gig-cursor';
-import { V1ReceiverCreateGigRequestBodyValidated } from '../receiver/types/requests/v1-receiver-create-gig-request';
+import type { User } from '../../shared/types/user.types';
+import type { V1ReceiverCreateGigRequestBody } from '../receiver/types/requests/v1-receiver-create-gig-request';
 
 interface GetPostUrlPayload {
   postId?: number;
@@ -54,12 +55,13 @@ interface GetPostUrlPayload {
 
 interface UpdateGigByPublicIdPayload {
   publicId: string;
-  body: V1ReceiverCreateGigRequestBodyValidated;
+  body: V1ReceiverCreateGigRequestBody;
   posterFile: Express.Multer.File | undefined;
 }
 
 interface SaveGigPayload {
-  body: V1ReceiverCreateGigRequestBodyValidated;
+  body: V1ReceiverCreateGigRequestBody;
+  user: User;
   posterFile: Express.Multer.File | undefined;
 }
 
@@ -175,7 +177,7 @@ export class GigService {
   }
 
   async saveGig(payload: SaveGigPayload): Promise<GigDocument> {
-    const { body, posterFile } = payload;
+    const { body, user, posterFile } = payload;
 
     const date = new Date(body.gig.date);
     const yyyyMmDd = date.toISOString().split('T')[0];
@@ -210,7 +212,7 @@ export class GigService {
       venue: body.gig.venue,
       ticketsUrl: body.gig.ticketsUrl,
       poster,
-      suggestedBy: { userId: body.user.tgUser.id },
+      suggestedBy: { userId: user.tgUser.id },
     };
 
     if (body.gig.endDate && body.gig.endDate !== body.gig.date) {
@@ -748,9 +750,9 @@ export class GigService {
   }
 
   async lookupGigV1(
-    body: V1GigLookupRequestBodyValidated,
+    fields: V1GigLookupFields,
   ): Promise<V1GigLookupResponseBody> {
-    const { name, location } = body;
+    const { name, location } = fields;
     const gig = await this.aiService.lookupGigV1({ name, location });
     return { gig };
   }

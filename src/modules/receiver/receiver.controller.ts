@@ -21,12 +21,13 @@ import { memoryStorage } from 'multer';
 import { ReceiverWebhookGuard } from './guards/receiver-webhook.guard';
 import { AccessJwtAuthGuard } from '../telegram/guards/access-jwt-auth.guard';
 import { TelegramInitDataAuthGuard } from '../telegram/guards/telegram-init-data-auth.guard';
+import { RequireTelegramAdminGuard } from '../telegram/guards/require-telegram-admin.guard';
 import { ReceiverWebhookExceptionFilter } from './filters/receiver-webhook-exception.filter';
 import type { ReceiverWebhookRequest } from './guards/receiver-webhook.guard';
 import { GigBodyPipe } from './pipes/gig-body.pipe';
-import { TelegramInitDataUserPipe } from '../telegram/pipes/telegram-init-data-user.pipe';
-import { RequireTelegramAdminPipe } from '../telegram/pipes/require-telegram-admin.pipe';
-import { V1ReceiverCreateGigRequestBodyValidated } from './types/requests/v1-receiver-create-gig-request';
+import { AuthenticatedUser } from '../telegram/decorators/authenticated-user.decorator';
+import type { User } from '../../shared/types/user.types';
+import type { V1ReceiverCreateGigRequestBody } from './types/requests/v1-receiver-create-gig-request';
 import type { V1ReceiverUpdateGigByPublicIdResponseBody } from './types/requests/v1-receiver-gig-by-public-id-request';
 
 const PosterFileInterceptor = FileInterceptor('posterFile', {
@@ -74,23 +75,25 @@ export class ReceiverController {
   @UseInterceptors(PosterFileInterceptor)
   createGig(
     @UploadedFile() posterFile: Express.Multer.File | undefined,
-    @Body(TelegramInitDataUserPipe, GigBodyPipe)
-    body: V1ReceiverCreateGigRequestBodyValidated,
-    // JSON object (application/json) or strings (multipart/form-data)
+    @AuthenticatedUser() user: User,
+    @Body(GigBodyPipe) body: V1ReceiverCreateGigRequestBody,
   ): Promise<void> {
-    return this.receiverService.handleGigSubmit(body, posterFile);
+    return this.receiverService.handleGigSubmit(body, user, posterFile);
   }
 
   @Version('1')
   @Patch('gig/:publicId')
   @HttpCode(200)
-  @UseGuards(AccessJwtAuthGuard, TelegramInitDataAuthGuard)
+  @UseGuards(
+    AccessJwtAuthGuard,
+    TelegramInitDataAuthGuard,
+    RequireTelegramAdminGuard,
+  )
   @UseInterceptors(PosterFileInterceptor)
   updateGigByPublicId(
     @Param('publicId') publicId: string,
     @UploadedFile() posterFile: Express.Multer.File | undefined,
-    @Body(TelegramInitDataUserPipe, RequireTelegramAdminPipe, GigBodyPipe)
-    body: V1ReceiverCreateGigRequestBodyValidated,
+    @Body(GigBodyPipe) body: V1ReceiverCreateGigRequestBody,
   ): Promise<V1ReceiverUpdateGigByPublicIdResponseBody> {
     return this.receiverService.updateGigByPublicId({
       publicId,

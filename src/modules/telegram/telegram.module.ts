@@ -5,12 +5,11 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { CacheModule } from '@nestjs/cache-manager';
 import { BucketModule } from '../bucket/bucket.module';
 import { AuthModule } from '../auth/auth.module';
-import { TelegramInitDataUserPipe } from './pipes/telegram-init-data-user.pipe';
-import { RequireTelegramAdminPipe } from './pipes/require-telegram-admin.pipe';
 import { TelegramAuthController } from './telegram-auth.controller';
 import { AccessJwtAuthGuard } from './guards/access-jwt-auth.guard';
 import { TelegramInitDataAuthGuard } from './guards/telegram-init-data-auth.guard';
 import { TelegramInitDataAuthService } from './telegram-init-data-auth.service';
+import { RequireTelegramAdminGuard } from './guards/require-telegram-admin.guard';
 
 @Module({
   imports: [
@@ -31,18 +30,16 @@ import { TelegramInitDataAuthService } from './telegram-init-data-auth.service';
   providers: [
     TelegramService,
     TelegramInitDataAuthService,
-    TelegramInitDataUserPipe,
-    RequireTelegramAdminPipe,
     AccessJwtAuthGuard,
     TelegramInitDataAuthGuard,
+    RequireTelegramAdminGuard,
   ],
   exports: [
     TelegramService,
     TelegramInitDataAuthService,
-    TelegramInitDataUserPipe,
-    RequireTelegramAdminPipe,
     AccessJwtAuthGuard,
     TelegramInitDataAuthGuard,
+    RequireTelegramAdminGuard,
     AuthModule,
   ],
 })

@@ -7,7 +7,8 @@ import type { TGCallbackQuery } from '../telegram/types/update.types';
 import { TelegramService } from '../telegram/telegram.service';
 import { Action } from '../telegram/types/action.enum';
 import { getBiggestTgPhotoFileId } from '../telegram/utils/photo';
-import { V1ReceiverCreateGigRequestBodyValidated } from './types/requests/v1-receiver-create-gig-request';
+import type { User } from '../../shared/types/user.types';
+import type { V1ReceiverCreateGigRequestBody } from './types/requests/v1-receiver-create-gig-request';
 import { CalendarService } from '../calendar/calendar.service';
 import { Messenger } from '../gig/types/messenger.enum';
 import { PostType } from '../gig/types/postType.enum';
@@ -30,7 +31,7 @@ interface HandleGigApprovePayload {
 
 interface UpdateGigByPublicIdPayload {
   publicId: string;
-  body: V1ReceiverCreateGigRequestBodyValidated;
+  body: V1ReceiverCreateGigRequestBody;
   posterFile: Express.Multer.File | undefined;
 }
 
@@ -197,10 +198,11 @@ export class ReceiverService {
   }
 
   async handleGigSubmit(
-    body: V1ReceiverCreateGigRequestBodyValidated,
+    body: V1ReceiverCreateGigRequestBody,
+    user: User,
     posterFile: Express.Multer.File | undefined,
   ): Promise<void> {
-    const savedGig = await this.gigService.saveGig({ body, posterFile });
+    const savedGig = await this.gigService.saveGig({ body, user, posterFile });
     let res: TGMessage | undefined;
     try {
       res = await this.telegramService.sendToModeration(savedGig);
@@ -235,7 +237,7 @@ export class ReceiverService {
 
     // Notify the author in DM.
     // NOTE: Telegram may reject sending DMs if the user hasn't started the bot.
-    const authorTelegramId = body.user?.tgUser?.id;
+    const authorTelegramId = user.tgUser.id;
     if (authorTelegramId) {
       try {
         const res: TGMessage =

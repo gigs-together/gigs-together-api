@@ -5,7 +5,8 @@ import { verifiedAccessTokenToUser } from '../mappers/access-token-user.mapper';
 
 /**
  * If `Authorization: Bearer <jwt>` is present, verifies the access token and sets
- * `req.authenticatedUser`.
+ * `req.user`. When absent, TelegramInitDataAuthGuard may authenticate
+ * via `X-Telegram-Init-Data`.
  */
 @Injectable()
 export class AccessJwtAuthGuard implements CanActivate {
@@ -22,7 +23,7 @@ export class AccessJwtAuthGuard implements CanActivate {
       return true;
     }
     const verified = await this.accessJwtService.verifyAccessToken(token);
-    req.authenticatedUser = verifiedAccessTokenToUser(verified);
+    req.user = verifiedAccessTokenToUser(verified);
     return true;
   }
 }
