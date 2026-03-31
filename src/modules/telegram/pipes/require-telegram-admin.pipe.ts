@@ -5,9 +5,8 @@ import type { User } from '../types/user.types';
 type BodyAfterTelegramAuth = Record<string, unknown> & { user: User };
 
 /**
- * Enforces {@link User.isAdmin} after {@link TelegramInitDataUserPipe}.
- *
- * Use a pipe (not a Nest guard): guards run before parameter pipes, so `user` is not on the body yet.
+ * Enforces {@link User.isAdmin} on `body.user` after {@link TelegramInitDataUserPipe}
+ * merged `req.authenticatedUser` into the body.
  */
 @Injectable()
 export class RequireTelegramAdminPipe implements PipeTransform<

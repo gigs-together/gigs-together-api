@@ -15,7 +15,7 @@ export class V1GigLookupFields {
 }
 
 /**
- * Request body after {@link TelegramInitDataUserPipe} (init data stripped, `user` attached).
+ * Request body after {@link TelegramInitDataUserPipe} (`user` attached from route guards).
  */
 export interface GigLookupBodyAfterTelegramAuth {
   readonly user: User;

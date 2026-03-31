@@ -4,9 +4,12 @@ import {
   HttpCode,
   HttpStatus,
   Post,
+  UseGuards,
   Version,
 } from '@nestjs/common';
 import { AccessJwtService } from '../auth/access-jwt.service';
+import { AccessJwtAuthGuard } from './guards/access-jwt-auth.guard';
+import { TelegramInitDataAuthGuard } from './guards/telegram-init-data-auth.guard';
 import { tgUserToTelegramAccessIdentity } from './mappers/access-token-user.mapper';
 import { TelegramInitDataUserPipe } from './pipes/telegram-init-data-user.pipe';
 import type { V1TelegramExchangeRequestBodyValidated } from './types/requests/v1-telegram-exchange-request';
@@ -19,6 +22,7 @@ export class TelegramAuthController {
   @Version('1')
   @Post('telegram')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(AccessJwtAuthGuard, TelegramInitDataAuthGuard)
   async exchange(
     @Body(TelegramInitDataUserPipe)
     body: V1TelegramExchangeRequestBodyValidated,

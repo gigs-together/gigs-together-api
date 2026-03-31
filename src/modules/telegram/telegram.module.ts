@@ -9,6 +9,8 @@ import { TelegramInitDataUserPipe } from './pipes/telegram-init-data-user.pipe';
 import { RequireTelegramAdminPipe } from './pipes/require-telegram-admin.pipe';
 import { TelegramAuthController } from './telegram-auth.controller';
 import { AccessJwtAuthGuard } from './guards/access-jwt-auth.guard';
+import { TelegramInitDataAuthGuard } from './guards/telegram-init-data-auth.guard';
+import { TelegramInitDataAuthService } from './telegram-init-data-auth.service';
 
 @Module({
   imports: [
@@ -28,15 +30,19 @@ import { AccessJwtAuthGuard } from './guards/access-jwt-auth.guard';
   controllers: [TelegramAuthController],
   providers: [
     TelegramService,
+    TelegramInitDataAuthService,
     TelegramInitDataUserPipe,
     RequireTelegramAdminPipe,
     AccessJwtAuthGuard,
+    TelegramInitDataAuthGuard,
   ],
   exports: [
     TelegramService,
+    TelegramInitDataAuthService,
     TelegramInitDataUserPipe,
     RequireTelegramAdminPipe,
     AccessJwtAuthGuard,
+    TelegramInitDataAuthGuard,
     AuthModule,
   ],
 })

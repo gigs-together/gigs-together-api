@@ -32,6 +32,7 @@ import type { V1GigGetForEditRequestBodyValidated } from './types/requests/v1-gi
 import type { GigFormDataByPublicId } from './types/gig.types';
 import { RequireTelegramAdminPipe } from '../telegram/pipes/require-telegram-admin.pipe';
 import { AccessJwtAuthGuard } from '../telegram/guards/access-jwt-auth.guard';
+import { TelegramInitDataAuthGuard } from '../telegram/guards/telegram-init-data-auth.guard';
 
 @Controller('gig')
 export class GigController {
@@ -71,11 +72,11 @@ export class GigController {
   /**
    * Admin: draft gig fields for the edit form (Telegram WebApp).
    */
-  // TODO: move tg auth to headers
+  // TODO: convert to GET?
   @Version('1')
   @Post('get')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AccessJwtAuthGuard)
+  @UseGuards(AccessJwtAuthGuard, TelegramInitDataAuthGuard)
   getGigDraftForEdit(
     @Body(TelegramInitDataUserPipe, RequireTelegramAdminPipe)
     body: V1GigGetForEditRequestBodyValidated,
@@ -106,7 +107,7 @@ export class GigController {
   @Version('1')
   @Post('lookup')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AccessJwtAuthGuard)
+  @UseGuards(AccessJwtAuthGuard, TelegramInitDataAuthGuard)
   async lookupGigV1(
     @Body(TelegramInitDataUserPipe, GigLookupBodyPipe)
     body: V1GigLookupRequestBodyValidated,
