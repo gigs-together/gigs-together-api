@@ -532,6 +532,7 @@ export class TelegramService {
     if (!Number.isFinite(authDate) || authDate <= 0) {
       throw new Error('Invalid auth_date in Telegram initData');
     }
+    // Default 86_400 s = 24 h = 1_440 min
     const maxAgeSec = Number(
       process.env.TELEGRAM_INIT_DATA_MAX_AGE_SEC ?? 86_400,
     );

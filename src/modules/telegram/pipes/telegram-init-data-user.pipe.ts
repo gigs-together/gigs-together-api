@@ -2,8 +2,12 @@ import type { PipeTransform } from '@nestjs/common';
 import {
   BadRequestException,
   ForbiddenException,
+  Inject,
   Injectable,
+  Scope,
 } from '@nestjs/common';
+import { REQUEST } from '@nestjs/core';
+import type { Request } from 'express';
 import { AuthService } from '../../auth/auth.service';
 import { TelegramInitDataAuthExpiredError } from '../telegram-init-data.errors';
 import { TelegramService } from '../telegram.service';
@@ -16,17 +20,19 @@ export const TELEGRAM_INIT_DATA_EXPIRED_CODE =
 type AnyBody = Record<string, unknown> & { telegramInitDataString?: unknown };
 
 /**
- * Validates Telegram WebApp initData (`telegramInitDataString`) and attaches `user`.
+ * Resolves the Telegram Web App user either from `Authorization: Bearer` (set by
+ * {@link AccessJwtAuthGuard}) or by validating `telegramInitDataString` in the body.
  *
  * Removes `telegramInitDataString` from the returned object so controllers/services
  * don't accidentally rely on it.
  */
-@Injectable()
+@Injectable({ scope: Scope.REQUEST })
 export class TelegramInitDataUserPipe implements PipeTransform<
   AnyBody,
   Promise<Record<string, unknown> & { user: User }>
 > {
   constructor(
+    @Inject(REQUEST) private readonly req: Request,
     private readonly telegramService: TelegramService,
     private readonly authService: AuthService,
   ) {}
@@ -40,6 +46,15 @@ export class TelegramInitDataUserPipe implements PipeTransform<
         : null;
     if (!body) {
       throw new BadRequestException('Body must be an object');
+    }
+
+    const fromJwt = this.req.authenticatedUser;
+    if (fromJwt) {
+      const { telegramInitDataString: _drop, ...rest } = body;
+      return {
+        ...rest,
+        user: fromJwt,
+      };
     }
 
     const telegramInitDataString =
@@ -83,7 +98,7 @@ export class TelegramInitDataUserPipe implements PipeTransform<
       if (e instanceof TelegramInitDataAuthExpiredError) {
         throw new ForbiddenException({
           message:
-            'Your Telegram session data is out of date. Please reload this page so Telegram can send fresh data — for example pull to refresh in the mini app, or close and reopen the app from the bot chat.',
+            'Your Telegram authentication data is out of date. Please reload this page so Telegram can send fresh data — for example pull to refresh in the mini app, or close and reopen the app from the bot chat.',
           code: TELEGRAM_INIT_DATA_EXPIRED_CODE,
         });
       }

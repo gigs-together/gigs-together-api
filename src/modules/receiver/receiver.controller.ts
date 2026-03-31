@@ -19,6 +19,7 @@ import { ReceiverExceptionFilter } from './filters/receiver-exception.filter';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { ReceiverWebhookGuard } from './guards/receiver-webhook.guard';
+import { AccessJwtAuthGuard } from '../telegram/guards/access-jwt-auth.guard';
 import { ReceiverWebhookExceptionFilter } from './filters/receiver-webhook-exception.filter';
 import type { ReceiverWebhookRequest } from './guards/receiver-webhook.guard';
 import { GigBodyPipe } from './pipes/gig-body.pipe';
@@ -68,6 +69,7 @@ export class ReceiverController {
   @Version('1')
   @Post('gig')
   @HttpCode(201)
+  @UseGuards(AccessJwtAuthGuard)
   @UseInterceptors(PosterFileInterceptor)
   createGig(
     @UploadedFile() posterFile: Express.Multer.File | undefined,
@@ -81,6 +83,7 @@ export class ReceiverController {
   @Version('1')
   @Patch('gig/:publicId')
   @HttpCode(200)
+  @UseGuards(AccessJwtAuthGuard)
   @UseInterceptors(PosterFileInterceptor)
   updateGigByPublicId(
     @Param('publicId') publicId: string,

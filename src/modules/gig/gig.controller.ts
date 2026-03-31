@@ -7,6 +7,7 @@ import {
   Param,
   Post,
   Query,
+  UseGuards,
   Version,
 } from '@nestjs/common';
 import { GigService } from './gig.service';
@@ -30,6 +31,7 @@ import type { V1GigByPublicIdGetResponseBody } from './types/requests/v1-gig-by-
 import type { V1GigGetForEditRequestBodyValidated } from './types/requests/v1-gig-get-for-edit-request';
 import type { GigFormDataByPublicId } from './types/gig.types';
 import { RequireTelegramAdminPipe } from '../telegram/pipes/require-telegram-admin.pipe';
+import { AccessJwtAuthGuard } from '../telegram/guards/access-jwt-auth.guard';
 
 @Controller('gig')
 export class GigController {
@@ -73,6 +75,7 @@ export class GigController {
   @Version('1')
   @Post('get')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(AccessJwtAuthGuard)
   getGigDraftForEdit(
     @Body(TelegramInitDataUserPipe, RequireTelegramAdminPipe)
     body: V1GigGetForEditRequestBodyValidated,
@@ -103,6 +106,7 @@ export class GigController {
   @Version('1')
   @Post('lookup')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(AccessJwtAuthGuard)
   async lookupGigV1(
     @Body(TelegramInitDataUserPipe, GigLookupBodyPipe)
     body: V1GigLookupRequestBodyValidated,

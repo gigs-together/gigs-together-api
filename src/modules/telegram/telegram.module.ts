@@ -7,6 +7,8 @@ import { BucketModule } from '../bucket/bucket.module';
 import { AuthModule } from '../auth/auth.module';
 import { TelegramInitDataUserPipe } from './pipes/telegram-init-data-user.pipe';
 import { RequireTelegramAdminPipe } from './pipes/require-telegram-admin.pipe';
+import { TelegramAuthController } from './telegram-auth.controller';
+import { AccessJwtAuthGuard } from './guards/access-jwt-auth.guard';
 
 @Module({
   imports: [
@@ -23,15 +25,18 @@ import { RequireTelegramAdminPipe } from './pipes/require-telegram-admin.pipe';
     BucketModule,
     AuthModule,
   ],
+  controllers: [TelegramAuthController],
   providers: [
     TelegramService,
     TelegramInitDataUserPipe,
     RequireTelegramAdminPipe,
+    AccessJwtAuthGuard,
   ],
   exports: [
     TelegramService,
     TelegramInitDataUserPipe,
     RequireTelegramAdminPipe,
+    AccessJwtAuthGuard,
     AuthModule,
   ],
 })
