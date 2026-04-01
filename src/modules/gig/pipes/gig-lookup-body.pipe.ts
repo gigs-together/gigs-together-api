@@ -5,11 +5,12 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { isRecord } from '../../../shared/utils/is-record';
-import { V1GigLookupFields } from '../types/requests/v1-gig-lookup-request';
+import type { V1GigLookupFields } from '../types/requests/v1-gig-lookup-request';
+import { V1GigLookupBodyDto } from '../types/requests/v1-gig-lookup-request';
 
 const lookupFieldsMetadata: ArgumentMetadata = {
   type: 'body',
-  metatype: V1GigLookupFields,
+  metatype: V1GigLookupBodyDto,
   data: undefined,
 };
 
