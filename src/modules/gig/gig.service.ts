@@ -342,10 +342,8 @@ export class GigService {
     return updated;
   }
 
-  /** Admin edit form: full draft fields (any status). */
-  async getGigDraftForEditByPublicId(
-    publicId: string,
-  ): Promise<GigFormDataByPublicId> {
+  /** Full gig form fields by public id (any status). */
+  async getGigByPublicId(publicId: string): Promise<GigFormDataByPublicId> {
     const gig = await this.getGigByPublicIdOrThrow(publicId);
 
     const externalFallbackEnabled = envBool(
@@ -560,9 +558,9 @@ export class GigService {
   }
 
   /**
-   * Published gig by public id — minimal fields for hash / deep-link resolution (feed client).
+   * Published gig anchor date for hash / deep-link resolution (feed client). Body: `{ date }` only.
    */
-  async getPublishedGigSummaryByPublicId(
+  async getGigDateByPublicId(
     input: V1GigByPublicIdGetInput,
   ): Promise<V1GigByPublicIdGetResponseBody> {
     const publicId = this.normalizeAndValidatePublicIdOrThrow(input.publicId);
@@ -571,10 +569,6 @@ export class GigService {
       publicId,
       status: Status.Published,
     };
-    if (input.city && input.country) {
-      filter.city = input.city;
-      filter.country = input.country;
-    }
 
     const doc = await this.gigModel
       .findOne(filter)
@@ -585,10 +579,7 @@ export class GigService {
     }
 
     return {
-      gig: {
-        id: doc.publicId,
-        date: doc.date.toString(),
-      },
+      date: doc.date.toString(),
     };
   }
 

@@ -22,16 +22,11 @@ import type {
   V1GigLookupResponseBody,
 } from './types/requests/v1-gig-lookup-request';
 import { GigLookupBodyPipe } from './pipes/gig-lookup-body.pipe';
-import {
-  V1GigByPublicIdGetRequestParams,
-  V1GigByPublicIdGetRequestQuery,
-} from './types/requests/v1-gig-by-public-id-get-request';
+import { V1GigByPublicIdGetRequestParams } from './types/requests/v1-gig-by-public-id-get-request';
 import type { V1GigByPublicIdGetResponseBody } from './types/requests/v1-gig-by-public-id-get-request';
-import { V1GigGetForEditBody } from './types/requests/v1-gig-get-for-edit-request';
 import type { GigFormDataByPublicId } from './types/gig.types';
 import { AccessJwtAuthGuard } from '../telegram/guards/access-jwt-auth.guard';
 import { TelegramInitDataAuthGuard } from '../telegram/guards/telegram-init-data-auth.guard';
-import { RequireTelegramAdminGuard } from '../telegram/guards/require-telegram-admin.guard';
 
 @Controller('gig')
 export class GigController {
@@ -69,37 +64,27 @@ export class GigController {
   }
 
   /**
-   * Admin: draft gig fields for the edit form (Telegram WebApp).
+   * Public: anchor calendar date for hash / deep links (`{ date }` only).
    */
-  // TODO: convert to GET?
   @Version('1')
-  @Post('get')
-  @HttpCode(HttpStatus.OK)
-  @UseGuards(
-    AccessJwtAuthGuard,
-    TelegramInitDataAuthGuard,
-    RequireTelegramAdminGuard,
-  )
-  getGigDraftForEdit(
-    @Body() body: V1GigGetForEditBody,
-  ): Promise<GigFormDataByPublicId> {
-    return this.gigService.getGigDraftForEditByPublicId(body.publicId);
+  @Get('date/:publicId')
+  getGigDateByPublicId(
+    @Param() params: V1GigByPublicIdGetRequestParams,
+  ): Promise<V1GigByPublicIdGetResponseBody> {
+    return this.gigService.getGigDateByPublicId({
+      publicId: params.publicId,
+    });
   }
 
   /**
-   * Public: minimal published gig by public id (id + date) for hash / deep-link anchor.
+   * Public: full gig form fields by `publicId` (any status; for display / edit UI).
    */
   @Version('1')
   @Get(':publicId')
-  getPublishedGigSummaryByPublicId(
+  getGigByPublicId(
     @Param() params: V1GigByPublicIdGetRequestParams,
-    @Query() query: V1GigByPublicIdGetRequestQuery,
-  ): Promise<V1GigByPublicIdGetResponseBody> {
-    return this.gigService.getPublishedGigSummaryByPublicId({
-      publicId: params.publicId,
-      city: query.city,
-      country: query.country,
-    });
+  ): Promise<GigFormDataByPublicId> {
+    return this.gigService.getGigByPublicId(params.publicId);
   }
 
   /**
