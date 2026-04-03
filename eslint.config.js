@@ -2,6 +2,7 @@ const tseslint = require('@typescript-eslint/eslint-plugin');
 const tsparser = require('@typescript-eslint/parser');
 const prettier = require('eslint-plugin-prettier');
 const prettierConfig = require('eslint-config-prettier');
+const importPlugin = require('eslint-plugin-import');
 
 module.exports = [
   {
@@ -21,6 +22,7 @@ module.exports = [
     plugins: {
       '@typescript-eslint': tseslint,
       prettier: prettier,
+      import: importPlugin,
     },
     rules: {
       ...prettierConfig.rules,
@@ -42,8 +44,11 @@ module.exports = [
         'error',
         {
           prefer: 'type-imports',
+          fixStyle: 'separate-type-imports',
         },
       ],
+      // consistent-type-imports does not flag inline `import { value, type T }` (TS 4.5+); this rule does.
+      'import/consistent-type-specifier-style': ['error', 'prefer-top-level'],
       'prettier/prettier': 'error',
     },
   },
