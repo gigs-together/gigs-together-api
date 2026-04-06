@@ -8,10 +8,10 @@ import type { Request } from 'express';
 import type { User } from '../../../shared/types/user.types';
 
 /**
- * Requires `req.user.isAdmin === true` (after JWT / initData guards).
+ * Requires `req.user.isAdmin === true`. How `isAdmin` is set on `req.user` is not this guard's concern.
  */
 @Injectable()
-export class RequireTelegramAdminGuard implements CanActivate {
+export class RequireAdminGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const req = context.switchToHttp().getRequest<Request & { user?: User }>();
     if (req.user?.isAdmin !== true) {

@@ -7,11 +7,9 @@ import { BucketModule } from '../bucket/bucket.module';
 import { AuthModule } from '../auth/auth.module';
 import { TelegramAuthController } from './telegram-auth.controller';
 import { AccessJwtAuthGuard } from './guards/access-jwt-auth.guard';
-import { TelegramInitDataAuthGuard } from './guards/telegram-init-data-auth.guard';
 import { TelegramInitDataAuthService } from './telegram-init-data-auth.service';
 import { TelegramAccessExchangeService } from './telegram-access-exchange.service';
 import { TelegramLoginWidgetAuthService } from './telegram-login-widget-auth.service';
-import { RequireTelegramAdminGuard } from './guards/require-telegram-admin.guard';
 
 @Module({
   imports: [
@@ -35,15 +33,11 @@ import { RequireTelegramAdminGuard } from './guards/require-telegram-admin.guard
     TelegramAccessExchangeService,
     TelegramLoginWidgetAuthService,
     AccessJwtAuthGuard,
-    TelegramInitDataAuthGuard,
-    RequireTelegramAdminGuard,
   ],
   exports: [
     TelegramService,
     TelegramInitDataAuthService,
     AccessJwtAuthGuard,
-    TelegramInitDataAuthGuard,
-    RequireTelegramAdminGuard,
     AuthModule,
   ],
 })

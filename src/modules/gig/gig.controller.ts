@@ -25,8 +25,8 @@ import { GigLookupBodyPipe } from './pipes/gig-lookup-body.pipe';
 import { V1GigByPublicIdGetRequestParams } from './types/requests/v1-gig-by-public-id-get-request';
 import type { V1GigByPublicIdGetResponseBody } from './types/requests/v1-gig-by-public-id-get-request';
 import type { GigFormDataByPublicId } from './types/gig.types';
+import { RequireAuthenticatedUserGuard } from '../auth/guards/require-authenticated-user.guard';
 import { AccessJwtAuthGuard } from '../telegram/guards/access-jwt-auth.guard';
-import { TelegramInitDataAuthGuard } from '../telegram/guards/telegram-init-data-auth.guard';
 
 @Controller('gig')
 export class GigController {
@@ -94,7 +94,7 @@ export class GigController {
   @Version('1')
   @Post('lookup')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AccessJwtAuthGuard, TelegramInitDataAuthGuard)
+  @UseGuards(AccessJwtAuthGuard, RequireAuthenticatedUserGuard)
   async lookupGigV1(
     @Body(GigLookupBodyPipe) fields: V1GigLookupFields,
   ): Promise<V1GigLookupResponseBody> {
