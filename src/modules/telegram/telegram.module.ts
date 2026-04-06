@@ -9,6 +9,8 @@ import { TelegramAuthController } from './telegram-auth.controller';
 import { AccessJwtAuthGuard } from './guards/access-jwt-auth.guard';
 import { TelegramInitDataAuthGuard } from './guards/telegram-init-data-auth.guard';
 import { TelegramInitDataAuthService } from './telegram-init-data-auth.service';
+import { TelegramAccessExchangeService } from './telegram-access-exchange.service';
+import { TelegramLoginWidgetAuthService } from './telegram-login-widget-auth.service';
 import { RequireTelegramAdminGuard } from './guards/require-telegram-admin.guard';
 
 @Module({
@@ -30,6 +32,8 @@ import { RequireTelegramAdminGuard } from './guards/require-telegram-admin.guard
   providers: [
     TelegramService,
     TelegramInitDataAuthService,
+    TelegramAccessExchangeService,
+    TelegramLoginWidgetAuthService,
     AccessJwtAuthGuard,
     TelegramInitDataAuthGuard,
     RequireTelegramAdminGuard,

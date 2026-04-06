@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { ForbiddenException, Inject, Injectable, Logger } from '@nestjs/common';
 import type {
   InputFile,
   TGEditMessageCaption,
@@ -25,6 +25,7 @@ import { PostType } from '../gig/types/postType.enum';
 import { Messenger } from '../gig/types/messenger.enum';
 import { logError } from '../../shared/utils/logging';
 import { TelegramInitDataAuthExpiredError } from './telegram-init-data.errors';
+import type { TelegramLoginWidgetValidationPayload } from './types/telegram-login-widget-validation-payload';
 
 interface PublishPayload {
   caption: string;
@@ -532,6 +533,66 @@ export class TelegramService {
     if (!Number.isFinite(authDate) || authDate <= 0) {
       throw new Error('Invalid auth_date in Telegram initData');
     }
+    this.rejectTelegramAuthDateIfExpired(authDate);
+  }
+
+  /**
+   * Validates Telegram Login Widget payload (browser callback) per
+   * https://core.telegram.org/widgets/login#checking-authorization
+   */
+  validateTelegramLoginWidget(
+    payload: TelegramLoginWidgetValidationPayload,
+  ): void {
+    const botToken = process.env.BOT_TOKEN;
+    if (!botToken?.trim()) {
+      throw new ForbiddenException('Telegram bot is not configured');
+    }
+
+    const pairs: [string, string][] = [
+      ['auth_date', String(payload.auth_date)],
+      ['first_name', payload.first_name],
+      ['id', String(payload.id)],
+    ];
+    if (payload.last_name !== undefined) {
+      pairs.push(['last_name', payload.last_name]);
+    }
+    if (payload.username !== undefined) {
+      pairs.push(['username', payload.username]);
+    }
+    if (payload.photo_url !== undefined) {
+      pairs.push(['photo_url', payload.photo_url]);
+    }
+
+    pairs.sort((a, b) => a[0].localeCompare(b[0]));
+    const dataCheckString = pairs.map(([k, v]) => `${k}=${v}`).join('\n');
+
+    const secretKey = crypto.createHash('sha256').update(botToken).digest();
+    const hmac = crypto
+      .createHmac('sha256', secretKey)
+      .update(dataCheckString)
+      .digest('hex');
+
+    if (hmac !== payload.hash) {
+      throw new ForbiddenException('Invalid Telegram login data');
+    }
+  }
+
+  /**
+   * Rejects Login Widget payloads whose auth_date is too old (replay protection).
+   * Uses {@link rejectTelegramAuthDateIfExpired} (same window as WebApp initData).
+   */
+  validateTelegramLoginWidgetAuthDate(authDateSec: number): void {
+    if (!Number.isFinite(authDateSec) || authDateSec <= 0) {
+      throw new ForbiddenException('Invalid Telegram login auth_date');
+    }
+    this.rejectTelegramAuthDateIfExpired(authDateSec);
+  }
+
+  /**
+   * Replay protection: rejects Unix `auth_date` older than TELEGRAM_INIT_DATA_MAX_AGE_SEC
+   * (default 86_400 s = 24 h = 1_440 min).
+   */
+  private rejectTelegramAuthDateIfExpired(authDateSec: number): void {
     // Default 86_400 s = 24 h = 1_440 min
     const maxAgeSec = Number(
       process.env.TELEGRAM_INIT_DATA_MAX_AGE_SEC ?? 86_400,
@@ -540,7 +601,7 @@ export class TelegramService {
       throw new Error('Invalid TELEGRAM_INIT_DATA_MAX_AGE_SEC');
     }
     const nowSec = Math.floor(Date.now() / 1000);
-    if (nowSec - authDate > maxAgeSec) {
+    if (nowSec - authDateSec > maxAgeSec) {
       throw new TelegramInitDataAuthExpiredError();
     }
   }
