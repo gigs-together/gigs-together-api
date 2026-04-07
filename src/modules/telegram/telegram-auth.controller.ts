@@ -48,7 +48,7 @@ export class TelegramAuthController {
       accessToken,
       expiresIn,
     );
-    return { expiresIn, profile };
+    return { profile };
   }
 
   /**
@@ -74,6 +74,6 @@ export class TelegramAuthController {
       accessToken,
       expiresIn,
     );
-    return { expiresIn, profile };
+    return { profile };
   }
 }

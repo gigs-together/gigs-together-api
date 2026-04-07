@@ -4,7 +4,7 @@ import type { ConfigService } from '@nestjs/config';
 const DEFAULT_EXPIRES_IN_SEC = 86_400;
 
 /**
- * JWT lifetime in seconds (must match `signOptions.expiresIn` and API `expiresIn`).
+ * JWT lifetime in seconds (must match `signOptions.expiresIn` and cookie `maxAge`).
  */
 export function getJwtExpiresInSeconds(config: ConfigService): number {
   const raw = config.get<string>('JWT_EXPIRES_IN_SEC');

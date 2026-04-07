@@ -16,8 +16,7 @@ export interface V1TelegramAccessTokenExchangeResult {
   readonly profile: V1TelegramClientProfile;
 }
 
+/** JSON body for Telegram auth exchange endpoints (JWT is HttpOnly; only public profile here). */
 export interface V1TelegramExchangeResponseBody {
-  /** Access token time-to-live in seconds (informational; matches JWT `exp`). */
-  readonly expiresIn: number;
   readonly profile: V1TelegramClientProfile;
 }
