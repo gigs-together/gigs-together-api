@@ -4,8 +4,11 @@ import {
   HttpCode,
   HttpStatus,
   Post,
+  Res,
   Version,
 } from '@nestjs/common';
+import type { Response } from 'express';
+import { AccessTokenCookieService } from '../auth/access-token-cookie.service';
 import { TelegramAccessExchangeService } from './telegram-access-exchange.service';
 import { TelegramInitDataAuthService } from './telegram-init-data-auth.service';
 import { TelegramLoginWidgetAuthService } from './telegram-login-widget-auth.service';
@@ -16,6 +19,7 @@ import { V1TelegramWebAppBodyDto } from './types/requests/v1-telegram-web-app-bo
 @Controller('auth')
 export class TelegramAuthController {
   constructor(
+    private readonly accessTokenCookieService: AccessTokenCookieService,
     private readonly telegramAccessExchangeService: TelegramAccessExchangeService,
     private readonly telegramInitDataAuthService: TelegramInitDataAuthService,
     private readonly telegramLoginWidgetAuthService: TelegramLoginWidgetAuthService,
@@ -29,14 +33,22 @@ export class TelegramAuthController {
   @HttpCode(HttpStatus.OK)
   async exchangeWebApp(
     @Body() body: V1TelegramWebAppBodyDto,
+    @Res({ passthrough: true }) res: Response,
   ): Promise<V1TelegramExchangeResponseBody> {
     const user =
       await this.telegramInitDataAuthService.resolveUserFromInitDataString(
         body.initData,
       );
-    return this.telegramAccessExchangeService.buildAccessTokenExchangeResponse(
-      user.tgUser,
+    const { accessToken, expiresIn, profile } =
+      await this.telegramAccessExchangeService.buildAccessTokenExchange(
+        user.tgUser,
+      );
+    this.accessTokenCookieService.setAccessTokenCookie(
+      res,
+      accessToken,
+      expiresIn,
     );
+    return { expiresIn, profile };
   }
 
   /**
@@ -47,13 +59,21 @@ export class TelegramAuthController {
   @HttpCode(HttpStatus.OK)
   async exchangeLoginWidget(
     @Body() body: V1TelegramLoginWidgetBodyDto,
+    @Res({ passthrough: true }) res: Response,
   ): Promise<V1TelegramExchangeResponseBody> {
     const user =
       await this.telegramLoginWidgetAuthService.resolveUserFromLoginWidget(
         body,
       );
-    return this.telegramAccessExchangeService.buildAccessTokenExchangeResponse(
-      user.tgUser,
+    const { accessToken, expiresIn, profile } =
+      await this.telegramAccessExchangeService.buildAccessTokenExchange(
+        user.tgUser,
+      );
+    this.accessTokenCookieService.setAccessTokenCookie(
+      res,
+      accessToken,
+      expiresIn,
     );
+    return { expiresIn, profile };
   }
 }

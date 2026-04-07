@@ -6,6 +6,8 @@ import { getJwtExpiresInSeconds } from './auth-jwt-expires';
 import { AccessJwtService } from './access-jwt.service';
 import { RequireAdminGuard } from './guards/require-admin.guard';
 import { RequireAuthenticatedUserGuard } from './guards/require-authenticated-user.guard';
+import { AccessTokenCookieService } from './access-token-cookie.service';
+import { AuthController } from './auth.controller';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Admin, AdminSchema } from '../../shared/schemas/admin.schema';
 
@@ -31,15 +33,18 @@ import { Admin, AdminSchema } from '../../shared/schemas/admin.schema';
       },
     }),
   ],
+  controllers: [AuthController],
   providers: [
     AuthService,
     AccessJwtService,
+    AccessTokenCookieService,
     RequireAuthenticatedUserGuard,
     RequireAdminGuard,
   ],
   exports: [
     AuthService,
     AccessJwtService,
+    AccessTokenCookieService,
     RequireAuthenticatedUserGuard,
     RequireAdminGuard,
     JwtModule,
