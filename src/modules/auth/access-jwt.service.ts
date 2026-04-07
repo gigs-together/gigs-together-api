@@ -12,7 +12,7 @@ import type {
   AccessTokenIdentityPayload,
   AccessTokenPayload,
   VerifiedAccessToken,
-} from './types/access-token-identity.types';
+} from '../../shared/types/access-token-identity.types';
 
 /** Raw JWT body after `verify` (may include `typ: 'refresh'` only if mis-signed with access secret). */
 interface AccessJwtVerifiedShape {

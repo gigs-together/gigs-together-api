@@ -1,13 +1,13 @@
-import type { AccessTokenIdentityPayload } from './types/access-token-identity.types';
-import type { V1TelegramClientProfile } from '../telegram/types/requests/v1-telegram-exchange-response';
-import { isRecord } from '../../shared/utils/is-record';
+import type { AccessTokenIdentityPayload } from '../types/access-token-identity.types';
+import type { AuthClientProfile } from '../types/auth-client-profile.types';
+import { isRecord } from '../utils/is-record';
 
 /**
- * Builds {@link V1TelegramClientProfile} from a verified Telegram access/refresh identity.
+ * Builds {@link AuthClientProfile} from a verified access/refresh identity (e.g. after JWT verify).
  */
-export function clientProfileFromTelegramIdentity(
+export function authClientProfileFromAccessTokenIdentity(
   identity: AccessTokenIdentityPayload,
-): V1TelegramClientProfile {
+): AuthClientProfile {
   if (identity.kind !== 'telegram') {
     throw new Error('Unsupported identity for client profile');
   }

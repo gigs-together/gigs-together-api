@@ -9,11 +9,11 @@ import {
   Version,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { authClientProfileFromAccessTokenIdentity } from '../../shared/mappers/auth-client-profile-from-identity';
+import type { AuthClientProfileResponseBody } from '../../shared/types/auth-client-profile.types';
 import { AccessJwtService } from './access-jwt.service';
 import { AuthCookiesService } from './auth-cookies.service';
-import { clientProfileFromTelegramIdentity } from './client-profile-from-telegram-identity';
 import { RefreshJwtService } from './refresh-jwt.service';
-import type { V1TelegramExchangeResponseBody } from '../telegram/types/requests/v1-telegram-exchange-response';
 
 @Controller('auth')
 export class AuthController {
@@ -32,7 +32,7 @@ export class AuthController {
   async refresh(
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
-  ): Promise<V1TelegramExchangeResponseBody> {
+  ): Promise<AuthClientProfileResponseBody> {
     const refreshName = this.authCookiesService.getRefreshCookieName();
     const token = req.cookies?.[refreshName]?.trim();
     if (!token) {
@@ -51,7 +51,7 @@ export class AuthController {
       newRefresh,
       this.refreshJwtService.getExpiresInSeconds(),
     );
-    return { profile: clientProfileFromTelegramIdentity(identity) };
+    return { profile: authClientProfileFromAccessTokenIdentity(identity) };
   }
 
   /**

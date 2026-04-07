@@ -1,5 +1,5 @@
 import { UnauthorizedException } from '@nestjs/common';
-import type { AccessTokenIdentityPayload } from './types/access-token-identity.types';
+import type { AccessTokenIdentityPayload } from '../../shared/types/access-token-identity.types';
 
 export function subjectFromAccessIdentity(
   identity: AccessTokenIdentityPayload,

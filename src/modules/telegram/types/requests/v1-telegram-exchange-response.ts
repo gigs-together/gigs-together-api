@@ -1,10 +1,12 @@
+import type {
+  AuthClientProfile,
+  AuthClientProfileResponseBody,
+} from '../../../../shared/types/auth-client-profile.types';
+
 /**
- * Public Telegram user fields for client UI (no secrets). The access JWT is set as an HttpOnly cookie.
+ * Same shape as {@link AuthClientProfile}; kept for Telegram route naming in API docs.
  */
-export interface V1TelegramClientProfile {
-  readonly displayLabel: string;
-  readonly photoUrl?: string;
-}
+export type V1TelegramClientProfile = AuthClientProfile;
 
 /**
  * Result of signing access + refresh JWTs and building the public profile (cookies set by the controller).
@@ -20,6 +22,4 @@ export interface V1TelegramAccessTokenExchangeResult {
 }
 
 /** JSON body for Telegram auth exchange endpoints (JWT is HttpOnly; only public profile here). */
-export interface V1TelegramExchangeResponseBody {
-  readonly profile: V1TelegramClientProfile;
-}
+export type V1TelegramExchangeResponseBody = AuthClientProfileResponseBody;

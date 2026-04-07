@@ -8,8 +8,13 @@ import { ConfigService } from '@nestjs/config';
 import { AdminService } from '../admin/admin.service';
 import { getJwtRefreshExpiresInSeconds } from './auth-jwt-expires';
 import { subjectFromAccessIdentity } from './subject-from-access-identity';
-import type { AccessTokenIdentityPayload } from './types/access-token-identity.types';
-import type { RefreshTokenJwtPayload } from './types/refresh-token-jwt.types';
+import { AccessTokenIdentityPayload } from '../../shared/types/access-token-identity.types';
+
+export interface RefreshTokenJwtPayload {
+  readonly sub: string;
+  readonly typ: 'refresh';
+  readonly identity: AccessTokenIdentityPayload;
+}
 
 /**
  * Signs and verifies refresh JWTs (`typ: 'refresh'`, same `identity` as access).

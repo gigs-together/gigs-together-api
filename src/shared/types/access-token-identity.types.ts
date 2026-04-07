@@ -1,5 +1,5 @@
 /**
- * Identity carried inside the access JWT (`identity` claim). Extend the union when adding
+ * Identity carried inside access/refresh JWTs (`identity` claim). Extend the union when adding
  * non-Telegram login flows.
  */
 export type AccessTokenIdentityPayload = TelegramAccessTokenIdentity;
@@ -29,7 +29,7 @@ export interface AccessTokenPayload {
 }
 
 /**
- * Result of verifying an access token (before mapping to API {@link User}).
+ * Result of verifying an access token (before mapping to the API user DTO).
  */
 export interface VerifiedAccessToken {
   readonly identity: AccessTokenIdentityPayload;
