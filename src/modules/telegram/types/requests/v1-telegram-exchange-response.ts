@@ -7,12 +7,15 @@ export interface V1TelegramClientProfile {
 }
 
 /**
- * Result of signing an access JWT and building the public profile (cookie is set by the controller).
+ * Result of signing access + refresh JWTs and building the public profile (cookies set by the controller).
  */
 export interface V1TelegramAccessTokenExchangeResult {
   readonly accessToken: string;
-  /** Access token lifetime in seconds (same as JWT `expiresIn` / sign options). */
-  readonly expiresIn: number;
+  /** Access token lifetime in seconds. */
+  readonly accessExpiresIn: number;
+  readonly refreshToken: string;
+  /** Refresh token lifetime in seconds. */
+  readonly refreshExpiresIn: number;
   readonly profile: V1TelegramClientProfile;
 }
 

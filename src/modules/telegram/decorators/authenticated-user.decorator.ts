@@ -3,7 +3,7 @@ import { createParamDecorator, ForbiddenException } from '@nestjs/common';
 import type { User } from '../../../shared/types/user.types';
 
 /**
- * Injects `req.user` set by AccessJwtAuthGuard (Bearer JWT).
+ * Injects `req.user` set by AccessJwtAuthGuard (access JWT cookie).
  */
 export const AuthenticatedUser = createParamDecorator(
   (_data: unknown, ctx: ExecutionContext): User => {

@@ -8,7 +8,7 @@ import {
   Version,
 } from '@nestjs/common';
 import type { Response } from 'express';
-import { AccessTokenCookieService } from '../auth/access-token-cookie.service';
+import { AuthCookiesService } from '../auth/auth-cookies.service';
 import { TelegramAccessExchangeService } from './telegram-access-exchange.service';
 import { TelegramInitDataAuthService } from './telegram-init-data-auth.service';
 import { TelegramLoginWidgetAuthService } from './telegram-login-widget-auth.service';
@@ -19,7 +19,7 @@ import { V1TelegramWebAppBodyDto } from './types/requests/v1-telegram-web-app-bo
 @Controller('auth')
 export class TelegramAuthController {
   constructor(
-    private readonly accessTokenCookieService: AccessTokenCookieService,
+    private readonly authCookiesService: AuthCookiesService,
     private readonly telegramAccessExchangeService: TelegramAccessExchangeService,
     private readonly telegramInitDataAuthService: TelegramInitDataAuthService,
     private readonly telegramLoginWidgetAuthService: TelegramLoginWidgetAuthService,
@@ -39,16 +39,21 @@ export class TelegramAuthController {
       await this.telegramInitDataAuthService.resolveUserFromInitDataString(
         body.initData,
       );
-    const { accessToken, expiresIn, profile } =
+    const exchange =
       await this.telegramAccessExchangeService.buildAccessTokenExchange(
         user.tgUser,
       );
-    this.accessTokenCookieService.setAccessTokenCookie(
+    this.authCookiesService.setAccessTokenCookie(
       res,
-      accessToken,
-      expiresIn,
+      exchange.accessToken,
+      exchange.accessExpiresIn,
     );
-    return { profile };
+    this.authCookiesService.setRefreshTokenCookie(
+      res,
+      exchange.refreshToken,
+      exchange.refreshExpiresIn,
+    );
+    return { profile: exchange.profile };
   }
 
   /**
@@ -65,15 +70,20 @@ export class TelegramAuthController {
       await this.telegramLoginWidgetAuthService.resolveUserFromLoginWidget(
         body,
       );
-    const { accessToken, expiresIn, profile } =
+    const exchange =
       await this.telegramAccessExchangeService.buildAccessTokenExchange(
         user.tgUser,
       );
-    this.accessTokenCookieService.setAccessTokenCookie(
+    this.authCookiesService.setAccessTokenCookie(
       res,
-      accessToken,
-      expiresIn,
+      exchange.accessToken,
+      exchange.accessExpiresIn,
     );
-    return { profile };
+    this.authCookiesService.setRefreshTokenCookie(
+      res,
+      exchange.refreshToken,
+      exchange.refreshExpiresIn,
+    );
+    return { profile: exchange.profile };
   }
 }

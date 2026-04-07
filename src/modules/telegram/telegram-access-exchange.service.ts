@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { AccessJwtService } from '../auth/access-jwt.service';
+import { RefreshJwtService } from '../auth/refresh-jwt.service';
 import { tgUserToTelegramAccessIdentity } from './mappers/access-token-user.mapper';
 import type { TGUser } from './types/user.types';
 import type {
@@ -8,27 +9,39 @@ import type {
 } from './types/requests/v1-telegram-exchange-response';
 
 /**
- * Builds the access-token exchange for Telegram Web App and Login Widget flows.
+ * Builds the access + refresh token exchange for Telegram Web App and Login Widget flows.
  */
 @Injectable()
 export class TelegramAccessExchangeService {
-  constructor(private readonly accessJwtService: AccessJwtService) {}
+  constructor(
+    private readonly accessJwtService: AccessJwtService,
+    private readonly refreshJwtService: RefreshJwtService,
+  ) {}
 
   /**
-   * Signs the access JWT and public profile. The caller sets the token as an HttpOnly cookie.
+   * Signs access and refresh JWTs and the public profile. The caller sets HttpOnly cookies.
    */
   async buildAccessTokenExchange(
     tgUser: TGUser,
   ): Promise<V1TelegramAccessTokenExchangeResult> {
     const identity = tgUserToTelegramAccessIdentity(tgUser);
     const accessToken = await this.accessJwtService.signAccessToken(identity);
-    const expiresIn = this.accessJwtService.getExpiresInSeconds();
+    const refreshToken =
+      await this.refreshJwtService.signRefreshToken(identity);
+    const accessExpiresIn = this.accessJwtService.getExpiresInSeconds();
+    const refreshExpiresIn = this.refreshJwtService.getExpiresInSeconds();
     const profile = this.tgUserToClientProfile(tgUser);
-    return { accessToken, expiresIn, profile };
+    return {
+      accessToken,
+      accessExpiresIn,
+      refreshToken,
+      refreshExpiresIn,
+      profile,
+    };
   }
 
   /**
-   * Non-sensitive profile for the browser (returned in JSON; token is HttpOnly cookie).
+   * Non-sensitive profile for the browser (returned in JSON; tokens are HttpOnly cookies).
    */
   private tgUserToClientProfile(tg: TGUser): V1TelegramClientProfile {
     const username = tg.username;

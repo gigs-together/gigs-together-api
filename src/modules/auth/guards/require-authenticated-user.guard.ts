@@ -7,8 +7,8 @@ import {
 import type { User } from '../../../shared/types/user.types';
 
 /**
- * Requires `req.user` (typically set by a Bearer JWT guard such as
- * `AccessJwtAuthGuard`). Use after that guard on routes that must not be anonymous.
+ * Requires `req.user` (typically set by `AccessJwtAuthGuard`). Use after that guard on routes that
+ * must not be anonymous.
  */
 @Injectable()
 export class RequireAuthenticatedUserGuard implements CanActivate {

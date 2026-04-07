@@ -6,20 +6,19 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
-import { getJwtExpiresInSeconds } from './auth-jwt-expires';
+import { getJwtAccessExpiresInSeconds } from './auth-jwt-expires';
+import { subjectFromAccessIdentity } from './subject-from-access-identity';
 import type {
   AccessTokenIdentityPayload,
   AccessTokenPayload,
   VerifiedAccessToken,
 } from './types/access-token-identity.types';
 
-function subjectFromIdentity(identity: AccessTokenIdentityPayload): string {
-  switch (identity.kind) {
-    case 'telegram':
-      return `telegram:${identity.telegramUserId}`;
-    default:
-      throw new UnauthorizedException('Unsupported access token identity');
-  }
+/** Raw JWT body after `verify` (may include `typ: 'refresh'` only if mis-signed with access secret). */
+interface AccessJwtVerifiedShape {
+  readonly typ?: string;
+  readonly sub?: string;
+  readonly identity?: unknown;
 }
 
 /**
@@ -34,33 +33,60 @@ export class AccessJwtService {
   ) {}
 
   getExpiresInSeconds(): number {
-    return getJwtExpiresInSeconds(this.configService);
+    return getJwtAccessExpiresInSeconds(this.configService);
   }
 
   async signAccessToken(identity: AccessTokenIdentityPayload): Promise<string> {
-    const sub = subjectFromIdentity(identity);
-    const payload: AccessTokenPayload = { sub, identity };
-    return this.jwtService.signAsync(payload);
+    const secret = this.requireAccessSecret();
+    const sub = subjectFromAccessIdentity(identity);
+    const payload: AccessTokenPayload = { sub, typ: 'access', identity };
+    const expiresIn = getJwtAccessExpiresInSeconds(this.configService);
+    return this.jwtService.signAsync(payload, {
+      secret,
+      expiresIn,
+      algorithm: 'HS256',
+    });
   }
 
   async verifyAccessToken(token: string): Promise<VerifiedAccessToken> {
-    let payload: AccessTokenPayload;
+    const secret = this.requireAccessSecret();
+    /** Verified JWT shape before narrowing to {@link AccessTokenPayload} (refresh uses another secret; defense if mis-issued). */
+    let payload: AccessJwtVerifiedShape;
     try {
-      payload = await this.jwtService.verifyAsync<AccessTokenPayload>(token);
+      payload = await this.jwtService.verifyAsync<AccessJwtVerifiedShape>(
+        token,
+        {
+          secret,
+          algorithms: ['HS256'],
+        },
+      );
     } catch {
       throw new UnauthorizedException('Invalid or expired access token');
+    }
+
+    if (payload.typ !== 'access') {
+      throw new UnauthorizedException('Expected access token');
     }
 
     if (!payload?.identity || typeof payload.identity !== 'object') {
       throw new UnauthorizedException('Invalid access token payload');
     }
 
-    const expectedSub = subjectFromIdentity(payload.identity);
+    const identity = payload.identity as AccessTokenIdentityPayload;
+    const expectedSub = subjectFromAccessIdentity(identity);
     if (payload.sub !== expectedSub) {
       throw new UnauthorizedException('Invalid access token subject');
     }
 
-    return this.verifyIdentity(payload.identity);
+    return this.verifyIdentity(identity);
+  }
+
+  private requireAccessSecret(): string {
+    const secret = this.configService.get<string>('JWT_SECRET');
+    if (!secret?.trim()) {
+      throw new Error('JWT_SECRET is required');
+    }
+    return secret.trim();
   }
 
   private async verifyIdentity(
