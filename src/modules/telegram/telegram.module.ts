@@ -3,10 +3,10 @@ import { TelegramService } from './telegram.service';
 import { HttpModule } from '@nestjs/axios';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { CacheModule } from '@nestjs/cache-manager';
+import { AdminModule } from '../admin/admin.module';
 import { BucketModule } from '../bucket/bucket.module';
 import { AuthModule } from '../auth/auth.module';
 import { TelegramAuthController } from './telegram-auth.controller';
-import { AccessJwtAuthGuard } from './guards/access-jwt-auth.guard';
 import { TelegramInitDataAuthService } from './telegram-init-data-auth.service';
 import { TelegramAccessExchangeService } from './telegram-access-exchange.service';
 import { TelegramLoginWidgetAuthService } from './telegram-login-widget-auth.service';
@@ -24,6 +24,7 @@ import { TelegramLoginWidgetAuthService } from './telegram-login-widget-auth.ser
       ttl: 60_000 * 60,
     }),
     BucketModule,
+    AdminModule,
     AuthModule,
   ],
   controllers: [TelegramAuthController],
@@ -32,13 +33,7 @@ import { TelegramLoginWidgetAuthService } from './telegram-login-widget-auth.ser
     TelegramInitDataAuthService,
     TelegramAccessExchangeService,
     TelegramLoginWidgetAuthService,
-    AccessJwtAuthGuard,
   ],
-  exports: [
-    TelegramService,
-    TelegramInitDataAuthService,
-    AccessJwtAuthGuard,
-    AuthModule,
-  ],
+  exports: [TelegramService, TelegramInitDataAuthService, AuthModule],
 })
 export class TelegramModule {}

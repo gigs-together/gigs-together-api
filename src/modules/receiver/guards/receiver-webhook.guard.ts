@@ -1,6 +1,6 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import type { Request } from 'express';
-import { AuthService } from '../../auth/auth.service';
+import { AdminService } from '../../admin/admin.service';
 import type { TGUpdate } from '../../telegram/types/update.types';
 
 export type ReceiverWebhookRequest = Request & {
@@ -19,7 +19,7 @@ export type ReceiverWebhookRequest = Request & {
  */
 @Injectable()
 export class ReceiverWebhookGuard implements CanActivate {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly adminService: AdminService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<ReceiverWebhookRequest>();
@@ -42,7 +42,7 @@ export class ReceiverWebhookGuard implements CanActivate {
       update?.message?.from?.id || update?.callback_query?.from?.id;
 
     const isAdmin = telegramId
-      ? await this.authService.isAdmin(telegramId)
+      ? await this.adminService.isAdmin(telegramId)
       : false;
 
     // TODO: open some features for other users

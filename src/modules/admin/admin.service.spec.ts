@@ -1,13 +1,13 @@
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
-import { AuthService } from './auth.service';
 import { getModelToken } from '@nestjs/mongoose';
 import type { AdminDocument } from '../../shared/schemas/admin.schema';
 import { Admin } from '../../shared/schemas/admin.schema';
 import type { Model } from 'mongoose';
+import { AdminService } from './admin.service';
 
-describe('AuthService', () => {
-  let service: AuthService;
+describe('AdminService', () => {
+  let service: AdminService;
   let adminModel: Model<AdminDocument>;
 
   const mockAdmins = [
@@ -24,15 +24,15 @@ describe('AuthService', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        AuthService,
+        AdminService,
         {
-          provide: getModelToken(Admin.name), // Mock the Admin model
+          provide: getModelToken(Admin.name),
           useValue: adminModelMock,
         },
       ],
     }).compile();
 
-    service = module.get<AuthService>(AuthService);
+    service = module.get<AdminService>(AdminService);
     adminModel = module.get<Model<AdminDocument>>(getModelToken(Admin.name));
   });
 
@@ -46,7 +46,6 @@ describe('AuthService', () => {
 
   describe('pullAdmins', () => {
     it('should fetch admins and update the cache', async () => {
-      // Call the private method indirectly
       await (
         service as unknown as {
           pullAdmins: () => Promise<void>;
@@ -54,10 +53,8 @@ describe('AuthService', () => {
         }
       ).pullAdmins();
 
-      // Verify the database query
       expect(adminModel.find).toHaveBeenCalledWith({ isActive: true });
 
-      // Check that the cache was updated
       expect(
         (service as unknown as { adminsCache: AdminDocument[] }).adminsCache,
       ).toEqual(mockAdmins);
@@ -66,7 +63,6 @@ describe('AuthService', () => {
 
   describe('isAdmin', () => {
     it('should return true if telegramId exists in the cache', async () => {
-      // Populate the cache first
       await (
         service as unknown as { pullAdmins: () => Promise<void> }
       ).pullAdmins();
@@ -76,7 +72,6 @@ describe('AuthService', () => {
     });
 
     it('should return false if telegramId does not exist in the cache', async () => {
-      // Populate the cache first
       await (
         service as unknown as { pullAdmins: () => Promise<void> }
       ).pullAdmins();
@@ -86,7 +81,6 @@ describe('AuthService', () => {
     });
 
     it('should call pullAdmins if cache is empty', async () => {
-      // Spy on pullAdmins to ensure it's called
       const pullAdminsSpy = jest.spyOn(
         service as unknown as { pullAdmins: () => Promise<void> },
         'pullAdmins',
@@ -94,7 +88,7 @@ describe('AuthService', () => {
 
       const result = await service.isAdmin(123);
       expect(pullAdminsSpy).toHaveBeenCalled();
-      expect(result).toBe(true); // Should still work after cache is populated
+      expect(result).toBe(true);
     });
   });
 });

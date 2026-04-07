@@ -26,7 +26,7 @@ import { V1GigByPublicIdGetRequestParams } from './types/requests/v1-gig-by-publ
 import type { V1GigByPublicIdGetResponseBody } from './types/requests/v1-gig-by-public-id-get-request';
 import type { GigFormDataByPublicId } from './types/gig.types';
 import { RequireAuthenticatedUserGuard } from '../auth/guards/require-authenticated-user.guard';
-import { AccessJwtAuthGuard } from '../telegram/guards/access-jwt-auth.guard';
+import { AccessJwtAuthGuard } from '../auth/guards/access-jwt-auth.guard';
 
 @Controller('gig')
 export class GigController {

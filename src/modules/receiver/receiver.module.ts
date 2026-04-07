@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ReceiverController } from './receiver.controller';
 import { ReceiverService } from './receiver.service';
+import { AdminModule } from '../admin/admin.module';
 import { GigModule } from '../gig/gig.module';
 import { TelegramModule } from '../telegram/telegram.module';
 import { AuthModule } from '../auth/auth.module';
@@ -12,7 +13,7 @@ import { GigBodyPipe } from './pipes/gig-body.pipe';
 import { CalendarModule } from '../calendar/calendar.module';
 
 @Module({
-  imports: [GigModule, TelegramModule, AuthModule, CalendarModule],
+  imports: [GigModule, TelegramModule, AdminModule, AuthModule, CalendarModule],
   controllers: [ReceiverController],
   providers: [
     ReceiverService,

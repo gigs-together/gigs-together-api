@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { AuthService } from './auth.service';
+import { AdminService } from '../admin/admin.service';
 import { getJwtAccessExpiresInSeconds } from './auth-jwt-expires';
 import { subjectFromAccessIdentity } from './subject-from-access-identity';
 import type {
@@ -28,7 +28,7 @@ interface AccessJwtVerifiedShape {
 export class AccessJwtService {
   constructor(
     private readonly jwtService: JwtService,
-    private readonly authService: AuthService,
+    private readonly adminService: AdminService,
     private readonly configService: ConfigService,
   ) {}
 
@@ -97,7 +97,9 @@ export class AccessJwtService {
         if (identity.snapshot.isBot === true) {
           throw new ForbiddenException('Bots are not allowed');
         }
-        const isAdmin = await this.authService.isAdmin(identity.telegramUserId);
+        const isAdmin = await this.adminService.isAdmin(
+          identity.telegramUserId,
+        );
         return { identity, isAdmin };
       }
       default:

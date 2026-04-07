@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { AuthService } from './auth.service';
+import { AdminService } from '../admin/admin.service';
 import { getJwtRefreshExpiresInSeconds } from './auth-jwt-expires';
 import { subjectFromAccessIdentity } from './subject-from-access-identity';
 import type { AccessTokenIdentityPayload } from './types/access-token-identity.types';
@@ -18,7 +18,7 @@ import type { RefreshTokenJwtPayload } from './types/refresh-token-jwt.types';
 export class RefreshJwtService {
   constructor(
     private readonly jwtService: JwtService,
-    private readonly authService: AuthService,
+    private readonly adminService: AdminService,
     private readonly configService: ConfigService,
   ) {}
 
@@ -87,7 +87,7 @@ export class RefreshJwtService {
         if (identity.snapshot.isBot === true) {
           throw new ForbiddenException('Bots are not allowed');
         }
-        await this.authService.isAdmin(identity.telegramUserId);
+        await this.adminService.isAdmin(identity.telegramUserId);
         return identity;
       }
       default:

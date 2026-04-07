@@ -1,5 +1,5 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
-import { AuthService } from '../auth/auth.service';
+import { AdminService } from '../admin/admin.service';
 import {
   TELEGRAM_INIT_DATA_EXPIRED_CODE,
   TelegramInitDataAuthExpiredError,
@@ -15,7 +15,7 @@ import type { TGUser } from './types/user.types';
 export class TelegramInitDataAuthService {
   constructor(
     private readonly telegramService: TelegramService,
-    private readonly authService: AuthService,
+    private readonly adminService: AdminService,
   ) {}
 
   async resolveUserFromInitDataString(
@@ -41,7 +41,7 @@ export class TelegramInitDataAuthService {
         throw new ForbiddenException('Bots are not allowed');
       }
 
-      const isAdmin = await this.authService.isAdmin(tgUser.id);
+      const isAdmin = await this.adminService.isAdmin(tgUser.id);
       return { tgUser, isAdmin };
     } catch (e) {
       if (e instanceof TelegramInitDataAuthExpiredError) {

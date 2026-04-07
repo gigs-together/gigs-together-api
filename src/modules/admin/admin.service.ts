@@ -1,15 +1,18 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Admin, AdminDocument } from '../../shared/schemas/admin.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { Admin, AdminDocument } from '../../shared/schemas/admin.schema';
 
+/**
+ * Admin list from MongoDB (cached). Used for JWT `isAdmin` and webhook checks.
+ */
 @Injectable()
-export class AuthService {
+export class AdminService {
   private adminsCache: AdminDocument[];
-  private readonly logger = new Logger(AuthService.name);
+  private readonly logger = new Logger(AdminService.name);
 
   constructor(
-    @InjectModel(Admin.name) private adminModel: Model<AdminDocument>,
+    @InjectModel(Admin.name) private readonly adminModel: Model<AdminDocument>,
   ) {}
 
   private async pullAdmins(): Promise<void> {

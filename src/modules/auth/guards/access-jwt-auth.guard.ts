@@ -1,8 +1,8 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import type { Request } from 'express';
-import { AuthCookiesService } from '../../auth/auth-cookies.service';
-import { AccessJwtService } from '../../auth/access-jwt.service';
-import { verifiedAccessTokenToUser } from '../mappers/access-token-user.mapper';
+import { AccessJwtService } from '../access-jwt.service';
+import { AuthCookiesService } from '../auth-cookies.service';
+import { verifiedAccessTokenToUser } from '../../telegram/mappers/access-token-user.mapper';
 
 /**
  * If an access JWT is present in the HttpOnly cookie, verifies it and sets `req.user`. When absent,

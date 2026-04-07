@@ -1,20 +1,18 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { AuthService } from './auth.service';
 import { getJwtAccessExpiresInSeconds } from './auth-jwt-expires';
 import { AccessJwtService } from './access-jwt.service';
 import { RefreshJwtService } from './refresh-jwt.service';
-import { RequireAdminGuard } from './guards/require-admin.guard';
+import { AccessJwtAuthGuard } from './guards/access-jwt-auth.guard';
 import { RequireAuthenticatedUserGuard } from './guards/require-authenticated-user.guard';
 import { AuthCookiesService } from './auth-cookies.service';
 import { AuthController } from './auth.controller';
-import { MongooseModule } from '@nestjs/mongoose';
-import { Admin, AdminSchema } from '../../shared/schemas/admin.schema';
+import { AdminModule } from '../admin/admin.module';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: Admin.name, schema: AdminSchema }]),
+    AdminModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -36,20 +34,19 @@ import { Admin, AdminSchema } from '../../shared/schemas/admin.schema';
   ],
   controllers: [AuthController],
   providers: [
-    AuthService,
     AccessJwtService,
     RefreshJwtService,
     AuthCookiesService,
+    AccessJwtAuthGuard,
     RequireAuthenticatedUserGuard,
-    RequireAdminGuard,
   ],
   exports: [
-    AuthService,
+    AdminModule,
     AccessJwtService,
     RefreshJwtService,
     AuthCookiesService,
+    AccessJwtAuthGuard,
     RequireAuthenticatedUserGuard,
-    RequireAdminGuard,
     JwtModule,
   ],
 })
