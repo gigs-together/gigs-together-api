@@ -42,7 +42,8 @@ src/
     gig/                   public gig API and gig lookup
     receiver/              Telegram/receiver-facing endpoints
     telegram/              Telegram integration
-    auth/                  admin authorization helpers
+    auth/                  JWT session (access/refresh), HttpOnly cookies, auth HTTP routes
+    admin/                 admin list and admin-only guard
     calendar/              Google Calendar integration
     bucket/                S3-compatible poster storage
     ai/                    AI-assisted lookup

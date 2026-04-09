@@ -61,6 +61,7 @@ Dependencies:
 - `AiModule`
 - `CalendarModule`
 - `BucketModule`
+- `AuthModule`
 - `TelegramModule`
 - local `Gig` Mongoose model
 
@@ -84,6 +85,7 @@ Dependencies:
 
 - `GigModule`
 - `TelegramModule`
+- `AdminModule`
 - `AuthModule`
 - `CalendarModule`
 
@@ -145,23 +147,46 @@ Responsibilities:
 - configures an HTTP client with `BOT_TOKEN`
 - uses cache for Telegram-related operations
 - can interact with bucket storage
+- validates Web App `initData` and Login Widget payloads, exchanges them for JWTs (with `AuthModule` services)
+- imports `AuthModule` and `AdminModule` for token signing and admin checks; does **not** re-export `AuthModule` (consumers import `AuthModule` explicitly when they need JWT guards or services)
 
 Main files:
 
 - `src/modules/telegram/telegram.module.ts`
 - `src/modules/telegram/telegram.service.ts`
+- `src/modules/telegram/telegram-auth.controller.ts`
+
+#### `AdminModule`
+
+Responsibilities:
+
+- loads active admins from MongoDB (cached) and answers `isAdmin(telegramId)`
+- provides `RequireAdminGuard` for routes that require admin privileges
+
+Main files:
+
+- `src/modules/admin/admin.module.ts`
+- `src/modules/admin/admin.service.ts`
 
 #### `AuthModule`
 
 Responsibilities:
 
-- resolves active admins from MongoDB
-- provides admin checks used by protected flows
+- access and refresh JWT signing and verification
+- HttpOnly cookie helpers for browser sessions
+- `POST /v1/auth/refresh` and `POST /v1/auth/logout`
+- guards: optional access JWT (`AccessJwtAuthGuard`), authenticated user required (`RequireAuthenticatedUserGuard`)
+- re-exports `AdminModule` so modules that only import `AuthModule` still receive admin checks where JWT services need them
 
 Main files:
 
 - `src/modules/auth/auth.module.ts`
-- `src/modules/auth/auth.service.ts`
+- `src/modules/auth/access-jwt.service.ts`
+- `src/modules/auth/refresh-jwt.service.ts`
+- `src/modules/auth/auth-cookies.service.ts`
+- `src/modules/auth/auth.controller.ts`
+
+Shared types and mappers used across auth and Telegram (for example `AccessTokenIdentityPayload`, `verifiedAccessTokenToUser`) live under `src/shared/types` and `src/shared/mappers`.
 
 #### `CalendarModule`
 

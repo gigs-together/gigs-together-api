@@ -24,7 +24,7 @@ import { AccessJwtAuthGuard } from '../auth/guards/access-jwt-auth.guard';
 import { ReceiverWebhookExceptionFilter } from './filters/receiver-webhook-exception.filter';
 import type { ReceiverWebhookRequest } from './guards/receiver-webhook.guard';
 import { GigBodyPipe } from './pipes/gig-body.pipe';
-import { AuthenticatedUser } from '../telegram/decorators/authenticated-user.decorator';
+import { AuthenticatedUser } from '../auth/decorators/authenticated-user.decorator';
 import type { User } from '../../shared/types/user.types';
 import type { V1ReceiverCreateGigRequestBody } from './types/requests/v1-receiver-create-gig-request';
 import type { V1ReceiverUpdateGigByPublicIdResponseBody } from './types/requests/v1-receiver-gig-by-public-id-request';

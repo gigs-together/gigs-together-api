@@ -34,6 +34,6 @@ import { TelegramLoginWidgetAuthService } from './telegram-login-widget-auth.ser
     TelegramAccessExchangeService,
     TelegramLoginWidgetAuthService,
   ],
-  exports: [TelegramService, TelegramInitDataAuthService, AuthModule],
+  exports: [TelegramService, TelegramInitDataAuthService],
 })
 export class TelegramModule {}

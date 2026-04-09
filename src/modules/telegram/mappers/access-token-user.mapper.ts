@@ -1,10 +1,7 @@
-import { UnauthorizedException } from '@nestjs/common';
 import type {
   TelegramAccessTokenIdentity,
   TelegramIdentitySnapshot,
-  VerifiedAccessToken,
 } from '../../../shared/types/access-token-identity.types';
-import type { User } from '../../../shared/types/user.types';
 import type { TGUser } from '../types/user.types';
 
 /**
@@ -27,30 +24,4 @@ export function tgUserToTelegramAccessIdentity(
     telegramUserId: id,
     snapshot,
   };
-}
-
-function telegramAccessIdentityToTgUser(
-  identity: TelegramAccessTokenIdentity,
-): TGUser {
-  return {
-    id: identity.telegramUserId,
-    first_name: identity.snapshot.firstName,
-    username: identity.snapshot.username,
-    language_code: identity.snapshot.languageCode,
-    is_bot: identity.snapshot.isBot,
-    ...(identity.snapshot.extra ?? {}),
-  };
-}
-
-/**
- * Maps a verified access token to the API {@link User} shape used by pipes and handlers.
- */
-export function verifiedAccessTokenToUser(verified: VerifiedAccessToken): User {
-  if (verified.identity.kind === 'telegram') {
-    return {
-      tgUser: telegramAccessIdentityToTgUser(verified.identity),
-      isAdmin: verified.isAdmin,
-    };
-  }
-  throw new UnauthorizedException('Unsupported access token identity');
 }
