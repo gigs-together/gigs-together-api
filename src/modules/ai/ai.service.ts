@@ -1,17 +1,40 @@
 import {
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { buildV1FutureGigLookupPrompt } from './prompts/v1-gig-lookup-prompt';
+import {
+  applyPerplexityStructuredGigLookupToRequestBody,
+  isPerplexityStructuredGigLookupEnabled,
+} from './perplexity/perplexity-gig-lookup.request';
 import { V1ReceiverCreateGigRequestBodyGig } from '../receiver/types/requests/v1-receiver-create-gig-request';
 import { isRecord } from '../../shared/utils/is-record';
 
 @Injectable()
 export class AiService {
+  private readonly logger = new Logger(AiService.name);
+
   constructor(private readonly configService: ConfigService) {}
+
+  /** When true, logs non-sensitive lookup diagnostics (set AI_LOOKUP_DEBUG=1). */
+  private isAiLookupDebugEnabled(): boolean {
+    const raw =
+      this.configService.get<string>('AI_LOOKUP_DEBUG') ??
+      process.env.AI_LOOKUP_DEBUG;
+    return raw === '1' || raw === 'true' || raw === 'yes';
+  }
+
+  private getAiEndpointOriginForLog(url: string): string {
+    try {
+      return new URL(url).origin;
+    } catch {
+      return '(invalid AI_URL)';
+    }
+  }
 
   private getAxiosNestedErrorMessage(rawData: unknown): string | undefined {
     if (!isRecord(rawData)) return undefined;
@@ -88,27 +111,62 @@ export class AiService {
       throw new InternalServerErrorException('AI_URL is not set on the server');
     }
 
+    const perplexityPlainEnv =
+      this.configService.get<string>('AI_LOOKUP_PERPLEXITY_PLAIN') ??
+      process.env.AI_LOOKUP_PERPLEXITY_PLAIN;
+    const usePerplexityStructured = isPerplexityStructuredGigLookupEnabled(
+      url,
+      perplexityPlainEnv,
+    );
     const prompt = buildV1FutureGigLookupPrompt({
       name: params.name,
       place: params.location,
+      mode: usePerplexityStructured ? 'structured' : 'plain-json',
     });
 
+    const requestBody: Record<string, unknown> = {
+      model,
+      messages: [{ role: 'user', content: prompt }],
+    };
+
+    if (usePerplexityStructured) {
+      applyPerplexityStructuredGigLookupToRequestBody(requestBody);
+    }
+
     try {
-      const response = await axios.post(
-        url,
-        {
-          model,
-          messages: [{ role: 'user', content: prompt }],
+      const response = await axios.post(url, requestBody, {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
         },
-        {
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-          },
-        },
-      );
+      });
+
+      const choice0Unknown: unknown = response.data?.choices?.[0];
+      const finishReason =
+        isRecord(choice0Unknown) &&
+        typeof choice0Unknown.finish_reason === 'string'
+          ? choice0Unknown.finish_reason
+          : undefined;
 
       const text: unknown = response.data?.choices?.[0]?.message?.content;
+
+      if (this.isAiLookupDebugEnabled()) {
+        const contentForLog =
+          typeof text === 'string'
+            ? text
+            : text === undefined
+              ? '(undefined)'
+              : JSON.stringify(text);
+        const maxLen = 6_000;
+        const clipped =
+          contentForLog.length > maxLen
+            ? `${contentForLog.slice(0, maxLen)}…(truncated)`
+            : contentForLog;
+        this.logger.log(
+          `[AI lookup debug] model=${model} endpoint=${this.getAiEndpointOriginForLog(url)} perplexity_structured=${usePerplexityStructured} finish_reason=${finishReason ?? '(none)'} name=${JSON.stringify(params.name)} place=${JSON.stringify(params.location)} content_type=${typeof text} raw_content=${clipped}`,
+        );
+      }
+
       if (typeof text !== 'string' || text.trim() === '') {
         throw new InternalServerErrorException('AI returned empty response');
       }
@@ -130,7 +188,21 @@ export class AiService {
         }
       }
 
-      if (parsed === null) {
+      if (isRecord(parsed) && typeof parsed.isFound === 'boolean') {
+        if (!parsed.isFound) {
+          if (this.isAiLookupDebugEnabled()) {
+            this.logger.log(
+              '[AI lookup debug] not_found_reason=model_set_isFound_false',
+            );
+          }
+          throw new NotFoundException('Future gig not found');
+        }
+      } else if (parsed === null) {
+        if (this.isAiLookupDebugEnabled()) {
+          this.logger.log(
+            '[AI lookup debug] not_found_reason=model_returned_json_null (prompt allows null when no matching future gig)',
+          );
+        }
         throw new NotFoundException('Future gig not found');
       }
 
@@ -138,11 +210,21 @@ export class AiService {
 
       const dateRaw = (gig.date ?? '').trim();
       if (!dateRaw) {
+        if (this.isAiLookupDebugEnabled()) {
+          this.logger.log(
+            '[AI lookup debug] not_found_reason=empty_date_after_normalize',
+          );
+        }
         throw new NotFoundException('Future gig not found');
       }
 
       const ts = new Date(dateRaw).getTime();
       if (Number.isNaN(ts) || ts <= Date.now()) {
+        if (this.isAiLookupDebugEnabled()) {
+          this.logger.log(
+            `[AI lookup debug] not_found_reason=invalid_or_past_date dateRaw=${JSON.stringify(dateRaw)} ts=${ts}`,
+          );
+        }
         throw new NotFoundException('Future gig not found');
       }
 
