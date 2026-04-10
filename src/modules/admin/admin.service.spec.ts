@@ -1,6 +1,7 @@
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
+import { ConfigService } from '@nestjs/config';
 import type { AdminDocument } from '../../shared/schemas/admin.schema';
 import { Admin } from '../../shared/schemas/admin.schema';
 import type { Model } from 'mongoose';
@@ -21,6 +22,10 @@ describe('AdminService', () => {
     }),
   };
 
+  const configServiceMock = {
+    get: jest.fn().mockReturnValue(undefined),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -28,6 +33,10 @@ describe('AdminService', () => {
         {
           provide: getModelToken(Admin.name),
           useValue: adminModelMock,
+        },
+        {
+          provide: ConfigService,
+          useValue: configServiceMock,
         },
       ],
     }).compile();
@@ -89,6 +98,42 @@ describe('AdminService', () => {
       const result = await service.isAdmin(123);
       expect(pullAdminsSpy).toHaveBeenCalled();
       expect(result).toBe(true);
+    });
+  });
+
+  describe('cache TTL', () => {
+    let dateNowSpy: jest.SpiedFunction<typeof Date.now>;
+    let virtualNow: number;
+
+    beforeEach(() => {
+      virtualNow = 1_000_000;
+      dateNowSpy = jest.spyOn(Date, 'now').mockImplementation(() => virtualNow);
+    });
+
+    afterEach(() => {
+      dateNowSpy.mockRestore();
+    });
+
+    it('does not reload within TTL', async () => {
+      await service.isAdmin(123);
+      expect(adminModel.find).toHaveBeenCalledTimes(1);
+
+      virtualNow += 3_600_000 - 1; // default TTL is 1 hour (3_600_000 ms)
+      await service.isAdmin(123);
+      expect(adminModel.find).toHaveBeenCalledTimes(1);
+
+      virtualNow += 1;
+      await service.isAdmin(123);
+      expect(adminModel.find).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('refreshAdminsCache', () => {
+    it('reloads from DB even when TTL has not elapsed', async () => {
+      await service.isAdmin(123);
+      expect(adminModel.find).toHaveBeenCalledTimes(1);
+      await service.refreshAdminsCache();
+      expect(adminModel.find).toHaveBeenCalledTimes(2);
     });
   });
 });
