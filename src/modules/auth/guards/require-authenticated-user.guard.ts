@@ -4,7 +4,6 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import type { User } from '../../../shared/types/user.types';
 
 /**
  * Requires `req.user` (typically set by `AccessJwtAuthGuard`). Use after that guard on routes that
@@ -13,7 +12,7 @@ import type { User } from '../../../shared/types/user.types';
 @Injectable()
 export class RequireAuthenticatedUserGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
-    const req = context.switchToHttp().getRequest<{ user?: User }>();
+    const req = context.switchToHttp().getRequest();
     if (!req.user) {
       throw new UnauthorizedException('Authentication required');
     }
