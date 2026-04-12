@@ -45,6 +45,11 @@ export class ReceiverExceptionFilter implements ExceptionFilter {
         : {}),
     };
 
+    if (status === HttpStatus.UNAUTHORIZED) {
+      response.status(status).json(errorResponse);
+      return;
+    }
+
     if (status >= 500) {
       this.logger.error(
         `Internal Server Error: ${JSON.stringify(errorResponse)}`,
