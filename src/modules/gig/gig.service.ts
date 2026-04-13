@@ -245,7 +245,7 @@ export class GigService {
       throw new BadRequestException(`Invalid MongoDB ID: ${gigId}`);
     }
     const updatedGig = await this.gigModel.findByIdAndUpdate(gigId, data, {
-      new: true,
+      returnDocument: 'after',
     });
 
     if (!updatedGig) {
@@ -334,7 +334,7 @@ export class GigService {
     const updated = await this.gigModel.findOneAndUpdate(
       { publicId: id },
       dataToUpdate,
-      { new: true },
+      { returnDocument: 'after' },
     );
     if (!updated) {
       throw new NotFoundException(`Gig with publicId "${id}" not found`);
