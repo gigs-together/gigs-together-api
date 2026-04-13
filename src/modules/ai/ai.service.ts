@@ -2,11 +2,11 @@ import {
   Injectable,
   InternalServerErrorException,
   Logger,
-  NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { AiLookupDevStubService } from './ai-lookup-dev-stub.service';
+import { AiLookupNotFoundException } from './exceptions/ai-lookup-not-found.exception';
 import { buildV1FutureGigLookupPrompt } from './prompts/v1-gig-lookup-prompt';
 import {
   applyPerplexityStructuredGigLookupToRequestBody,
@@ -204,7 +204,7 @@ export class AiService {
               '[AI lookup debug] not_found_reason=model_set_isFound_false',
             );
           }
-          throw new NotFoundException('Future gig not found');
+          throw new AiLookupNotFoundException();
         }
       } else if (parsed === null) {
         if (this.isAiLookupDebugEnabled()) {
@@ -212,7 +212,7 @@ export class AiService {
             '[AI lookup debug] not_found_reason=model_returned_json_null (prompt allows null when no matching future gig)',
           );
         }
-        throw new NotFoundException('Future gig not found');
+        throw new AiLookupNotFoundException();
       }
 
       const gig = this.normalizeLookUpedGig(parsed);
@@ -224,7 +224,7 @@ export class AiService {
             '[AI lookup debug] not_found_reason=empty_date_after_normalize',
           );
         }
-        throw new NotFoundException('Future gig not found');
+        throw new AiLookupNotFoundException();
       }
 
       const ts = new Date(dateRaw).getTime();
@@ -234,7 +234,7 @@ export class AiService {
             `[AI lookup debug] not_found_reason=invalid_or_past_date dateRaw=${JSON.stringify(dateRaw)} ts=${ts}`,
           );
         }
-        throw new NotFoundException('Future gig not found');
+        throw new AiLookupNotFoundException();
       }
 
       return gig;
