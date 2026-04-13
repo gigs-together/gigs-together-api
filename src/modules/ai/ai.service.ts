@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
+import { AiLookupDevStubService } from './ai-lookup-dev-stub.service';
 import { buildV1FutureGigLookupPrompt } from './prompts/v1-gig-lookup-prompt';
 import {
   applyPerplexityStructuredGigLookupToRequestBody,
@@ -18,7 +19,10 @@ import { isRecord } from '../../shared/utils/is-record';
 export class AiService {
   private readonly logger = new Logger(AiService.name);
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly aiLookupDevStubService: AiLookupDevStubService,
+  ) {}
 
   /** When true, logs non-sensitive lookup diagnostics (set AI_LOOKUP_DEBUG=1). */
   private isAiLookupDebugEnabled(): boolean {
@@ -90,6 +94,11 @@ export class AiService {
     name: string;
     location: string;
   }): Promise<V1ReceiverCreateGigRequestBodyGig> {
+    const stubGig = this.aiLookupDevStubService.resolveGigOrNull(params);
+    if (stubGig) {
+      return stubGig;
+    }
+
     const apiKey =
       this.configService.get<string>('AI_API_KEY') ?? process.env.AI_API_KEY;
     if (!apiKey) {
