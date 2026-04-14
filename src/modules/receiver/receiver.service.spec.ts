@@ -1,6 +1,5 @@
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ReceiverService } from './receiver.service';
 import { TelegramService } from '../telegram/telegram.service';
 import { GigService } from '../gig/gig.service';

@@ -1,7 +1,6 @@
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GigService } from './gig.service';
 import { Gig } from './gig.schema';
 import { AiService } from '../ai/ai.service';

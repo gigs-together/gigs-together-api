@@ -3,7 +3,6 @@ import { Test } from '@nestjs/testing';
 import { HttpService } from '@nestjs/axios';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { of } from 'rxjs';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TGMessage } from './types/message.types';
 import { BucketService } from '../bucket/bucket.service';
 import { TelegramService } from './telegram.service';
