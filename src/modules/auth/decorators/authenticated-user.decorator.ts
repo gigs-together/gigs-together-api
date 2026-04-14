@@ -4,15 +4,21 @@ import { createParamDecorator } from '@nestjs/common';
 import type { User } from '../../../shared/types/user.types';
 
 /**
- * Injects `req.user` set by AccessJwtAuthGuard (access JWT cookie).
+ * Reads `req.user` after `RequireAuthenticated()` (or equivalent guards). Exported for unit tests.
+ */
+export function getAuthenticatedUserFromContext(ctx: ExecutionContext): User {
+  const req = ctx.switchToHttp().getRequest<{ user?: User }>();
+  const user = req.user;
+  if (!user) {
+    throw new UnauthorizedException('Authentication required');
+  }
+  return user;
+}
+
+/**
+ * Injects `req.user` after `RequireAuthenticated()` on the route (access JWT cookie).
  */
 export const AuthenticatedUser = createParamDecorator(
-  (_data: unknown, ctx: ExecutionContext): User => {
-    const req = ctx.switchToHttp().getRequest();
-    const user = req.user;
-    if (!user) {
-      throw new UnauthorizedException('Authentication required');
-    }
-    return user;
-  },
+  (_data: unknown, ctx: ExecutionContext): User =>
+    getAuthenticatedUserFromContext(ctx),
 );
