@@ -9,6 +9,7 @@ import {
   Version,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { AdminService } from '../admin/admin.service';
 import { authClientProfileFromAccessTokenIdentity } from '../../shared/mappers/auth-client-profile-from-identity';
 import type { AuthClientProfileResponseBody } from '../../shared/types/auth-client-profile.types';
 import { AccessJwtService } from './access-jwt.service';
@@ -18,6 +19,7 @@ import { RefreshJwtService } from './refresh-jwt.service';
 @Controller('auth')
 export class AuthController {
   constructor(
+    private readonly adminService: AdminService,
     private readonly accessJwtService: AccessJwtService,
     private readonly authCookiesService: AuthCookiesService,
     private readonly refreshJwtService: RefreshJwtService,
@@ -51,7 +53,13 @@ export class AuthController {
       newRefresh,
       this.refreshJwtService.getExpiresInSeconds(),
     );
-    return { profile: authClientProfileFromAccessTokenIdentity(identity) };
+    const isAdmin =
+      identity.kind === 'telegram'
+        ? await this.adminService.isAdmin(identity.telegramUserId)
+        : false;
+    return {
+      profile: authClientProfileFromAccessTokenIdentity(identity, isAdmin),
+    };
   }
 
   /**

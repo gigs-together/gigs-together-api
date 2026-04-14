@@ -40,9 +40,7 @@ export class TelegramAuthController {
         body.initData,
       );
     const exchange =
-      await this.telegramAccessExchangeService.buildAccessTokenExchange(
-        user.tgUser,
-      );
+      await this.telegramAccessExchangeService.buildAccessTokenExchange(user);
     this.authCookiesService.setAccessTokenCookie(
       res,
       exchange.accessToken,
@@ -71,9 +69,7 @@ export class TelegramAuthController {
         body,
       );
     const exchange =
-      await this.telegramAccessExchangeService.buildAccessTokenExchange(
-        user.tgUser,
-      );
+      await this.telegramAccessExchangeService.buildAccessTokenExchange(user);
     this.authCookiesService.setAccessTokenCookie(
       res,
       exchange.accessToken,

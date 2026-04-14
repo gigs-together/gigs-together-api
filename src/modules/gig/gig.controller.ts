@@ -29,6 +29,7 @@ import type { V1GigByPublicIdGetResponseBody } from './types/requests/v1-gig-by-
 import type { GigFormDataByPublicId } from './types/gig.types';
 import { RequireAuthenticatedUserGuard } from '../auth/guards/require-authenticated-user.guard';
 import { AccessJwtAuthGuard } from '../auth/guards/access-jwt-auth.guard';
+import { RequireAdminGuard } from '../admin/guards/require-admin.guard';
 
 @Controller('gig')
 export class GigController {
@@ -79,10 +80,15 @@ export class GigController {
   }
 
   /**
-   * Public: full gig form fields by `publicId` (any status; for display / edit UI).
+   * Admin-only: full gig form fields by `publicId` (any status; for display / edit UI).
    */
   @Version('1')
   @Get(':publicId')
+  @UseGuards(
+    AccessJwtAuthGuard,
+    RequireAuthenticatedUserGuard,
+    RequireAdminGuard,
+  )
   getGigByPublicId(
     @Param() params: V1GigByPublicIdGetRequestParams,
   ): Promise<GigFormDataByPublicId> {
@@ -96,7 +102,11 @@ export class GigController {
   @Version('1')
   @Post('lookup')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AccessJwtAuthGuard, RequireAuthenticatedUserGuard)
+  @UseGuards(
+    AccessJwtAuthGuard,
+    RequireAuthenticatedUserGuard,
+    RequireAdminGuard,
+  )
   @UseFilters(AiLookupNotFoundFilter)
   async lookupGigV1(
     @Body(GigLookupBodyPipe) fields: V1GigLookupFields,

@@ -7,6 +7,7 @@ import { isRecord } from '../utils/is-record';
  */
 export function authClientProfileFromAccessTokenIdentity(
   identity: AccessTokenIdentityPayload,
+  isAdmin: boolean,
 ): AuthClientProfile {
   if (identity.kind !== 'telegram') {
     throw new Error('Unsupported identity for client profile');
@@ -33,5 +34,6 @@ export function authClientProfileFromAccessTokenIdentity(
   return {
     displayLabel,
     ...(photoUrl ? { photoUrl } : {}),
+    isAdmin,
   };
 }

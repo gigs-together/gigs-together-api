@@ -19,16 +19,20 @@ export class TelegramAccessExchangeService {
   /**
    * Signs access and refresh JWTs and the public profile. The caller sets HttpOnly cookies.
    */
-  async buildAccessTokenExchange(
-    tgUser: TGUser,
-  ): Promise<V1TelegramAccessTokenExchangeResult> {
-    const identity = tgUserToTelegramAccessIdentity(tgUser);
+  async buildAccessTokenExchange(user: {
+    readonly tgUser: TGUser;
+    readonly isAdmin: boolean;
+  }): Promise<V1TelegramAccessTokenExchangeResult> {
+    const identity = tgUserToTelegramAccessIdentity(user.tgUser);
     const accessToken = await this.accessJwtService.signAccessToken(identity);
     const refreshToken =
       await this.refreshJwtService.signRefreshToken(identity);
     const accessExpiresIn = this.accessJwtService.getExpiresInSeconds();
     const refreshExpiresIn = this.refreshJwtService.getExpiresInSeconds();
-    const profile = authClientProfileFromAccessTokenIdentity(identity);
+    const profile = authClientProfileFromAccessTokenIdentity(
+      identity,
+      user.isAdmin,
+    );
     return {
       accessToken,
       accessExpiresIn,

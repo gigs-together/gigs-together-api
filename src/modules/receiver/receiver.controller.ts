@@ -71,7 +71,11 @@ export class ReceiverController {
   @Version('1')
   @Post('gig')
   @HttpCode(201)
-  @UseGuards(AccessJwtAuthGuard, RequireAuthenticatedUserGuard)
+  @UseGuards(
+    AccessJwtAuthGuard,
+    RequireAuthenticatedUserGuard,
+    RequireAdminGuard,
+  )
   @UseInterceptors(PosterFileInterceptor)
   createGig(
     @UploadedFile() posterFile: Express.Multer.File | undefined,
@@ -84,7 +88,11 @@ export class ReceiverController {
   @Version('1')
   @Patch('gig/:publicId')
   @HttpCode(200)
-  @UseGuards(AccessJwtAuthGuard, RequireAdminGuard)
+  @UseGuards(
+    AccessJwtAuthGuard,
+    RequireAuthenticatedUserGuard,
+    RequireAdminGuard,
+  )
   @UseInterceptors(PosterFileInterceptor)
   updateGigByPublicId(
     @Param('publicId') publicId: string,
