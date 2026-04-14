@@ -16,7 +16,6 @@ module.exports = [
       },
       globals: {
         node: true,
-        jest: true,
       },
     },
     plugins: {

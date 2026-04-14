@@ -1,42 +1,33 @@
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ReceiverService } from './receiver.service';
 import { TelegramService } from '../telegram/telegram.service';
 import { GigService } from '../gig/gig.service';
 import type { TGMessage } from '../telegram/types/message.types';
-import { BucketService } from '../bucket/bucket.service';
-import { HttpService } from '@nestjs/axios';
 import { CalendarService } from '../calendar/calendar.service';
 
 describe('ReceiverService', () => {
   let service: ReceiverService;
 
   const mockTelegramService = {
-    sendMessage: jest.fn(),
-    answerCallbackQuery: jest.fn(),
-    editMessageReplyMarkup: jest.fn(),
-    publishDraft: jest.fn(),
-    publishMain: jest.fn(),
-    publishToChat: jest.fn(),
-    buildGigStatusReplyMarkup: jest.fn(),
+    sendMessage: vi.fn(),
+    answerCallbackQuery: vi.fn(),
+    editMessageReplyMarkup: vi.fn(),
+    publishDraft: vi.fn(),
+    publishMain: vi.fn(),
+    publishToChat: vi.fn(),
+    buildGigStatusReplyMarkup: vi.fn(),
   };
 
   const mockGigService = {
-    saveGig: jest.fn(),
-    updateGig: jest.fn(),
-    updateGigStatus: jest.fn(),
-  };
-
-  const mockBucketService = {
-    uploadGigPoster: jest.fn(),
-  };
-
-  const mockHttpService = {
-    get: jest.fn(),
+    saveGig: vi.fn(),
+    updateGig: vi.fn(),
+    updateGigStatus: vi.fn(),
   };
 
   const mockCalendarService = {
-    addEvent: jest.fn(),
+    addEvent: vi.fn(),
   };
 
   beforeEach(async () => {
@@ -52,14 +43,6 @@ describe('ReceiverService', () => {
           useValue: mockGigService,
         },
         {
-          provide: BucketService,
-          useValue: mockBucketService,
-        },
-        {
-          provide: HttpService,
-          useValue: mockHttpService,
-        },
-        {
           provide: CalendarService,
           useValue: mockCalendarService,
         },
@@ -70,7 +53,7 @@ describe('ReceiverService', () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('should be defined', () => {
@@ -93,7 +76,7 @@ describe('ReceiverService', () => {
       expect(mockTelegramService.sendMessage).toHaveBeenCalledWith(
         expect.objectContaining({
           chat_id: 12345,
-          text: expect.stringContaining("bot can't receive messages"),
+          text: expect.stringContaining("the bot can't receive messages"),
         }),
       );
     });

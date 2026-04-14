@@ -1,7 +1,8 @@
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
-import { GigService } from './gig.service';
 import { getModelToken } from '@nestjs/mongoose';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { GigService } from './gig.service';
 import { Gig } from './gig.schema';
 import { AiService } from '../ai/ai.service';
 import { CalendarService } from '../calendar/calendar.service';
@@ -23,11 +24,11 @@ describe('GigService', () => {
         {
           provide: AiService,
           useValue: {
-            lookupGigV1: jest.fn(),
+            lookupGigV1: vi.fn(),
           },
         },
         { provide: CalendarService, useValue: {} },
-        { provide: GigPosterService, useValue: { upload: jest.fn() } },
+        { provide: GigPosterService, useValue: { upload: vi.fn() } },
         { provide: TelegramService, useValue: {} },
         { provide: BucketService, useValue: {} },
       ],

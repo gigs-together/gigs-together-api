@@ -1,29 +1,30 @@
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
-import { TelegramService } from './telegram.service';
 import { HttpService } from '@nestjs/axios';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { of } from 'rxjs';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TGMessage } from './types/message.types';
 import { BucketService } from '../bucket/bucket.service';
+import { TelegramService } from './telegram.service';
 
 describe('TelegramService', () => {
   let service: TelegramService;
 
   const mockHttpService = {
-    post: jest.fn(),
-    get: jest.fn(),
+    post: vi.fn(),
+    get: vi.fn(),
   };
 
   const mockCache = {
-    get: jest.fn(),
-    set: jest.fn(),
-    del: jest.fn(),
-    reset: jest.fn(),
+    get: vi.fn(),
+    set: vi.fn(),
+    del: vi.fn(),
+    reset: vi.fn(),
   };
 
   const mockBucketService = {
-    getPublicPosterUrl: jest.fn(),
+    getPublicPosterUrl: vi.fn(),
   };
 
   beforeEach(async () => {
@@ -49,7 +50,7 @@ describe('TelegramService', () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     delete process.env.S3_PUBLIC_BASE_URL;
   });
 

@@ -1,7 +1,8 @@
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
-import * as request from 'supertest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import request from 'supertest';
 import { AppController } from '../src/app.controller';
 import { AppService } from '../src/app.service';
 
@@ -22,16 +23,15 @@ describe('AppController (e2e)', () => {
     await app?.close();
   });
 
-  it('/ (GET)', () => {
-    return request(app.getHttpServer())
-      .get('/')
-      .expect(200)
-      .expect({ ok: true, service: 'gigs-together-api' });
+  it('/ (GET)', async () => {
+    const res = await request(app.getHttpServer()).get('/');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ ok: true, service: 'gigs-together-api' });
   });
 
-  it('/health (GET)', () => {
-    return request(app.getHttpServer()).get('/health').expect(200).expect({
-      ok: true,
-    });
+  it('/health (GET)', async () => {
+    const res = await request(app.getHttpServer()).get('/health');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ ok: true });
   });
 });

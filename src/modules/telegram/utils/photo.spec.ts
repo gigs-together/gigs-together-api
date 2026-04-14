@@ -1,3 +1,4 @@
+import { describe, expect, it } from 'vitest';
 import type { TGPhotoSize } from '../types/message.types';
 import { getBiggestTgPhotoFileId } from './photo';
 
