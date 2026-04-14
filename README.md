@@ -312,6 +312,21 @@ Debug:
 npm run test:debug
 ```
 
+#### Why Vitest uses SWC (`unplugin-swc`)
+
+Vitest runs tests through Vite. Vite’s default TypeScript transform is **esbuild**, which does **not** emit `emitDecoratorMetadata` / `design:paramtypes`. Nest relies on that metadata for ordinary **constructor injection** in `Test.createTestingModule({ providers: [...] })`, so without a different transform, DI in tests breaks in non-obvious ways.
+
+This repo uses **`unplugin-swc`** so SWC compiles test code with explicit options:
+
+- `jsc.parser.decorators` and `jsc.transform.legacyDecorator`
+- `jsc.transform.decoratorMetadata` (emits the metadata Nest reads)
+
+The same `jsc` shape is written in **`vitest.config.ts`** (passed into `swc.vite()`) and duplicated in **`.swcrc`** as the documented source of truth. With **`tsconfigFile: false`**, unplugin-swc does **not** infer decorator settings from `tsconfig.json`, so the explicit `jsc` block is required—do not assume `emitDecoratorMetadata` in `tsconfig.json` applies to the Vitest pipeline.
+
+**`vitest.setup.ts`** imports **`reflect-metadata`**: that only provides the runtime API to _read_ metadata SWC already emitted; it does not _generate_ metadata.
+
+A small guard test lives in **`src/nest-di-metadata.spec.ts`** (constructor-only dependency, no `@Inject()`). If you turn off `decoratorMetadata` in the SWC config, that test should fail.
+
 ### End-to-end tests
 
 ```bash
