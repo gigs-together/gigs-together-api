@@ -1,142 +1,503 @@
-# Gigs Together
-[@GigsTogetherBot](https://t.me/GigsTogetherBot)
+# Gigs Together API
 
-## Local development (frontend on subdomain in prod)
+NestJS API for the Gigs Together project. It serves public gig data, language and location dictionaries, Telegram-driven moderation flows, Google Calendar integration, poster storage, and AI-assisted gig lookup.
 
-In production you’ll typically run:
+## What this project does
 
-- **Frontend**: `https://app.your-domain.tld`
-- **API**: `https://api.your-domain.tld`
+The API currently provides:
 
-Locally, the simplest and most common approach is to run **frontend and backend on different ports**.
+- public REST endpoints for gigs, locations, and translations
+- Telegram webhook handling for admin/moderation flows
+- gig creation and editing endpoints for the receiver client
+- MongoDB persistence through Mongoose
+- Google Calendar integration
+- S3-compatible poster storage
+- AI lookup for gig enrichment
 
-### Option A (recommended): different ports + CORS
+Main entry points:
 
-- **API**: `http://localhost:3000`
-- **Frontend**: `http://localhost:5173` (or whatever your frontend dev server uses)
+- `GET /` returns a simple service payload
+- `GET /health` returns health status
+- versioned API routes are exposed under `/v1/...`
 
-Set API env:
+## Tech stack
 
-- `CORS_ORIGINS="http://localhost:5173"`
+### Runtime and package manager
 
-Then in the frontend configure the API base URL as:
+- Node.js: `v22.x`
+- npm: `11.x`
+- package lock format: `lockfileVersion 3`
 
-- `http://localhost:3000` (and call versioned endpoints like `/v1/...`)
+### Infrastructure
 
-### Option B: simulate subdomains locally (optional)
+- MongoDB Docker image: `mongodb/mongodb-community-server`
 
-If you want URLs closer to production:
+## Repository layout
 
-- **Frontend**: `http://app.localhost:5173`
-- **API**: `http://api.localhost:3000`
-
-On some systems `*.localhost` resolves automatically. If not, add to your hosts file:
-
-- `127.0.0.1 app.localhost`
-- `127.0.0.1 api.localhost`
-
-Then set:
-
-- `CORS_ORIGINS="http://app.localhost:5173"`
-
-#### Windows note (hosts file)
-
-On Windows the hosts file is:
-
-- `C:\Windows\System32\drivers\etc\hosts`
-
-You’ll need admin privileges to edit it.
-
-#### Do I need different ports?
-
-By default, yes — you still run two processes, so they listen on different ports (e.g. `5173` and `3000`).
-
-If you want *no ports* (closer to prod), run a local reverse proxy (optional), for example Caddy:
-
-```
-app.localhost {
-  reverse_proxy 127.0.0.1:5173
-}
-
-api.localhost {
-  reverse_proxy 127.0.0.1:3000
-}
+```text
+src/
+  main.ts                  Nest bootstrap
+  app.module.ts            root module and environment loading
+  modules/
+    gig/                   public gig API and gig lookup
+    receiver/              Telegram/receiver-facing endpoints
+    telegram/              Telegram integration
+    auth/                  JWT session (access/refresh), HttpOnly cookies, auth HTTP routes
+    admin/                 admin list and admin-only guard
+    calendar/              Google Calendar integration
+    bucket/                S3-compatible poster storage
+    ai/                    AI-assisted lookup
+    location/              country/location endpoints
+    language/              translations and language endpoints
+migrations/                MongoDB migration files
+test/                      e2e test setup
+docker-compose.yml         local MongoDB
+.env.example               environment template
 ```
 
-Then you can use:
+## Architecture
 
-- Frontend: `http://app.localhost`
-- API: `http://api.localhost`
+Detailed architecture notes live in [ARCHITECTURE.md](./ARCHITECTURE.md).
 
-## Environments (dev/prod) and configs
+## Prerequisites
 
-This API loads env files based on `NODE_ENV`:
+Install the following before you start:
 
-- If `NODE_ENV=dev` it loads (in order): `.env.dev`, `.env`
-- If `NODE_ENV=prod` it loads (in order): `.env.prod`, `.env`
+1. Node.js `22.x`
+2. npm `11.x`
+3. Docker Desktop or Docker Engine
+4. Access to required external credentials if you need full integration testing:
+   - Telegram bot token and webhook secret
+   - MongoDB connection details
+   - Google Calendar credentials
+   - S3-compatible storage credentials
+   - AI provider URL, key, and model
 
-### Separate poster paths for dev/prod (S3 prefix)
+## Environment configuration
 
-Set:
+### How configuration is loaded
 
-- `S3_POSTERS_PREFIX=gigs-dev` in `.env.dev`
-- `S3_POSTERS_PREFIX=gigs` in `.env.prod`
+The Nest application loads env files in this order:
 
-This affects upload and public URL building for gig poster images.
+1. `.env.<NODE_ENV>`
+2. `.env`
 
-## Public bucket (Cloudflare R2 recommended)
+Examples:
 
-The bucket is expected to be **public**. The API:
+- `npm run start:dev` sets `NODE_ENV=dev`, so the app reads `.env.dev` first and then `.env`
+- `npm run start:prod` sets `NODE_ENV=prod`, so the app reads `.env.prod` first and then `.env`
 
-- Uploads posters into the bucket under the `S3_POSTERS_PREFIX` prefix.
-- Stores only the object key path in DB as `Gig.poster.bucketPath` (e.g. `"/gigs/<uuid>-file.jpg"`).
-- Returns a **direct public URL** to the object for clients (no proxy routes, no presigned URLs).
+Important: the migration config in `migrate.ts` uses `dotenv.config()` directly and therefore reads `.env` by default, not `.env.dev` or `.env.prod`. If you want migrations to work locally, either:
 
-### Required env vars (S3 client + public base URL)
+- put the required Mongo variables into `.env`, or
+- export them in your shell before running `npm run migrate`
 
-- `S3_BUCKET`
-- `S3_ACCESS_KEY_ID`
-- `S3_SECRET_ACCESS_KEY`
-- `S3_REGION` (for R2 use `auto`)
-- `S3_ENDPOINT` (for R2: `https://<accountid>.r2.cloudflarestorage.com`)
-- `S3_FORCE_PATH_STYLE` (for R2 usually `true`)
-- `S3_PUBLIC_BASE_URL` (public bucket base URL / CDN / custom domain)
+### Create your local env file
 
-### CORS for the API
+At minimum, local development usually needs:
 
-If your frontend is on another domain (e.g. `https://app.your-domain.tld`) and the API is on a subdomain (e.g. `https://api.your-domain.tld`), set:
+- `MONGO_URI`
+- `MONGO_DB`
+- `MONGO_PORT`
 
-- `CORS_ORIGINS="https://your-frontend.tld,https://another.tld"`
+Depending on which flows you want to exercise, you may also need:
 
-Or:
+- Telegram: `BOT_*`, channel IDs, URLs
+- Google: `CALENDAR_ID`, `GOOGLE_AUTH_JSON`
+- S3 storage: `S3_*`
+- AI: `AI_URL`, `AI_API_KEY`, `AI_MODEL`
+- Frontend integration: `APP_BASE_URL`, `FEED_REVALIDATE_SECRET`
+- CORS: `CORS_ORIGINS`
 
-- `CORS_ORIGINS="*"` (no credentials)
+### Environment variables reference
 
-#### Recommended setup (frontend on subdomain)
+Current variables defined in `.env.example`:
 
-- **Frontend**: `https://app.your-domain.tld`
-- **API**: `https://api.your-domain.tld`
-- **Env**:
-  - `CORS_ORIGINS="https://app.your-domain.tld"`
+| Variable                               | Required                                     | Purpose                                             |
+| -------------------------------------- | -------------------------------------------- | --------------------------------------------------- |
+| `PORT`                                 | No                                           | NestJS port. Defaults to `3000`.                    |
+| `BOT_ADMINS`                           | Usually yes                                  | Telegram admin map used by bot workflows.           |
+| `BOT_TOKEN`                            | For Telegram flows                           | Telegram bot token.                                 |
+| `BOT_SECRET`                           | For Telegram webhook flows                   | Shared secret for webhook protection.               |
+| `MAIN_CHANNEL_ID`                      | For Telegram flows                           | Main Telegram channel id.                           |
+| `MODERATION_CHANNEL_ID`                | For moderation flows                         | Moderation Telegram channel id.                     |
+| `DIRECT_MESSAGES_URL`                  | For Telegram UX                              | Link used in bot/admin flows.                       |
+| `EDIT_GIG_URL`                         | For edit flows                               | Frontend or app URL for editing gigs.               |
+| `MONGO_URI`                            | Yes                                          | MongoDB connection string.                          |
+| `MONGO_DB`                             | Yes for Docker/local setup                   | MongoDB database name.                              |
+| `MONGO_PORT`                           | Yes for Docker/local setup                   | Local MongoDB port mapping.                         |
+| `CALENDAR_ID`                          | Optional                                     | Google Calendar id.                                 |
+| `GOOGLE_AUTH_JSON`                     | Optional                                     | Base64-encoded or raw Google auth JSON.             |
+| `S3_BUCKET`                            | Optional                                     | Bucket name for poster storage.                     |
+| `S3_ENDPOINT`                          | Optional                                     | S3-compatible endpoint, for example Cloudflare R2.  |
+| `S3_ACCESS_KEY_ID`                     | Optional                                     | Storage access key.                                 |
+| `S3_SECRET_ACCESS_KEY`                 | Optional                                     | Storage secret key.                                 |
+| `S3_POSTERS_PREFIX`                    | No                                           | Poster object prefix. Defaults to `gigs`.           |
+| `S3_PUBLIC_BASE_URL`                   | Optional but required for public bucket mode | Public URL base for uploaded posters.               |
+| `CORS_ORIGINS`                         | No                                           | CORS mode or comma-separated allowlist.             |
+| `EXTERNAL_POSTER_URL_FALLBACK_ENABLED` | No                                           | Enables fallback poster URL behavior.               |
+| `DEFAULT_GIG_POSTER_URL`               | No                                           | Default public poster URL for gigs without posters. |
+| `AI_URL`                               | Optional                                     | AI service base URL.                                |
+| `AI_API_KEY`                           | Optional                                     | AI service key.                                     |
+| `AI_MODEL`                             | Optional                                     | AI model identifier.                                |
+| `APP_BASE_URL`                         | Optional                                     | Frontend base URL.                                  |
+| `FEED_REVALIDATE_SECRET`               | Optional                                     | Secret for frontend feed revalidation.              |
 
-### CORS for the Bucket (only needed if the browser fetches directly)
+### CORS behavior
 
-If the browser fetches objects directly from the public bucket domain (or uploads directly to the bucket), you must allow your frontend origin in the bucket CORS config.
+`src/main.ts` supports the following `CORS_ORIGINS` modes:
 
-Example (adjust origins/methods as needed):
+- unset: reflects request origin and allows credentials
+- `reflect` or `all`: reflects request origin and allows credentials
+- `*`: allows all origins without credentials
+- comma-separated origins: allows only those origins and enables credentials
+
+## Installation
+
+Install dependencies:
 
 ```bash
-AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... aws s3api put-bucket-cors \
-  --bucket "$S3_BUCKET" \
-  --endpoint-url "$S3_ENDPOINT" \
-  --cors-configuration '{
-    "CORSRules": [
-      {
-        "AllowedHeaders": ["*"],
-        "AllowedMethods": ["GET","HEAD","PUT","POST"],
-        "AllowedOrigins": ["https://your-frontend.tld"],
-        "MaxAgeSeconds": 3000
-      }
-    ]
-  }'
+npm install
 ```
+
+If you are onboarding from scratch, use this order:
+
+1. Install Node.js and npm
+2. Copy `.env.example` to `.env` and/or `.env.dev`
+3. Start MongoDB with Docker
+4. Install npm dependencies
+5. Run the app in dev mode
+
+## Running MongoDB locally
+
+The repo includes a simple Docker Compose file for MongoDB.
+
+Before starting it, make sure your env file contains:
+
+- `MONGO_DB`
+- `MONGO_PORT`
+
+Start MongoDB:
+
+```bash
+docker-compose up -d
+```
+
+Stop MongoDB:
+
+```bash
+docker-compose down
+```
+
+Check running containers:
+
+```bash
+docker ps
+```
+
+Default connection shape expected by the app:
+
+```text
+mongodb://<HOST>:<PORT>/<DBNAME>
+```
+
+Example local value:
+
+```text
+MONGO_URI=mongodb://localhost:27017/gigs-together
+```
+
+## Running the application
+
+### Development mode
+
+```bash
+npm run start:dev
+```
+
+This runs Nest in watch mode with `NODE_ENV=dev`.
+
+### Debug mode
+
+```bash
+npm run start:debug
+```
+
+### Production-like local run
+
+Build first:
+
+```bash
+npm run build
+```
+
+Then start the compiled app:
+
+```bash
+npm run start
+```
+
+Or with production env selection:
+
+```bash
+npm run start:prod
+```
+
+### Base URL
+
+When the app is running locally, it listens on:
+
+```text
+http://localhost:3000
+```
+
+Unless `PORT` is set to a different value.
+
+Quick checks:
+
+```bash
+curl http://localhost:3000/
+curl http://localhost:3000/health
+```
+
+## Build, lint, format, and test
+
+### Build
+
+```bash
+npm run build
+```
+
+Compiled output goes to `dist/`.
+
+### Lint
+
+```bash
+npm run lint:fix
+```
+
+### Format
+
+```bash
+npm run format:write
+```
+
+### Lint and format in one step
+
+```bash
+npm run lint:format:fix
+```
+
+### Unit tests
+
+```bash
+npm test
+```
+
+Watch mode:
+
+```bash
+npm run test:watch
+```
+
+Coverage:
+
+```bash
+npm run test:cov
+```
+
+Debug:
+
+```bash
+npm run test:debug
+```
+
+#### Why Vitest uses SWC (`unplugin-swc`)
+
+Vitest runs tests through Vite. Vite’s default TypeScript transform is **esbuild**, which does **not** emit `emitDecoratorMetadata` / `design:paramtypes`. Nest relies on that metadata for ordinary **constructor injection** in `Test.createTestingModule({ providers: [...] })`, so without a different transform, DI in tests breaks in non-obvious ways.
+
+This repo uses **`unplugin-swc`** so SWC compiles test code with explicit options:
+
+- `jsc.parser.decorators` and `jsc.transform.legacyDecorator`
+- `jsc.transform.decoratorMetadata` (emits the metadata Nest reads)
+
+The same `jsc` shape is written in **`vitest.config.ts`** (passed into `swc.vite()`) and duplicated in **`.swcrc`** as the documented source of truth. With **`tsconfigFile: false`**, unplugin-swc does **not** infer decorator settings from `tsconfig.json`, so the explicit `jsc` block is required—do not assume `emitDecoratorMetadata` in `tsconfig.json` applies to the Vitest pipeline.
+
+**`vitest.setup.ts`** imports **`reflect-metadata`**: that only provides the runtime API to _read_ metadata SWC already emitted; it does not _generate_ metadata.
+
+A small guard test lives in **`src/nest-di-metadata.spec.ts`** (constructor-only dependency, no `@Inject()`). If you turn off `decoratorMetadata` in the SWC config, that test should fail.
+
+### End-to-end tests
+
+```bash
+npm run test:e2e
+```
+
+## NestJS CLI
+
+The project uses Nest CLI and keeps source code under `src/`.
+
+Check the CLI version:
+
+```bash
+npx nest --version
+```
+
+### Generate a module
+
+To generate a new module:
+
+```bash
+npx nest generate module modules/<name>
+```
+
+Example:
+
+```bash
+npx nest generate module modules/example
+```
+
+This creates:
+
+```text
+src/modules/example/example.module.ts
+```
+
+### Generate a controller or service inside a module
+
+Controller:
+
+```bash
+npx nest generate controller modules/<name>
+```
+
+Service:
+
+```bash
+npx nest generate service modules/<name>
+```
+
+Examples:
+
+```bash
+npx nest generate controller modules/example
+npx nest generate service modules/example
+```
+
+### Generate a full resource
+
+If you want Nest to scaffold a resource in one go:
+
+```bash
+npx nest generate resource modules/<name>
+```
+
+This is useful for quick scaffolding, but in this repository you will usually still need to adjust:
+
+- Mongoose schemas
+- DTOs and request types
+- module imports/exports
+- integration wiring with Telegram, Calendar, Bucket, or AI services
+
+### Short aliases
+
+Nest CLI also supports aliases:
+
+```bash
+npx nest g mo modules/example
+npx nest g co modules/example
+npx nest g s modules/example
+```
+
+### Recommendation for this repo
+
+When adding a new feature area, keep it under `src/modules/<feature>`.
+
+Typical sequence:
+
+```bash
+npx nest g mo modules/example
+npx nest g co modules/example
+npx nest g s modules/example
+```
+
+## Database migrations
+
+Run migrations with:
+
+```bash
+npm run migrate
+```
+
+Migration files live in `migrations/`.
+
+Because `migrate.ts` reads `.env` by default, verify that `MONGO_URI` is available there before running migrations.
+
+## API notes for contributors
+
+- API versioning is URI-based, so versioned routes look like `/v1/gig`, `/v1/location/countries`, and `/v1/language/translations`
+- request validation is enabled globally with Nest `ValidationPipe`
+- MongoDB is connected through `MongooseModule.forRootAsync`
+- uploads for receiver gig posters use in-memory multer storage with a 10 MB limit
+- `GET /health` is the simplest endpoint to use for smoke testing
+
+## Common development workflow
+
+```bash
+docker-compose up -d
+npm install
+npm run start:dev
+```
+
+In a second terminal:
+
+```bash
+npm test
+```
+
+Before opening a PR:
+
+```bash
+npm run lint:format:fix
+npm run build
+npm test
+```
+
+## Git hooks and commit rules
+
+The repo uses Husky:
+
+- `pre-commit` runs `npx --no-install lint-staged`
+- `commit-msg` runs `npx --no -- commitlint --edit $1`
+
+`lint-staged` currently does:
+
+- for `*.{js,ts}`: Prettier write + ESLint fix
+- for `*.{json,md,yml,yaml}`: Prettier write
+
+Commit messages are validated against the Conventional Commits config from `@commitlint/config-conventional`.
+
+Example valid commits:
+
+- `feat: add city filter to feed`
+- `fix: handle missing Telegram link`
+- `docs: expand local setup instructions`
+
+## CI and branch automation
+
+The repository currently includes one GitHub Actions workflow:
+
+- on push to `main`, GitHub Actions automatically merges `main` into `stg`
+
+There is no general CI workflow for linting, tests, or builds in this repository at the moment.
+
+## Known caveats
+
+- `README.md` assumes npm as the package manager because the repository contains `package-lock.json`
+- the MongoDB Docker image is not pinned
+- some project flows depend on external services and cannot be exercised fully with MongoDB alone
+- migration env loading differs from application env loading
+
+## License
+
+This repository is marked `UNLICENSED` in `package.json`.

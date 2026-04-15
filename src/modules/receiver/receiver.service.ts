@@ -1,31 +1,20 @@
-import {
-  BadRequestException,
-  ForbiddenException,
-  Injectable,
-  Logger,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import type { TGChatId, TGMessage } from '../telegram/types/message.types';
 import { GigService } from '../gig/gig.service';
-import {
-  CreateGigInput,
-  GigFormDataByPublicId,
-  GigId,
-} from '../gig/types/gig.types';
+import { GigId } from '../gig/types/gig.types';
 import { Status } from '../gig/types/status.enum';
 import type { TGCallbackQuery } from '../telegram/types/update.types';
 import { TelegramService } from '../telegram/telegram.service';
 import { Action } from '../telegram/types/action.enum';
 import { getBiggestTgPhotoFileId } from '../telegram/utils/photo';
-import { V1ReceiverCreateGigRequestBodyValidated } from './types/requests/v1-receiver-create-gig-request';
+import type { User } from '../../shared/types/user.types';
+import type { V1ReceiverCreateGigRequestBody } from './types/requests/v1-receiver-create-gig-request';
 import { CalendarService } from '../calendar/calendar.service';
 import { Messenger } from '../gig/types/messenger.enum';
 import { PostType } from '../gig/types/postType.enum';
 import type { UpdateQuery } from 'mongoose';
 import type { Gig } from '../gig/gig.schema';
-import type {
-  V1ReceiverGetGigForEditRequestBodyValidated,
-  V1ReceiverUpdateGigByPublicIdResponseBody,
-} from './types/requests/v1-receiver-gig-by-public-id-request';
+import type { V1ReceiverUpdateGigByPublicIdResponseBody } from './types/requests/v1-receiver-gig-by-public-id-request';
 // import { NodeHttpHandler } from '@smithy/node-http-handler';
 
 enum Command {
@@ -38,6 +27,18 @@ interface HandleGigApprovePayload {
     chatId: TGChatId;
     messageId: TGMessage['message_id'];
   };
+}
+
+interface UpdateGigByPublicIdPayload {
+  publicId: string;
+  body: V1ReceiverCreateGigRequestBody;
+  posterFile: Express.Multer.File | undefined;
+}
+
+interface HandleGigRejectPayload {
+  gigId: GigId;
+  chatId: TGChatId;
+  messageId: TGMessage['message_id'];
 }
 
 @Injectable()
@@ -197,50 +198,11 @@ export class ReceiverService {
   }
 
   async handleGigSubmit(
-    body: V1ReceiverCreateGigRequestBodyValidated,
+    body: V1ReceiverCreateGigRequestBody,
+    user: User,
     posterFile: Express.Multer.File | undefined,
   ): Promise<void> {
-    const date = new Date(body.gig.date);
-    const yyyyMmDd = date.toISOString().split('T')[0];
-    const publicId = await this.gigService.generateUniquePublicId({
-      title: body.gig.title,
-      yyyyMmDd,
-    });
-
-    const explicitPosterUrl = (body.gig.posterUrl ?? '').trim() || undefined;
-    const defaultPosterUrl =
-      (process.env.DEFAULT_GIG_POSTER_URL ?? '').trim() || undefined;
-    const posterUrl =
-      explicitPosterUrl ?? (posterFile ? undefined : defaultPosterUrl);
-
-    const poster = await this.gigService.uploadPoster({
-      url: posterUrl,
-      file: posterFile,
-      context: {
-        date: body.gig.date,
-        city: body.gig.city,
-        country: body.gig.country,
-        publicId,
-      },
-    });
-
-    const gig: CreateGigInput = {
-      publicId,
-      title: body.gig.title,
-      date: body.gig.date,
-      city: body.gig.city,
-      country: body.gig.country,
-      venue: body.gig.venue,
-      ticketsUrl: body.gig.ticketsUrl,
-      poster,
-      suggestedBy: { userId: body.user.tgUser.id },
-    };
-
-    if (body.gig.endDate && body.gig.endDate !== body.gig.date) {
-      gig.endDate = body.gig.endDate;
-    }
-
-    const savedGig = await this.gigService.saveGig(gig);
+    const savedGig = await this.gigService.saveGig({ body, user, posterFile });
     let res: TGMessage | undefined;
     try {
       res = await this.telegramService.sendToModeration(savedGig);
@@ -275,7 +237,7 @@ export class ReceiverService {
 
     // Notify the author in DM.
     // NOTE: Telegram may reject sending DMs if the user hasn't started the bot.
-    const authorTelegramId = body.user?.tgUser?.id;
+    const authorTelegramId = user.tgUser.id;
     if (authorTelegramId) {
       try {
         const res: TGMessage =
@@ -302,73 +264,25 @@ export class ReceiverService {
     }
   }
 
-  getGigForEdit(
-    payload: V1ReceiverGetGigForEditRequestBodyValidated,
-  ): Promise<GigFormDataByPublicId> {
-    if (payload.user?.isAdmin !== true) {
-      throw new ForbiddenException('Admin privileges required');
-    }
-    return this.gigService.getGigFormDataByPublicId(payload.publicId);
-  }
-
-  async updateGigByPublicId(payload: {
-    publicId: string;
-    body: V1ReceiverCreateGigRequestBodyValidated;
-    posterFile: Express.Multer.File | undefined;
-  }): Promise<V1ReceiverUpdateGigByPublicIdResponseBody> {
+  async updateGigByPublicId(
+    payload: UpdateGigByPublicIdPayload,
+  ): Promise<V1ReceiverUpdateGigByPublicIdResponseBody> {
     const { publicId, body, posterFile } = payload;
 
-    if (body.user?.isAdmin !== true) {
-      throw new ForbiddenException('Admin privileges required');
-    }
-
-    const dateMs = new Date(body.gig.date).getTime();
-
-    const endDateMs =
-      body.gig.endDate && body.gig.endDate !== body.gig.date
-        ? new Date(body.gig.endDate).getTime()
-        : undefined;
-
-    const poster = await this.gigService.uploadPoster({
-      url: body.gig.posterUrl,
-      file: posterFile,
-      context: {
-        date: body.gig.date,
-        city: body.gig.city,
-        country: body.gig.country,
-        publicId,
-      },
+    const updatedGig = await this.gigService.updateGigByPublicId({
+      publicId,
+      body,
+      posterFile,
     });
 
-    const update: UpdateQuery<Gig> = {
-      title: body.gig.title,
-      date: dateMs,
-      city: body.gig.city,
-      country: body.gig.country,
-      venue: body.gig.venue,
-      ticketsUrl: body.gig.ticketsUrl,
-    };
-
-    if (endDateMs) {
-      update.endDate = endDateMs;
-    } else {
-      update.$unset = { ...(update.$unset ?? {}), endDate: 1 };
-    }
-
-    if (poster) {
-      update.poster = poster;
-    }
-
-    const updatedGig = await this.gigService.updateGigByPublicId(
-      publicId,
-      update,
-    );
+    const { poster } = updatedGig;
 
     switch (updatedGig.status) {
       case Status.New:
       case Status.Rejected:
       case Status.Approved:
       case Status.Pending: {
+        // TODO: refactor
         try {
           const edited = await this.telegramService.editModerationPost(
             updatedGig,
@@ -510,6 +424,7 @@ export class ReceiverService {
     readonly country?: string;
     readonly city?: string;
   }): Promise<void> {
+    // TODO: extract?
     const baseUrl = (process.env.APP_BASE_URL ?? '').trim();
     const secret = (process.env.FEED_REVALIDATE_SECRET ?? '').trim();
     if (!baseUrl || !secret) return;
@@ -559,11 +474,7 @@ export class ReceiverService {
     }
   }
 
-  async handleGigReject(payload: {
-    gigId: GigId;
-    chatId: TGChatId;
-    messageId: TGMessage['message_id'];
-  }): Promise<void> {
+  async handleGigReject(payload: HandleGigRejectPayload): Promise<void> {
     const { gigId, chatId, messageId } = payload;
     const updatedGig = await this.gigService.updateGigStatus(
       gigId,

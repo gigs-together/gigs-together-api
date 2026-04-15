@@ -8,7 +8,6 @@ import { HttpService } from '@nestjs/axios';
 
 interface PosterFile {
   buffer: Buffer;
-  filename: string;
   mimetype?: string;
 }
 
@@ -32,11 +31,8 @@ export class GigPosterService {
   ) {}
 
   private async download(url: string): Promise<PosterFile> {
-    let filename = 'poster.jpg'; // TODO: jpg?
     try {
-      const parsed = new URL(url);
-      const last = parsed.pathname.split('/').filter(Boolean).pop();
-      if (last) filename = last;
+      new URL(url);
     } catch {
       throw new BadRequestException('posterUrl must be a valid URL');
     }
@@ -60,7 +56,6 @@ export class GigPosterService {
 
       return {
         buffer: Buffer.from(res.data),
-        filename,
         mimetype: ct,
       };
     } catch (e) {
@@ -91,7 +86,7 @@ export class GigPosterService {
     input: PosterFile,
     context: UploadPosterPayload['context'],
   ): Promise<string> {
-    const { buffer, filename, mimetype } = input;
+    const { buffer, mimetype } = input;
     const year = this.getUtcYear(context.date);
     // TODO
     const TEMP_BARCELONA = 'barcelona';
@@ -99,13 +94,13 @@ export class GigPosterService {
       context.city.toLowerCase() === TEMP_BARCELONA
         ? TEMP_BARCELONA
         : 'unknown';
-    const fileExtension = filename?.split('.').filter(Boolean).pop();
+    // Last segment is publicId only (no file extension); Content-Type is set on upload.
     const key = [
       this.getBucketPrefix(),
       year,
       context.country.toLowerCase(),
       city,
-      `${context.publicId}.${fileExtension}`,
+      context.publicId,
     ].join('/');
     return this.bucketService.upload({
       buffer,
@@ -121,7 +116,6 @@ export class GigPosterService {
       const bucketPath = await this.uploadToBucket(
         {
           buffer: file.buffer,
-          filename: file.originalname,
           mimetype: file.mimetype,
         },
         context,
@@ -131,19 +125,6 @@ export class GigPosterService {
     }
 
     if (!url) return;
-
-    // Reuse already downloaded poster if exists
-    const existing = await this.gigModel.findOne({
-      'poster.externalUrl': url,
-    });
-
-    // TODO: also look by poster equality?
-    if (existing?.poster?.bucketPath) {
-      return {
-        bucketPath: existing.poster.bucketPath,
-        externalUrl: url,
-      };
-    }
 
     const downloaded = await this.download(url);
     return {

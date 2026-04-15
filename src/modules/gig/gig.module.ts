@@ -8,7 +8,9 @@ import { CalendarModule } from '../calendar/calendar.module';
 import { BucketModule } from '../bucket/bucket.module';
 import { HttpModule } from '@nestjs/axios';
 import { GigPosterService } from './gig.poster.service';
+import { AuthModule } from '../auth/auth.module';
 import { TelegramModule } from '../telegram/telegram.module';
+import { GigLookupBodyPipe } from './pipes/gig-lookup-body.pipe';
 
 @Module({
   imports: [
@@ -17,9 +19,10 @@ import { TelegramModule } from '../telegram/telegram.module';
     CalendarModule,
     BucketModule,
     HttpModule,
+    AuthModule,
     TelegramModule,
   ],
-  providers: [GigService, GigPosterService],
+  providers: [GigService, GigPosterService, GigLookupBodyPipe],
   exports: [GigService],
   controllers: [GigController],
 })

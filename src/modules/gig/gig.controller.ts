@@ -7,8 +7,11 @@ import {
   Param,
   Post,
   Query,
+  UseGuards,
+  UseFilters,
   Version,
 } from '@nestjs/common';
+import { AiLookupNotFoundFilter } from '../ai/filters/ai-lookup-not-found.filter';
 import { GigService } from './gig.service';
 import { V1GigGetRequestQuery } from './types/requests/v1-gig-get-request';
 import type { V1GetGigsResponseBody } from './types/requests/v1-gig-get-request';
@@ -16,13 +19,17 @@ import { V1GigDatesGetRequestQuery } from './types/requests/v1-gig-dates-get-req
 import type { V1GigDatesGetResponseBody } from './types/requests/v1-gig-dates-get-request';
 import { V1GigAroundGetRequestQuery } from './types/requests/v1-gig-around-get-request';
 import type { V1GigAroundGetResponseBody } from './types/requests/v1-gig-around-get-request';
-import type { V1GigLookupResponseBody } from './types/requests/v1-gig-lookup-request';
-import { V1GigLookupRequestBody } from './types/requests/v1-gig-lookup-request';
-import {
-  V1GigByPublicIdGetRequestParams,
-  V1GigByPublicIdGetRequestQuery,
-} from './types/requests/v1-gig-by-public-id-get-request';
+import type {
+  V1GigLookupFields,
+  V1GigLookupResponseBody,
+} from './types/requests/v1-gig-lookup-request';
+import { GigLookupBodyPipe } from './pipes/gig-lookup-body.pipe';
+import { V1GigByPublicIdGetRequestParams } from './types/requests/v1-gig-by-public-id-get-request';
 import type { V1GigByPublicIdGetResponseBody } from './types/requests/v1-gig-by-public-id-get-request';
+import type { GigFormDataByPublicId } from './types/gig.types';
+import { RequireAuthenticatedUserGuard } from '../auth/guards/require-authenticated-user.guard';
+import { AccessJwtAuthGuard } from '../auth/guards/access-jwt-auth.guard';
+import { RequireAdminGuard } from '../admin/guards/require-admin.guard';
 
 @Controller('gig')
 export class GigController {
@@ -60,20 +67,32 @@ export class GigController {
   }
 
   /**
-   * Loads a single gig by its public id.
-   * Used to resolve deep links (e.g. #publicId) when the feed window doesn't contain the target yet.
+   * Public: anchor calendar date for hash / deep links (`{ date }` only).
+   */
+  @Version('1')
+  @Get('date/:publicId')
+  getGigDateByPublicId(
+    @Param() params: V1GigByPublicIdGetRequestParams,
+  ): Promise<V1GigByPublicIdGetResponseBody> {
+    return this.gigService.getGigDateByPublicId({
+      publicId: params.publicId,
+    });
+  }
+
+  /**
+   * Admin-only: full gig form fields by `publicId` (any status; for display / edit UI).
    */
   @Version('1')
   @Get(':publicId')
-  getGigByPublicIdV1(
+  @UseGuards(
+    AccessJwtAuthGuard,
+    RequireAuthenticatedUserGuard,
+    RequireAdminGuard,
+  )
+  getGigByPublicId(
     @Param() params: V1GigByPublicIdGetRequestParams,
-    @Query() query: V1GigByPublicIdGetRequestQuery,
-  ): Promise<V1GigByPublicIdGetResponseBody> {
-    return this.gigService.getPublishedGigByPublicIdV1({
-      publicId: params.publicId,
-      city: query.city,
-      country: query.country,
-    });
+  ): Promise<GigFormDataByPublicId> {
+    return this.gigService.getGigByPublicId(params.publicId);
   }
 
   /**
@@ -83,10 +102,15 @@ export class GigController {
   @Version('1')
   @Post('lookup')
   @HttpCode(HttpStatus.OK)
-  // TODO: some security
+  @UseGuards(
+    AccessJwtAuthGuard,
+    RequireAuthenticatedUserGuard,
+    RequireAdminGuard,
+  )
+  @UseFilters(AiLookupNotFoundFilter)
   async lookupGigV1(
-    @Body() body: V1GigLookupRequestBody,
+    @Body(GigLookupBodyPipe) fields: V1GigLookupFields,
   ): Promise<V1GigLookupResponseBody> {
-    return this.gigService.lookupGigV1(body);
+    return this.gigService.lookupGigV1(fields);
   }
 }

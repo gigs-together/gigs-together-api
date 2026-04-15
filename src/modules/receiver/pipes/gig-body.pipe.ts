@@ -1,8 +1,5 @@
-import {
-  BadRequestException,
-  Injectable,
-  type PipeTransform,
-} from '@nestjs/common';
+import type { PipeTransform } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import type { V1ReceiverCreateGigRequestBodyGig } from '../types/requests/v1-receiver-create-gig-request';
 
 type AnyBodyWithGig = Record<string, unknown> & { gig?: unknown };

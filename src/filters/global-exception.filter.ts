@@ -71,12 +71,14 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         : {}),
     };
 
-    // Keep logs readable: only message + stack (no giant object dumps).
-    this.logger.error(
-      errorResponse,
-      exception instanceof Error ? exception.stack : undefined,
-      GlobalExceptionFilter.name,
-    );
+    if (status !== HttpStatus.UNAUTHORIZED) {
+      // Keep logs readable: only message + stack (no giant object dumps).
+      this.logger.error(
+        errorResponse,
+        exception instanceof Error ? exception.stack : undefined,
+        GlobalExceptionFilter.name,
+      );
+    }
 
     return response.status(status).json(errorResponse);
   }

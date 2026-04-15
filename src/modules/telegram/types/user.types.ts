@@ -4,11 +4,8 @@ export interface TGUser {
   is_bot?: boolean;
   username?: string;
   language_code?: string;
+  /** Login Widget only; HTTPS URL when present. */
+  photo_url?: string;
 
   [key: string]: unknown;
-}
-
-export interface User {
-  tgUser: TGUser;
-  isAdmin: boolean;
 }

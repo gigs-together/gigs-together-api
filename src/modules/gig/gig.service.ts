@@ -8,11 +8,10 @@ import { Types } from 'mongoose';
 import type { Model, UpdateQuery } from 'mongoose';
 import type {
   CreateGigInput,
-  GetGigs,
   GigFormDataByPublicId,
   GigId,
 } from './types/gig.types';
-import { Gig } from './gig.schema';
+import { Gig, GigPoster } from './gig.schema';
 import type { GigDocument } from './gig.schema';
 import { Status } from './types/status.enum';
 import { AiService } from '../ai/ai.service';
@@ -33,8 +32,10 @@ import type {
   V1GigByPublicIdGetResponseBody,
 } from './types/requests/v1-gig-by-public-id-get-request';
 import { startOfTodayMs } from './types/requests/v1-gig-date-range.shared';
-import type { V1GigLookupRequestBody } from './types/requests/v1-gig-lookup-request';
-import type { V1GigLookupResponseBody } from './types/requests/v1-gig-lookup-request';
+import type {
+  V1GigLookupFields,
+  V1GigLookupResponseBody,
+} from './types/requests/v1-gig-lookup-request';
 import { envBool } from '../../shared/utils/env';
 import { CalendarService } from '../calendar/calendar.service';
 import type { CalendarishEvent } from '../calendar/calendar.service';
@@ -44,10 +45,30 @@ import { BucketService } from '../bucket/bucket.service';
 import { PostType } from './types/postType.enum';
 import { Messenger } from './types/messenger.enum';
 import { decodeGigCursorOrThrow, encodeGigCursor } from './utils/gig-cursor';
+import type { User } from '../../shared/types/user.types';
+import type { V1ReceiverCreateGigRequestBody } from '../receiver/types/requests/v1-receiver-create-gig-request';
 
 interface GetPostUrlPayload {
   postId?: number;
   chatId?: number;
+}
+
+interface UpdateGigByPublicIdPayload {
+  publicId: string;
+  body: V1ReceiverCreateGigRequestBody;
+  posterFile: Express.Multer.File | undefined;
+}
+
+interface SaveGigPayload {
+  body: V1ReceiverCreateGigRequestBody;
+  user: User;
+  posterFile: Express.Multer.File | undefined;
+}
+
+interface GenerateUniquePublicIdPayload {
+  title: string;
+  yyyyMmDd: string;
+  excludeMongoId?: Types.ObjectId;
 }
 
 // TODO: add allowing only specific status transitions
@@ -82,11 +103,9 @@ export class GigService {
     return id;
   }
 
-  async generateUniquePublicId(input: {
-    title: string;
-    yyyyMmDd: string;
-    excludeMongoId?: Types.ObjectId;
-  }): Promise<string> {
+  private async generateUniquePublicId(
+    input: GenerateUniquePublicIdPayload,
+  ): Promise<string> {
     const slugifyTitle = (rawTitle: string): string => {
       const str0 = (rawTitle ?? '').trim().toLowerCase();
       const str1 = str0
@@ -157,8 +176,48 @@ export class GigService {
     return `${prefix}-${rnd}`;
   }
 
-  async saveGig(data: CreateGigInput): Promise<GigDocument> {
-    const date = new Date(data.date);
+  async saveGig(payload: SaveGigPayload): Promise<GigDocument> {
+    const { body, user, posterFile } = payload;
+
+    const date = new Date(body.gig.date);
+    const yyyyMmDd = date.toISOString().split('T')[0];
+    const publicId = await this.generateUniquePublicId({
+      title: body.gig.title,
+      yyyyMmDd,
+    });
+
+    const explicitPosterUrl = (body.gig.posterUrl ?? '').trim() || undefined;
+    const defaultPosterUrl =
+      (process.env.DEFAULT_GIG_POSTER_URL ?? '').trim() || undefined;
+    const posterUrl =
+      explicitPosterUrl ?? (posterFile ? undefined : defaultPosterUrl);
+
+    const poster = await this.uploadPoster({
+      url: posterUrl,
+      file: posterFile,
+      context: {
+        date: body.gig.date,
+        city: body.gig.city,
+        country: body.gig.country,
+        publicId,
+      },
+    });
+
+    const data: CreateGigInput = {
+      publicId,
+      title: body.gig.title,
+      date: body.gig.date,
+      city: body.gig.city,
+      country: body.gig.country,
+      venue: body.gig.venue,
+      ticketsUrl: body.gig.ticketsUrl,
+      poster,
+      suggestedBy: { userId: user.tgUser.id },
+    };
+
+    if (body.gig.endDate && body.gig.endDate !== body.gig.date) {
+      data.endDate = body.gig.endDate;
+    }
 
     const mappedData: Gig = {
       publicId: data.publicId,
@@ -186,7 +245,7 @@ export class GigService {
       throw new BadRequestException(`Invalid MongoDB ID: ${gigId}`);
     }
     const updatedGig = await this.gigModel.findByIdAndUpdate(gigId, data, {
-      new: true,
+      returnDocument: 'after',
     });
 
     if (!updatedGig) {
@@ -229,15 +288,53 @@ export class GigService {
   }
 
   async updateGigByPublicId(
-    publicId: string,
-    data: UpdateQuery<Gig>,
+    payload: UpdateGigByPublicIdPayload,
   ): Promise<GigDocument> {
+    const { publicId, body, posterFile } = payload;
+
     const id = this.normalizeAndValidatePublicIdOrThrow(publicId);
+
+    const dateMs = new Date(body.gig.date).getTime();
+
+    const endDateMs =
+      body.gig.endDate && body.gig.endDate !== body.gig.date
+        ? new Date(body.gig.endDate).getTime()
+        : undefined;
+
+    const poster: GigPoster | undefined = await this.uploadPoster({
+      url: body.gig.posterUrl,
+      file: posterFile,
+      context: {
+        date: body.gig.date,
+        city: body.gig.city,
+        country: body.gig.country,
+        publicId,
+      },
+    });
+
+    const dataToUpdate: UpdateQuery<Gig> = {
+      title: body.gig.title,
+      date: dateMs,
+      city: body.gig.city,
+      country: body.gig.country,
+      venue: body.gig.venue,
+      ticketsUrl: body.gig.ticketsUrl,
+    };
+
+    if (endDateMs) {
+      dataToUpdate.endDate = endDateMs;
+    } else {
+      dataToUpdate.$unset = { ...(dataToUpdate.$unset ?? {}), endDate: 1 };
+    }
+
+    if (poster) {
+      dataToUpdate.poster = poster;
+    }
 
     const updated = await this.gigModel.findOneAndUpdate(
       { publicId: id },
-      data,
-      { new: true },
+      dataToUpdate,
+      { returnDocument: 'after' },
     );
     if (!updated) {
       throw new NotFoundException(`Gig with publicId "${id}" not found`);
@@ -245,9 +342,8 @@ export class GigService {
     return updated;
   }
 
-  async getGigFormDataByPublicId(
-    publicId: string,
-  ): Promise<GigFormDataByPublicId> {
+  /** Full gig form fields by public id (any status). */
+  async getGigByPublicId(publicId: string): Promise<GigFormDataByPublicId> {
     const gig = await this.getGigByPublicIdOrThrow(publicId);
 
     const externalFallbackEnabled = envBool(
@@ -283,39 +379,6 @@ export class GigService {
 
   updateGigStatus(gigId: GigId, status: Status): Promise<GigDocument> {
     return this.updateGig(gigId, { status });
-  }
-
-  async getGigs(data: GetGigs): Promise<GigDocument[]> {
-    const { page, size, from, to, status, city, country } = data;
-
-    const MAX_SIZE = 100;
-    if (size > MAX_SIZE) {
-      throw new BadRequestException(
-        `Size limit exceeded. Maximum size is ${MAX_SIZE}.`,
-      );
-    }
-
-    const skip = (page - 1) * size;
-
-    const dateFilter: { $gte: number; $lte?: number } = { $gte: from };
-    if (to !== undefined) dateFilter.$lte = to;
-
-    const filter: Record<string, unknown> = { date: dateFilter };
-    if (status) filter.status = status;
-    if (city && country) {
-      filter.city = city;
-      filter.country = country;
-    }
-
-    // Always keep pagination deterministic.
-    // - date: primary sort
-    // - _id: tie-breaker for equal dates
-    return this.gigModel
-      .find(filter)
-      .collation({ locale: 'en', strength: 2 })
-      .sort({ date: 1, _id: 1 })
-      .skip(skip)
-      .limit(size);
   }
 
   private async getPostUrl(
@@ -494,7 +557,10 @@ export class GigService {
     return { gigs: mapped, prevCursor, nextCursor };
   }
 
-  async getPublishedGigByPublicIdV1(
+  /**
+   * Published gig anchor date for hash / deep-link resolution (feed client). Body: `{ date }` only.
+   */
+  async getGigDateByPublicId(
     input: V1GigByPublicIdGetInput,
   ): Promise<V1GigByPublicIdGetResponseBody> {
     const publicId = this.normalizeAndValidatePublicIdOrThrow(input.publicId);
@@ -503,10 +569,6 @@ export class GigService {
       publicId,
       status: Status.Published,
     };
-    if (input.city && input.country) {
-      filter.city = input.city;
-      filter.country = input.country;
-    }
 
     const doc = await this.gigModel
       .findOne(filter)
@@ -516,12 +578,9 @@ export class GigService {
       throw new NotFoundException(`Gig with publicId "${publicId}" not found`);
     }
 
-    const mapped = await this.mapGigsToV1Gigs([doc]);
-    if (!mapped[0]) {
-      throw new Error('Failed to map gig');
-    }
-
-    return { gig: mapped[0] };
+    return {
+      date: doc.date.toString(),
+    };
   }
 
   async getPublishedGigsAroundV1(
@@ -682,16 +741,13 @@ export class GigService {
   }
 
   async lookupGigV1(
-    body: V1GigLookupRequestBody,
+    fields: V1GigLookupFields,
   ): Promise<V1GigLookupResponseBody> {
-    const gig = await this.aiService.lookupGigV1({
-      name: body.name,
-      location: body.location,
-    });
+    const { name, location } = fields;
+    const gig = await this.aiService.lookupGigV1({ name, location });
     return { gig };
   }
 
-  uploadPoster: GigPosterService['upload'] = this.gigPosterService.upload.bind(
-    this.gigPosterService,
-  );
+  private uploadPoster: GigPosterService['upload'] =
+    this.gigPosterService.upload.bind(this.gigPosterService);
 }

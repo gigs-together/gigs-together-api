@@ -1,5 +1,3 @@
-import type { User } from '../../../telegram/types/user.types';
-
 export interface V1ReceiverCreateGigRequestBodyGig {
   title: string;
   date: string;
@@ -12,7 +10,6 @@ export interface V1ReceiverCreateGigRequestBodyGig {
   posterUrl?: string;
 }
 
-export interface V1ReceiverCreateGigRequestBodyValidated {
+export interface V1ReceiverCreateGigRequestBody {
   gig: V1ReceiverCreateGigRequestBodyGig;
-  user: User;
 }
