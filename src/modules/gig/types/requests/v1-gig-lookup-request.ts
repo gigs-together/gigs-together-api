@@ -20,5 +20,5 @@ export interface V1GigLookupFields {
 }
 
 export interface V1GigLookupResponseBody {
-  gig: V1ReceiverCreateGigRequestBodyGig;
+  readonly gig: V1ReceiverCreateGigRequestBodyGig | null;
 }
