@@ -8,10 +8,8 @@ import {
   Post,
   Query,
   UseGuards,
-  UseFilters,
   Version,
 } from '@nestjs/common';
-import { AiLookupNotFoundFilter } from '../ai/filters/ai-lookup-not-found.filter';
 import { GigService } from './gig.service';
 import { V1GigGetRequestQuery } from './types/requests/v1-gig-get-request';
 import type { V1GetGigsResponseBody } from './types/requests/v1-gig-get-request';
@@ -107,7 +105,6 @@ export class GigController {
     RequireAuthenticatedUserGuard,
     RequireAdminGuard,
   )
-  @UseFilters(AiLookupNotFoundFilter)
   async lookupGigV1(
     @Body(GigLookupBodyPipe) fields: V1GigLookupFields,
   ): Promise<V1GigLookupResponseBody> {

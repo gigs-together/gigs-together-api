@@ -745,7 +745,7 @@ export class GigService {
   ): Promise<V1GigLookupResponseBody> {
     const { name, location } = fields;
     const gig = await this.aiService.lookupGigV1({ name, location });
-    return { gig };
+    return { gig: gig ?? null };
   }
 
   private uploadPoster: GigPosterService['upload'] =

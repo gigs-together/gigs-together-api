@@ -11,6 +11,21 @@ import { isAxiosError } from 'axios';
 import type { Request, Response } from 'express';
 import { logError } from '../shared/utils/logging';
 
+function getClientIp(request: Request): string {
+  const forwarded = request.headers['x-forwarded-for'];
+  if (typeof forwarded === 'string' && forwarded.length > 0) {
+    return forwarded.split(',')[0].trim();
+  }
+  if (Array.isArray(forwarded) && forwarded[0]) {
+    return String(forwarded[0]).split(',')[0].trim();
+  }
+  const socketAddr = request.socket?.remoteAddress;
+  if (socketAddr) {
+    return socketAddr;
+  }
+  return request.ip ?? 'unknown';
+}
+
 @Catch()
 @Injectable()
 export class GlobalExceptionFilter implements ExceptionFilter {
@@ -52,7 +67,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         ? exception.getStatus()
         : HttpStatus.INTERNAL_SERVER_ERROR;
 
-    const message =
+    const rawMessage =
       exception instanceof HttpException
         ? exception.getResponse()
         : 'Internal server error';
@@ -63,15 +78,23 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       path: request.url,
       method: request.method,
       message:
-        typeof message === 'string'
-          ? message
-          : (message as { message?: string }).message || 'An error occurred',
-      ...(typeof message === 'object' && !(message instanceof Error)
-        ? message
+        typeof rawMessage === 'string'
+          ? rawMessage
+          : (rawMessage as { message?: string }).message || 'An error occurred',
+      ...(typeof rawMessage === 'object' && !(rawMessage instanceof Error)
+        ? rawMessage
         : {}),
     };
 
-    if (status !== HttpStatus.UNAUTHORIZED) {
+    const pathForLog = request.originalUrl ?? request.url;
+    const clientIp = getClientIp(request);
+
+    if (status === HttpStatus.NOT_FOUND) {
+      this.logger.warn(
+        `Not found ${request.method} ${pathForLog} ip=${clientIp}`,
+        GlobalExceptionFilter.name,
+      );
+    } else {
       // Keep logs readable: only message + stack (no giant object dumps).
       this.logger.error(
         errorResponse,
