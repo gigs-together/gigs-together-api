@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { GigModule } from '../gig/gig.module';
 import { TelegramModule } from '../telegram/telegram.module';
+import { DigestController } from './digest.controller';
+import { DigestPublishGuard } from './guards/digest-publish.guard';
 import { DigestService } from './digest.service';
 
 /**
@@ -9,7 +11,8 @@ import { DigestService } from './digest.service';
  */
 @Module({
   imports: [GigModule, TelegramModule],
-  providers: [DigestService],
+  controllers: [DigestController],
+  providers: [DigestService, DigestPublishGuard],
   exports: [DigestService],
 })
 export class DigestModule {}
