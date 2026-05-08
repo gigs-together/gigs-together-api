@@ -679,6 +679,13 @@ export class TelegramService {
     );
   }
 
+  async publishWeeklyDigestToMainChannel(
+    gigs: readonly GigDocument[],
+  ): Promise<void> {
+    // TODO
+    void gigs;
+  }
+
   publishMain(gig: GigDocument): Promise<TGMessage> {
     const chatId = process.env.MAIN_CHANNEL_ID;
 

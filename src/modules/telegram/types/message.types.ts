@@ -63,6 +63,14 @@ export interface TGInputMediaPhoto {
   has_spoiler?: boolean;
 }
 
+export interface TGSendMediaGroup {
+  chat_id: TGChatId;
+  media: TGInputMediaPhoto[];
+  disable_notification?: boolean;
+  protect_content?: boolean;
+  message_thread_id?: number;
+}
+
 export interface TGEditMessageMedia {
   chatId?: TGChatId;
   messageId?: number;

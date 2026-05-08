@@ -13,18 +13,17 @@ import { Status } from '../gig/types/status.enum';
 
 describe('DigestService', () => {
   let service: DigestService;
-  let gigService: GigService;
 
   const execMock = vi.fn();
   const sortMock = vi.fn().mockReturnValue({ exec: execMock });
   const collationMock = vi.fn().mockReturnValue({ sort: sortMock });
   const findMock = vi.fn().mockReturnValue({ collation: collationMock });
-  const publishMainMock = vi.fn();
+  const publishWeeklyDigestToMainChannelMock = vi.fn();
 
   beforeEach(async () => {
     vi.clearAllMocks();
     execMock.mockResolvedValue([]);
-    publishMainMock.mockResolvedValue(undefined);
+    publishWeeklyDigestToMainChannelMock.mockResolvedValue(undefined);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -47,7 +46,8 @@ describe('DigestService', () => {
         {
           provide: TelegramService,
           useValue: {
-            publishMain: publishMainMock,
+            publishWeeklyDigestToMainChannel:
+              publishWeeklyDigestToMainChannelMock,
           },
         },
         { provide: BucketService, useValue: {} },
@@ -55,7 +55,6 @@ describe('DigestService', () => {
     }).compile();
 
     service = module.get<DigestService>(DigestService);
-    gigService = module.get<GigService>(GigService);
   });
 
   it('should be defined when dependencies resolve', () => {
@@ -81,33 +80,27 @@ describe('DigestService', () => {
       expect(sortMock).toHaveBeenCalledWith({ date: 1, _id: 1 });
     });
 
-    it('should not invoke publishMain when digest date range has no documents', async () => {
+    it('should invoke Telegram digest publish with an empty document list when digest date range has no documents', async () => {
       await service.publish({
         referenceDate: new Date(2024, 5, 10, 12, 0, 0, 0),
       });
 
-      expect(publishMainMock).not.toHaveBeenCalled();
+      expect(publishWeeklyDigestToMainChannelMock).toHaveBeenCalledWith([]);
     });
 
-    it('should invoke publishMain once per document when digest date range returns documents', async () => {
+    it('should invoke Telegram digest publish with loaded documents when digest date range returns documents', async () => {
       const docA = { _id: 'a', publicId: 'gig-a' };
       const docB = { _id: 'b', publicId: 'gig-b' };
       execMock.mockResolvedValue([docA, docB]);
 
-      const mapSpy = vi
-        .spyOn(gigService, 'mapGigsToV1Gigs')
-        .mockResolvedValue([]);
+      await service.publish({
+        referenceDate: new Date(2024, 5, 10, 12, 0, 0, 0),
+      });
 
-      try {
-        await service.publish({
-          referenceDate: new Date(2024, 5, 10, 12, 0, 0, 0),
-        });
-
-        expect(publishMainMock).toHaveBeenNthCalledWith(1, docA);
-        expect(publishMainMock).toHaveBeenNthCalledWith(2, docB);
-      } finally {
-        mapSpy.mockRestore();
-      }
+      expect(publishWeeklyDigestToMainChannelMock).toHaveBeenCalledWith([
+        docA,
+        docB,
+      ]);
     });
   });
 });

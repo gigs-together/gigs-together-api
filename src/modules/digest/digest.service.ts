@@ -24,19 +24,11 @@ export class DigestService {
   ) {}
 
   /**
-   * Loads published gigs for the digest date range, then pushes to Telegram.
-   *
-   * TODO: Build one digest message from the range snapshot
+   * Publishes the weekly digest to the main Telegram channel (album + caption, or empty-range notice).
    */
   async publish(params?: GetPublishedGigsForDigestParams): Promise<void> {
     const documents = await this.getDigestRangeDocuments(params);
-    const gigs = await this.gigService.mapGigsToV1Gigs(documents);
-
-    // TODO: Replace placeholder loop with digest-specific Telegram sending using gigs.
-    void gigs;
-
-    // TODO
-    await this.telegramService.publishMain(documents[0]);
+    await this.telegramService.publishWeeklyDigestToMainChannel(documents);
   }
 
   private async getDigestRangeDocuments(
