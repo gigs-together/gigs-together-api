@@ -4,14 +4,6 @@ import { GigService } from '../gig/gig.service';
 import { TelegramService } from '../telegram/telegram.service';
 import { getDigestUpcomingInclusiveDayRangeMs } from './digest-date-range';
 
-interface GetPublishedGigsForDigestParams {
-  /**
-   * Defaults to `new Date()` when omitted so cron handlers use runtime "today";
-   * tests pass an explicit instant for deterministic bounds.
-   */
-  readonly referenceDate?: Date;
-}
-
 /**
  * Digest Telegram publishing. Cron providers in this module should call `publish`;
  * use `ScheduleModule` from `AppModule` (already registered globally).
@@ -26,17 +18,13 @@ export class DigestService {
   /**
    * Publishes the weekly digest to the main Telegram channel (album + caption, or empty-range notice).
    */
-  async publish(params?: GetPublishedGigsForDigestParams): Promise<void> {
-    const documents = await this.getDigestRangeDocuments(params);
+  async publish(): Promise<void> {
+    const documents = await this.getDigestRangeDocuments();
     await this.telegramService.publishWeeklyDigestToMainChannel(documents);
   }
 
-  private async getDigestRangeDocuments(
-    params?: GetPublishedGigsForDigestParams,
-  ): Promise<GigDocument[]> {
-    const referenceDate = params?.referenceDate ?? new Date();
-    const { fromMs, toMs } =
-      getDigestUpcomingInclusiveDayRangeMs(referenceDate);
+  private async getDigestRangeDocuments(): Promise<GigDocument[]> {
+    const { fromMs, toMs } = getDigestUpcomingInclusiveDayRangeMs(new Date());
 
     return this.gigService.getPublishedGigDocumentsInInclusiveMsRange({
       fromMs,

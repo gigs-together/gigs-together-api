@@ -62,12 +62,20 @@ describe('DigestService', () => {
   });
 
   describe('publish', () => {
-    it('should query published gigs within the seven-day inclusive date range when referenceDate is fixed', async () => {
-      const referenceDate = new Date(2024, 5, 10, 12, 0, 0, 0);
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date(2024, 5, 10, 12, 0, 0, 0));
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('should query published gigs within the seven-day inclusive date range for today', async () => {
       const fromMs = new Date(2024, 5, 10, 0, 0, 0, 0).getTime();
       const toMs = new Date(2024, 5, 16, 23, 59, 59, 999).getTime();
 
-      await service.publish({ referenceDate });
+      await service.publish();
 
       expect(findMock).toHaveBeenCalledWith({
         status: Status.Published,
@@ -81,9 +89,7 @@ describe('DigestService', () => {
     });
 
     it('should invoke Telegram digest publish with an empty document list when digest date range has no documents', async () => {
-      await service.publish({
-        referenceDate: new Date(2024, 5, 10, 12, 0, 0, 0),
-      });
+      await service.publish();
 
       expect(publishWeeklyDigestToMainChannelMock).toHaveBeenCalledWith([]);
     });
@@ -93,9 +99,7 @@ describe('DigestService', () => {
       const docB = { _id: 'b', publicId: 'gig-b' };
       execMock.mockResolvedValue([docA, docB]);
 
-      await service.publish({
-        referenceDate: new Date(2024, 5, 10, 12, 0, 0, 0),
-      });
+      await service.publish();
 
       expect(publishWeeklyDigestToMainChannelMock).toHaveBeenCalledWith([
         docA,
