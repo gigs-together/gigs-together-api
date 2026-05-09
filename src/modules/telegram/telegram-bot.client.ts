@@ -41,23 +41,6 @@ export class TelegramBotClient {
 
   constructor(private readonly httpService: HttpService) {}
 
-  async send(
-    payload: TGSendMessage | TGSendPhoto,
-    gigId = '',
-  ): Promise<TGMessage | undefined> {
-    try {
-      if (this.isPhotoPayload(payload)) {
-        return this.sendPhoto(payload, gigId);
-      }
-      return this.sendMessage(payload);
-    } catch (e) {
-      this.logger.error(
-        `send error: ${JSON.stringify(e?.response?.data ?? e)}`,
-        e instanceof Error ? e.stack : undefined,
-      );
-    }
-  }
-
   async sendMessage(payload: TGSendMessage): Promise<TGMessage> {
     const res$ = this.httpService.post('sendMessage', payload);
     const res = await firstValueFrom(res$);
@@ -149,12 +132,6 @@ export class TelegramBotClient {
       }),
     );
     return res.data.result;
-  }
-
-  private isPhotoPayload(
-    payload: TGSendPhoto | TGSendMessage,
-  ): payload is TGSendPhoto {
-    return 'photo' in payload && !!payload.photo;
   }
 
   private isPhotoString(photo: string | InputFile): photo is string {

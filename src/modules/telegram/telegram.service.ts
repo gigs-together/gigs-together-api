@@ -24,10 +24,7 @@ import {
   WeeklyDigestMainChannelSendKind,
   WeeklyDigestMainChannelSendPlan,
 } from './telegram-post-composer.service';
-import type {
-  GetPostUrlPayload,
-  PublishPayload,
-} from './telegram-post-composer.service';
+import type { GetPostUrlPayload } from './telegram-post-composer.service';
 
 export { WEEKLY_DIGEST_EMPTY_CHANNEL_MESSAGE_EN } from './telegram-post-composer.service';
 
@@ -67,15 +64,12 @@ export class TelegramService {
 
   private static readonly CHAT_ERROR_TTL_MS = 60_000 * 5;
 
-  async send(
-    payload: TGSendMessage | TGSendPhoto,
-    gigId?: string,
-  ): Promise<TGMessage | undefined> {
-    return this.telegramBotClient.send(payload, gigId);
-  }
-
   async sendMessage(payload: TGSendMessage): Promise<TGMessage> {
     return this.telegramBotClient.sendMessage(payload);
+  }
+
+  async sendPhoto(payload: TGSendPhoto): Promise<TGMessage | undefined> {
+    return this.telegramBotClient.sendPhoto(payload);
   }
 
   async answerCallbackQuery(payload: TGAnswerCallbackQuery): Promise<void> {
@@ -164,22 +158,6 @@ export class TelegramService {
     return this.telegramPostComposer.pickTgPost(posts, type);
   }
 
-  private publish(payload: PublishPayload): Promise<TGMessage> {
-    const { caption, message, photo, gigId } = payload;
-
-    return this.telegramBotClient.send(
-      {
-        text: caption,
-        caption,
-        photo,
-        parse_mode: TGParseMode.HTML,
-        disable_web_page_preview: true,
-        ...message,
-      },
-      gigId,
-    );
-  }
-
   async publishWeeklyDigestToMainChannel(
     gigs: readonly GigDocument[],
   ): Promise<void> {
@@ -225,11 +203,18 @@ export class TelegramService {
   }
 
   publishMain(gig: GigDocument): Promise<TGMessage> {
-    return this.publish(this.telegramPostComposer.composeMainPost(gig));
+    const composedMainPost: TGSendPhoto =
+      this.telegramPostComposer.composeMainPost(gig);
+    return this.telegramBotClient.sendPhoto(composedMainPost, String(gig._id));
   }
 
   async sendToModeration(gig: GigDocument): Promise<TGMessage> {
-    return this.publish(this.telegramPostComposer.composeModerationPost(gig));
+    const composedModerationPost: TGSendPhoto =
+      this.telegramPostComposer.composeModerationPost(gig);
+    return this.telegramBotClient.sendPhoto(
+      composedModerationPost,
+      String(gig._id),
+    );
   }
 
   async handleAfterPublish(payload: HandleAfterPublishPayload) {
@@ -348,8 +333,11 @@ export class TelegramService {
     gig: GigDocument,
     chatId: TGChatId,
   ): Promise<TGMessage> {
-    return this.publish(
-      this.telegramPostComposer.composeSubmissionFeedbackPost(gig, chatId),
+    const composedSubmissionFeedbackPost: TGSendPhoto =
+      this.telegramPostComposer.composeSubmissionFeedbackPost(gig, chatId);
+    return this.telegramBotClient.sendPhoto(
+      composedSubmissionFeedbackPost,
+      String(gig._id),
     );
   }
 

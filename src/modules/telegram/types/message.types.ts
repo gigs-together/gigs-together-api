@@ -101,6 +101,7 @@ export interface TGSendPhoto {
   chat_id: TGChatId;
   photo: InputFile | string;
   caption?: string;
+  parse_mode?: TGParseMode;
   reply_markup?: TGInlineKeyboardMarkup;
   business_connection_id?: string;
   message_thread_id?: number;

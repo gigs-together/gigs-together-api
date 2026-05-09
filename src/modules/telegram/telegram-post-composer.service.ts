@@ -62,13 +62,6 @@ type TelegramGigPostEditComposition =
   | { kind: PostEditKind.Caption; payload: TGEditMessageCaption }
   | { kind: PostEditKind.Text; payload: TGEditMessageText };
 
-export interface PublishPayload {
-  caption: string;
-  message: Omit<TGSendPhoto, 'photo'>;
-  gigId: string;
-  photo?: string;
-}
-
 interface BuildCaptionPayload {
   date: string | number | Date;
   endDate?: string | number | Date;
@@ -425,7 +418,7 @@ export class TelegramPostComposer {
     return this.getPosterUrl(poster);
   }
 
-  composeMainPost(gig: GigDocument): PublishPayload {
+  composeMainPost(gig: GigDocument): TGSendPhoto {
     const chatId = process.env.MAIN_CHANNEL_ID;
 
     const appBaseUrl = (process.env.APP_BASE_URL ?? '').trim();
@@ -455,14 +448,14 @@ export class TelegramPostComposer {
     });
 
     return {
-      caption,
-      message: { chat_id: chatId },
+      chat_id: chatId,
       photo: poster,
-      gigId: String(gig._id),
+      caption,
+      parse_mode: TGParseMode.HTML,
     };
   }
 
-  composeModerationPost(gig: GigDocument): PublishPayload {
+  composeModerationPost(gig: GigDocument): TGSendPhoto {
     const chatId = process.env.MODERATION_CHANNEL_ID;
     const replyMarkup = this.buildModerationPostReplyMarkup(gig);
 
@@ -477,13 +470,10 @@ export class TelegramPostComposer {
     const poster = this.getPosterFileIdOrUrl({ poster: gig.poster });
 
     return {
-      caption,
-      message: {
-        chat_id: chatId,
-        reply_markup: replyMarkup,
-      },
+      chat_id: chatId,
       photo: poster,
-      gigId: String(gig._id),
+      caption,
+      reply_markup: replyMarkup,
     };
   }
 
@@ -524,7 +514,7 @@ export class TelegramPostComposer {
   composeSubmissionFeedbackPost(
     gig: GigDocument,
     chatId: TGChatId,
-  ): PublishPayload {
+  ): TGSendPhoto {
     const statusForUser = 'Pending';
 
     const replyMarkup = {
@@ -554,13 +544,10 @@ export class TelegramPostComposer {
 
     // TODO: add some language like "You've submitted, blablabla..."
     return {
-      caption,
-      message: {
-        chat_id: chatId,
-        reply_markup: replyMarkup,
-      },
+      chat_id: chatId,
       photo: poster,
-      gigId: String(gig._id),
+      caption,
+      reply_markup: replyMarkup,
     };
   }
 
