@@ -7,6 +7,7 @@ import type { TGMessage } from './types/message.types';
 import { BucketService } from '../bucket/bucket.service';
 import { TelegramAuthService } from './telegram-auth.service';
 import { TelegramBotClient } from './telegram-bot.client';
+import { TelegramPostComposer } from './telegram-post-composer.service';
 import { TelegramService } from './telegram.service';
 
 describe('TelegramService', () => {
@@ -25,7 +26,7 @@ describe('TelegramService', () => {
   };
 
   const mockBucketService = {
-    getPublicPosterUrl: vi.fn(),
+    getPublicFileUrl: vi.fn(),
   };
 
   beforeEach(async () => {
@@ -34,6 +35,7 @@ describe('TelegramService', () => {
         TelegramService,
         TelegramAuthService,
         TelegramBotClient,
+        TelegramPostComposer,
         {
           provide: HttpService,
           useValue: mockHttpService,
