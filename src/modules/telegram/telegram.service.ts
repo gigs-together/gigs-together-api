@@ -5,6 +5,7 @@ import type {
   TGSendPhoto,
   TGChatId,
 } from './types/message.types';
+import { TGParseMode } from './types/message.types';
 import type { GigDocument, GigPost } from '../gig/gig.schema';
 import type { TGAnswerCallbackQuery } from './types/update.types';
 import { Action } from './types/action.enum';
@@ -19,7 +20,7 @@ import type { TelegramInitDataParseResult } from './telegram-auth.service';
 import type { TelegramLoginWidgetValidationPayload } from './types/telegram-login-widget-validation-payload';
 import {
   TelegramPostComposer,
-  TelegramGigPostEditKind,
+  PostEditKind,
   WeeklyDigestMainChannelSendKind,
   WeeklyDigestMainChannelSendPlan,
 } from './telegram-post-composer.service';
@@ -92,11 +93,11 @@ export class TelegramService {
     if (!composed) return;
 
     switch (composed.kind) {
-      case TelegramGigPostEditKind.Media:
+      case PostEditKind.Media:
         return this.telegramBotClient.editMessageMedia(composed.payload);
-      case TelegramGigPostEditKind.Caption:
+      case PostEditKind.Caption:
         return this.telegramBotClient.editMessageCaption(composed.payload);
-      case TelegramGigPostEditKind.Text:
+      case PostEditKind.Text:
         return this.telegramBotClient.editMessageText(composed.payload);
     }
   }
@@ -115,11 +116,11 @@ export class TelegramService {
     if (!composed) return;
 
     switch (composed.kind) {
-      case TelegramGigPostEditKind.Media:
+      case PostEditKind.Media:
         return this.telegramBotClient.editMessageMedia(composed.payload);
-      case TelegramGigPostEditKind.Caption:
+      case PostEditKind.Caption:
         return this.telegramBotClient.editMessageCaption(composed.payload);
-      case TelegramGigPostEditKind.Text:
+      case PostEditKind.Text:
         return this.telegramBotClient.editMessageText(composed.payload);
     }
   }
@@ -171,7 +172,7 @@ export class TelegramService {
         text: caption,
         caption,
         photo,
-        parse_mode: 'HTML',
+        parse_mode: TGParseMode.HTML,
         disable_web_page_preview: true,
         ...message,
       },
@@ -272,7 +273,7 @@ export class TelegramService {
       chatId: moderationPost.chatId,
       messageId: moderationPost.messageId,
       caption: title,
-      parseMode: 'HTML',
+      parseMode: TGParseMode.HTML,
       disableWebPagePreview: true,
       replyMarkup,
     });

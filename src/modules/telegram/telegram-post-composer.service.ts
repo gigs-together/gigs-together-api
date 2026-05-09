@@ -8,7 +8,9 @@ import type {
   TGSendMessage,
   TGSendPhoto,
   TGChatId,
+  TGInputMedia,
 } from './types/message.types';
+import { TGInputMediaType, TGParseMode } from './types/message.types';
 import type { TGChat } from './types/chat.types';
 import { GigDocument, GigPost, GigPoster } from '../gig/gig.schema';
 import { Action } from './types/action.enum';
@@ -24,7 +26,7 @@ import {
 export const WEEKLY_DIGEST_EMPTY_CHANNEL_MESSAGE_EN =
   'There are no gigs scheduled for this week.';
 
-export enum TelegramGigPostEditKind {
+export enum PostEditKind {
   Media = 'media',
   Caption = 'caption',
   Text = 'text',
@@ -56,9 +58,9 @@ export type WeeklyDigestMainChannelSendPlan =
     };
 
 type TelegramGigPostEditComposition =
-  | { kind: TelegramGigPostEditKind.Media; payload: TGEditMessageMedia }
-  | { kind: TelegramGigPostEditKind.Caption; payload: TGEditMessageCaption }
-  | { kind: TelegramGigPostEditKind.Text; payload: TGEditMessageText };
+  | { kind: PostEditKind.Media; payload: TGEditMessageMedia }
+  | { kind: PostEditKind.Caption; payload: TGEditMessageCaption }
+  | { kind: PostEditKind.Text; payload: TGEditMessageText };
 
 export interface PublishPayload {
   caption: string;
@@ -141,15 +143,15 @@ export class TelegramPostComposer {
       const posterUrl = this.getPosterUrlForEdit(gig.poster);
       if (posterUrl) {
         return {
-          kind: TelegramGigPostEditKind.Media,
+          kind: PostEditKind.Media,
           payload: {
             chatId,
             messageId,
             media: {
-              type: 'photo',
+              type: TGInputMediaType.Photo,
               media: posterUrl,
               caption,
-              parse_mode: 'HTML',
+              parse_mode: TGParseMode.HTML,
             },
             replyMarkup,
           },
@@ -159,12 +161,12 @@ export class TelegramPostComposer {
 
     if (post?.fileId) {
       return {
-        kind: TelegramGigPostEditKind.Caption,
+        kind: PostEditKind.Caption,
         payload: {
           chatId,
           messageId,
           caption,
-          parseMode: 'HTML',
+          parseMode: TGParseMode.HTML,
           disableWebPagePreview: true,
           replyMarkup,
         },
@@ -172,12 +174,12 @@ export class TelegramPostComposer {
     }
 
     return {
-      kind: TelegramGigPostEditKind.Text,
+      kind: PostEditKind.Text,
       payload: {
         chatId,
         messageId,
         text: caption,
-        parseMode: 'HTML',
+        parseMode: TGParseMode.HTML,
         disableWebPagePreview: true,
         replyMarkup,
       },
@@ -217,15 +219,15 @@ export class TelegramPostComposer {
       const posterUrl = this.getPosterUrlForEdit(gig.poster);
       if (posterUrl) {
         return {
-          kind: TelegramGigPostEditKind.Media,
+          kind: PostEditKind.Media,
           payload: {
             chatId,
             messageId,
             media: {
-              type: 'photo',
+              type: TGInputMediaType.Photo,
               media: posterUrl,
               caption,
-              parse_mode: 'HTML',
+              parse_mode: TGParseMode.HTML,
             },
           },
         };
@@ -234,24 +236,24 @@ export class TelegramPostComposer {
 
     if (post?.fileId) {
       return {
-        kind: TelegramGigPostEditKind.Caption,
+        kind: PostEditKind.Caption,
         payload: {
           chatId,
           messageId,
           caption,
-          parseMode: 'HTML',
+          parseMode: TGParseMode.HTML,
           disableWebPagePreview: true,
         },
       };
     }
 
     return {
-      kind: TelegramGigPostEditKind.Text,
+      kind: PostEditKind.Text,
       payload: {
         chatId,
         messageId,
         text: caption,
-        parseMode: 'HTML',
+        parseMode: TGParseMode.HTML,
         disableWebPagePreview: true,
       },
     };
@@ -354,15 +356,15 @@ export class TelegramPostComposer {
       .filter((ref): ref is string => ref !== undefined && ref !== '');
 
     if (posterRefs.length >= 2) {
-      const media = posterRefs.map((mediaUrl, index) =>
+      const media: TGInputMedia[] = posterRefs.map((mediaUrl, index) =>
         index === 0
           ? {
-              type: 'photo' as const,
+              type: TGInputMediaType.Photo,
               media: mediaUrl,
               caption,
             }
           : {
-              type: 'photo' as const,
+              type: TGInputMediaType.Photo,
               media: mediaUrl,
             },
       );
@@ -398,7 +400,7 @@ export class TelegramPostComposer {
 
   getPosterReferenceForDigestAlbum(gig: GigDocument): string | undefined {
     const moderationPost = this.pickTgPost(gig.posts, PostType.Moderation);
-    return this.getPosterUrlOrFileId({
+    return this.getPosterFileIdOrUrl({
       post: moderationPost,
       poster: gig.poster,
     });
@@ -414,7 +416,7 @@ export class TelegramPostComposer {
     return externalUrl;
   }
 
-  private getPosterUrlOrFileId(payload: GetPosterPayload): string | undefined {
+  private getPosterFileIdOrUrl(payload: GetPosterPayload): string | undefined {
     const { post, poster } = payload;
     if (post?.fileId) {
       return post.fileId;
@@ -447,7 +449,7 @@ export class TelegramPostComposer {
     });
 
     const moderationPost = this.pickTgPost(gig.posts, PostType.Moderation);
-    const poster = this.getPosterUrlOrFileId({
+    const poster = this.getPosterFileIdOrUrl({
       post: moderationPost,
       poster: gig.poster,
     });
@@ -472,7 +474,7 @@ export class TelegramPostComposer {
       endDate: gig.endDate,
     });
 
-    const poster = this.getPosterUrlOrFileId({ poster: gig.poster });
+    const poster = this.getPosterFileIdOrUrl({ poster: gig.poster });
 
     return {
       caption,
@@ -545,7 +547,7 @@ export class TelegramPostComposer {
     });
 
     const moderationPost = this.pickTgPost(gig.posts, PostType.Moderation);
-    const poster = this.getPosterUrlOrFileId({
+    const poster = this.getPosterFileIdOrUrl({
       post: moderationPost,
       poster: gig.poster,
     });

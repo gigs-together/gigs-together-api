@@ -10,6 +10,7 @@ import {
   WeeklyDigestMainChannelSendKind,
 } from './telegram-post-composer.service';
 import { TELEGRAM_MEDIA_CAPTION_MAX_CHARS } from './telegram-bot.client';
+import { TGInputMediaType } from './types/message.types';
 import type { BuildGigPermalinkPayload } from './telegram-post-composer.service';
 
 describe('TelegramPostComposer', () => {
@@ -150,12 +151,12 @@ describe('TelegramPostComposer', () => {
       expect(plan.payload.chat_id).toBe('-1002');
       expect(plan.payload.media).toHaveLength(2);
       expect(plan.payload.media[0]).toMatchObject({
-        type: 'photo',
+        type: TGInputMediaType.Photo,
         media: 'https://cdn.example/p.jpg',
         caption: expect.stringMatching(/Alpha/s),
       });
       expect(plan.payload.media[1]).toEqual({
-        type: 'photo',
+        type: TGInputMediaType.Photo,
         media: 'https://cdn.example/p.jpg',
       });
     });

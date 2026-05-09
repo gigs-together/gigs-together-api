@@ -13,6 +13,7 @@ import {
 import { TelegramAuthService } from './telegram-auth.service';
 import { TelegramBotClient } from './telegram-bot.client';
 import { TelegramPostComposer } from './telegram-post-composer.service';
+import { TGInputMediaType } from './types/message.types';
 
 describe('TelegramService', () => {
   let service: TelegramService;
@@ -174,12 +175,12 @@ describe('TelegramService', () => {
           chat_id: '-1001',
           media: [
             expect.objectContaining({
-              type: 'photo',
+              type: TGInputMediaType.Photo,
               media: 'https://cdn.example/poster.jpg',
               caption: expect.stringMatching(/Alpha/s),
             }),
             expect.objectContaining({
-              type: 'photo',
+              type: TGInputMediaType.Photo,
               media: 'https://cdn.example/poster.jpg',
             }),
           ],
