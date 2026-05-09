@@ -1,64 +1,34 @@
+import { HttpService } from '@nestjs/axios';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
-import { HttpService } from '@nestjs/axios';
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { of } from 'rxjs';
 import type { TGMessage } from './types/message.types';
-import { BucketService } from '../bucket/bucket.service';
-import { TelegramAuthService } from './telegram-auth.service';
 import { TelegramBotClient } from './telegram-bot.client';
-import { TelegramService } from './telegram.service';
 
-describe('TelegramService', () => {
-  let service: TelegramService;
+describe('TelegramBotClient', () => {
+  let client: TelegramBotClient;
 
   const mockHttpService = {
     post: vi.fn(),
     get: vi.fn(),
   };
 
-  const mockCache = {
-    get: vi.fn(),
-    set: vi.fn(),
-    del: vi.fn(),
-    reset: vi.fn(),
-  };
-
-  const mockBucketService = {
-    getPublicPosterUrl: vi.fn(),
-  };
-
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        TelegramService,
-        TelegramAuthService,
         TelegramBotClient,
         {
           provide: HttpService,
           useValue: mockHttpService,
         },
-        {
-          provide: BucketService,
-          useValue: mockBucketService,
-        },
-        {
-          provide: CACHE_MANAGER,
-          useValue: mockCache,
-        },
       ],
     }).compile();
 
-    service = module.get<TelegramService>(TelegramService);
+    client = module.get<TelegramBotClient>(TelegramBotClient);
   });
 
   afterEach(() => {
     vi.clearAllMocks();
-    delete process.env.S3_PUBLIC_BASE_URL;
-  });
-
-  it('should be defined', () => {
-    expect(service).toBeDefined();
   });
 
   describe('sendMessage', () => {
@@ -80,7 +50,7 @@ describe('TelegramService', () => {
         }),
       );
 
-      const result = await service.sendMessage({ chat_id, text });
+      const result = await client.sendMessage({ chat_id, text });
 
       expect(mockHttpService.post).toHaveBeenCalledWith('sendMessage', {
         chat_id,

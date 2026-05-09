@@ -1,20 +1,12 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type {
-  InputFile,
-  TGEditMessageCaption,
-  TGEditMessageMedia,
-  TGEditMessageReplyMarkup,
-  TGEditMessageText,
   TGMessage,
   TGSendMessage,
   TGSendPhoto,
   TGChatId,
 } from './types/message.types';
-import { HttpService } from '@nestjs/axios';
-import { firstValueFrom } from 'rxjs';
 import { GigDocument, GigPost, GigPoster } from '../gig/gig.schema';
 import type { TGAnswerCallbackQuery } from './types/update.types';
-import FormData from 'form-data';
 import { Action } from './types/action.enum';
 import { TGChat } from './types/chat.types';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
@@ -23,6 +15,7 @@ import { BucketService } from '../bucket/bucket.service';
 import { PostType } from '../gig/types/postType.enum';
 import { Messenger } from '../gig/types/messenger.enum';
 import { logError } from '../../shared/utils/logging';
+import { TelegramBotClient } from './telegram-bot.client';
 import { TelegramAuthService } from './telegram-auth.service';
 import type { TelegramInitDataParseResult } from './telegram-auth.service';
 import type { TelegramLoginWidgetValidationPayload } from './types/telegram-login-widget-validation-payload';
@@ -80,10 +73,10 @@ interface GetPostUrlPayload {
 @Injectable()
 export class TelegramService {
   constructor(
-    private readonly httpService: HttpService,
     private readonly bucketService: BucketService,
     @Inject(CACHE_MANAGER) private cache: Cache,
     private readonly telegramAuthService: TelegramAuthService,
+    private readonly telegramBotClient: TelegramBotClient,
   ) {}
 
   private readonly logger = new Logger(TelegramService.name);
@@ -108,250 +101,15 @@ export class TelegramService {
     payload: TGSendMessage | TGSendPhoto,
     gigId?: string,
   ): Promise<TGMessage | undefined> {
-    try {
-      if (this.isPhotoPayload(payload)) {
-        return this.sendPhoto(payload, gigId);
-      }
-      return this.sendMessage(payload);
-    } catch (e) {
-      this.logger.error(
-        `send error: ${JSON.stringify(e?.response?.data ?? e)}`,
-        e instanceof Error ? e.stack : undefined,
-      );
-    }
+    return this.telegramBotClient.send(payload, gigId);
   }
 
   async sendMessage(payload: TGSendMessage): Promise<TGMessage> {
-    const res$ = this.httpService.post('sendMessage', payload);
-    const res = await firstValueFrom(res$);
-    return res.data.result;
-  }
-
-  private async sendPhoto(
-    payload: TGSendPhoto,
-    gigId?: string,
-  ): Promise<TGMessage | undefined> {
-    if (!payload) {
-      throw new Error('No payload in sendPhoto');
-    }
-    const { photo, reply_markup, ...rest } = payload;
-    if (this.isPhotoString(photo)) {
-      try {
-        const res$ = this.httpService.post('sendPhoto', payload);
-        const res = await firstValueFrom(res$);
-        return res.data.result;
-      } catch (e) {
-        // Telegram can't fetch the file from the provided URL (often HTML/redirect/webp/etc).
-        if (this.isWrongWebPageContentError(e) && this.isHttpUrl(photo)) {
-          const downloaded = await this.downloadRemoteFileAsInputFile(
-            photo,
-            gigId,
-          );
-          if (downloaded) {
-            return this.sendPhoto({ ...payload, photo: downloaded }, gigId);
-          }
-
-          // Last resort: send a text-only message so publish doesn't silently fail.
-          const text =
-            payload.caption ??
-            (payload as unknown as { text?: string }).text ??
-            photo;
-          return this.sendMessage({ chat_id: payload.chat_id, text });
-        }
-        throw e;
-      }
-    }
-
-    // Buffer/Stream — multipart/form-data
-    const form = new FormData();
-    // form.append('chat_id', String(payload.chat_id));
-    if (reply_markup) form.append('reply_markup', JSON.stringify(reply_markup));
-
-    for (const [k, v] of Object.entries(rest)) {
-      if (v !== undefined && v !== null) form.append(k, String(v));
-    }
-
-    // TODO: jpg ?
-    const filename = `poster${gigId}.jpg`;
-    if (Buffer.isBuffer(photo)) {
-      form.append('photo', photo, { filename });
-    } else if (typeof photo.buffer !== 'undefined') {
-      form.append('photo', photo.buffer, {
-        filename: photo.filename,
-        contentType: photo.contentType,
-      });
-    } else {
-      form.append('photo', photo, { filename });
-    }
-
-    const res$ = this.httpService.post('sendPhoto', form, {
-      headers: form.getHeaders(),
-      maxBodyLength: Infinity,
-      maxContentLength: Infinity,
-    });
-
-    const res = await firstValueFrom(res$);
-    return res.data.result;
-  }
-
-  private isPhotoPayload(
-    payload: TGSendPhoto | TGSendMessage,
-  ): payload is TGSendPhoto {
-    return 'photo' in payload && !!payload.photo;
-  }
-
-  private isPhotoString(photo: string | InputFile): photo is string {
-    return typeof photo === 'string';
-  }
-
-  private isHttpUrl(value: string): boolean {
-    return /^https?:\/\//i.test(value);
-  }
-
-  private isWrongWebPageContentError(e: any): boolean {
-    const data = e?.response?.data;
-    const description: string | undefined = data?.description;
-    const errorCode: number | undefined = data?.error_code;
-    return (
-      errorCode === 400 &&
-      typeof description === 'string' &&
-      /wrong type of the web page content/i.test(description)
-    );
-  }
-
-  private async downloadRemoteFileAsInputFile(
-    url: string,
-    gigId?: string,
-  ): Promise<InputFile | undefined> {
-    try {
-      const res$ = this.httpService.get<ArrayBuffer>(url, {
-        responseType: 'arraybuffer',
-        maxContentLength: Infinity,
-      });
-      const res = await firstValueFrom(res$);
-
-      const contentType = (res.headers?.['content-type'] ??
-        res.headers?.['Content-Type']) as string | undefined;
-
-      // If it's clearly not an image, don't try to upload it as a photo.
-      if (contentType && !contentType.toLowerCase().startsWith('image/')) {
-        this.logger.warn(
-          `downloadRemoteFileAsInputFile: non-image content-type (${contentType}) for ${url}`,
-        );
-        return;
-      }
-
-      const buffer = Buffer.from(res.data);
-      // TODO: ??
-      const filename =
-        this.guessFilenameFromUrl(url) ?? `poster${gigId ?? ''}.jpg`;
-
-      return { buffer, filename, contentType };
-    } catch (e) {
-      this.logger.warn(
-        `downloadRemoteFileAsInputFile error: ${JSON.stringify(
-          e?.response?.data ?? e,
-        )}`,
-      );
-      return;
-    }
-  }
-
-  private guessFilenameFromUrl(url: string): string | undefined {
-    try {
-      const u = new URL(url);
-      const last = u.pathname.split('/').filter(Boolean).pop();
-      if (!last) return;
-      // Avoid super-long filenames / query-ish blobs.
-      return last.length > 200 ? undefined : last;
-    } catch {
-      return;
-    }
+    return this.telegramBotClient.sendMessage(payload);
   }
 
   async answerCallbackQuery(payload: TGAnswerCallbackQuery): Promise<void> {
-    const { callback_query_id, text, show_alert } = payload;
-    await firstValueFrom(
-      this.httpService.post('answerCallbackQuery', {
-        callback_query_id,
-        text,
-        show_alert,
-      }),
-    );
-  }
-
-  async editMessageReplyMarkup(
-    payload: TGEditMessageReplyMarkup,
-  ): Promise<TGMessage> {
-    const { chatId, messageId, replyMarkup } = payload;
-    const res = await firstValueFrom(
-      this.httpService.post('editMessageReplyMarkup', {
-        chat_id: chatId,
-        message_id: messageId,
-        reply_markup: replyMarkup,
-      }),
-    );
-    return res.data.result;
-  }
-
-  async editMessageText(payload: TGEditMessageText): Promise<TGMessage> {
-    const {
-      chatId,
-      messageId,
-      text,
-      replyMarkup,
-      parseMode,
-      disableWebPagePreview,
-    } = payload;
-    const res = await firstValueFrom(
-      this.httpService.post('editMessageText', {
-        chat_id: chatId,
-        message_id: messageId,
-        text,
-        parse_mode: parseMode,
-        disable_web_page_preview: disableWebPagePreview,
-        reply_markup: replyMarkup,
-      }),
-    );
-    return res.data.result;
-  }
-
-  async editMessageCaption(payload: TGEditMessageCaption): Promise<TGMessage> {
-    const {
-      chatId,
-      messageId,
-      caption,
-      replyMarkup,
-      parseMode,
-      disableWebPagePreview,
-    } = payload;
-
-    const res = await firstValueFrom(
-      this.httpService.post('editMessageCaption', {
-        chat_id: chatId,
-        message_id: messageId,
-        caption,
-        parse_mode: parseMode,
-        disable_web_page_preview: disableWebPagePreview,
-        reply_markup: replyMarkup,
-      }),
-    );
-
-    return res.data.result;
-  }
-
-  async editMessageMedia(payload: TGEditMessageMedia): Promise<TGMessage> {
-    const { chatId, messageId, media, replyMarkup } = payload;
-    const res = await firstValueFrom(
-      this.httpService.post('editMessageMedia', {
-        chat_id: chatId,
-        message_id: messageId,
-        media,
-        reply_markup: replyMarkup,
-      }),
-    );
-
-    return res.data.result;
+    return this.telegramBotClient.answerCallbackQuery(payload);
   }
 
   async editModerationPost(
@@ -376,7 +134,7 @@ export class TelegramService {
     if (opts?.updateMedia && post?.fileId) {
       const posterUrl = this.getPosterUrlForEdit(gig.poster);
       if (posterUrl) {
-        return this.editMessageMedia({
+        return this.telegramBotClient.editMessageMedia({
           chatId,
           messageId,
           media: {
@@ -392,7 +150,7 @@ export class TelegramService {
 
     // Otherwise, update caption for photo messages, or text for text-only messages.
     if (post?.fileId) {
-      return this.editMessageCaption({
+      return this.telegramBotClient.editMessageCaption({
         chatId,
         messageId,
         caption,
@@ -402,7 +160,7 @@ export class TelegramService {
       });
     }
 
-    return this.editMessageText({
+    return this.telegramBotClient.editMessageText({
       chatId,
       messageId,
       text: caption,
@@ -450,7 +208,7 @@ export class TelegramService {
     if (opts?.updateMedia && post?.fileId) {
       const posterUrl = this.getPosterUrlForEdit(gig.poster);
       if (posterUrl) {
-        return this.editMessageMedia({
+        return this.telegramBotClient.editMessageMedia({
           chatId,
           messageId,
           media: {
@@ -464,7 +222,7 @@ export class TelegramService {
     }
 
     if (post?.fileId) {
-      return this.editMessageCaption({
+      return this.telegramBotClient.editMessageCaption({
         chatId,
         messageId,
         caption,
@@ -473,7 +231,7 @@ export class TelegramService {
       });
     }
 
-    return this.editMessageText({
+    return this.telegramBotClient.editMessageText({
       chatId,
       messageId,
       text: caption,
@@ -574,7 +332,7 @@ export class TelegramService {
   private publish(payload: PublishPayload): Promise<TGMessage> {
     const { caption, message, photo, gigId } = payload;
 
-    return this.send(
+    return this.telegramBotClient.send(
       {
         text: caption,
         caption,
@@ -725,7 +483,7 @@ export class TelegramService {
     // Clean moderation post content & keep only Edit button.
     // NOTE: Telegram can't remove media from a photo message via edit APIs,
     // so the poster will remain, but the caption/text will be cleaned.
-    await this.editMessageCaption({
+    await this.telegramBotClient.editMessageCaption({
       chatId: moderationPost.chatId,
       messageId: moderationPost.messageId,
       caption: title,
@@ -749,7 +507,7 @@ export class TelegramService {
   }
 
   async handlePostReject({ suggestedBy, moderationMessage, gigId, title }) {
-    await this.editMessageReplyMarkup({
+    await this.telegramBotClient.editMessageReplyMarkup({
       chatId: moderationMessage.chatId,
       messageId: moderationMessage.messageId,
       replyMarkup: {
@@ -781,7 +539,7 @@ export class TelegramService {
     const { chatId, messageId, title, status, url } = payload;
     if (!chatId || !messageId) return;
 
-    return this.editMessageCaption({
+    return this.telegramBotClient.editMessageCaption({
       chatId,
       messageId,
       caption: `${title} is ${status}`,
@@ -844,14 +602,6 @@ export class TelegramService {
     });
   }
 
-  private async getChat(chatIdOrUsername: number | string): Promise<TGChat> {
-    const res$ = this.httpService.get('getChat', {
-      params: { chat_id: chatIdOrUsername },
-    });
-    const { data } = await firstValueFrom(res$);
-    return data.result;
-  }
-
   public async getChatUsername(
     chatId: TGChat['id'],
   ): Promise<TGChat['username']> {
@@ -865,7 +615,7 @@ export class TelegramService {
     if (cachedError) return undefined;
 
     try {
-      const chat = await this.getChat(chatId);
+      const chat = await this.telegramBotClient.getChat(chatId);
       await this.cache.set(chatKey, chat);
       return chat.username;
     } catch (e: unknown) {
