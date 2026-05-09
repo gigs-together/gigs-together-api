@@ -22,6 +22,7 @@ import type {
   GetPostUrlPayload,
   PublishPayload,
 } from './telegram-post-composer.service';
+import { TelegramGigPostEditKind } from './types/telegram-gig-post-edit-kind.enum';
 
 interface EditSubmissionFeedbackPayload {
   chatId: TGChatId;
@@ -85,11 +86,11 @@ export class TelegramService {
     if (!composed) return;
 
     switch (composed.kind) {
-      case 'media':
+      case TelegramGigPostEditKind.Media:
         return this.telegramBotClient.editMessageMedia(composed.payload);
-      case 'caption':
+      case TelegramGigPostEditKind.Caption:
         return this.telegramBotClient.editMessageCaption(composed.payload);
-      case 'text':
+      case TelegramGigPostEditKind.Text:
         return this.telegramBotClient.editMessageText(composed.payload);
     }
   }
@@ -108,11 +109,11 @@ export class TelegramService {
     if (!composed) return;
 
     switch (composed.kind) {
-      case 'media':
+      case TelegramGigPostEditKind.Media:
         return this.telegramBotClient.editMessageMedia(composed.payload);
-      case 'caption':
+      case TelegramGigPostEditKind.Caption:
         return this.telegramBotClient.editMessageCaption(composed.payload);
-      case 'text':
+      case TelegramGigPostEditKind.Text:
         return this.telegramBotClient.editMessageText(composed.payload);
     }
   }

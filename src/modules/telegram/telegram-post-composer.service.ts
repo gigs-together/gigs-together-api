@@ -13,14 +13,14 @@ import { Action } from './types/action.enum';
 import { PostType } from '../gig/types/postType.enum';
 import { Messenger } from '../gig/types/messenger.enum';
 import type { TGInlineKeyboardMarkup } from './types/update.types';
+import { TelegramGigPostEditKind } from './types/telegram-gig-post-edit-kind.enum';
 import { BucketService } from '../bucket/bucket.service';
 
 type TelegramGigPostEditComposition =
-  | { kind: 'media'; payload: TGEditMessageMedia }
-  | { kind: 'caption'; payload: TGEditMessageCaption }
-  | { kind: 'text'; payload: TGEditMessageText };
+  | { kind: TelegramGigPostEditKind.Media; payload: TGEditMessageMedia }
+  | { kind: TelegramGigPostEditKind.Caption; payload: TGEditMessageCaption }
+  | { kind: TelegramGigPostEditKind.Text; payload: TGEditMessageText };
 
-/** Result of composing a `sendPhoto`-style publish (before parse_mode merge at send time). */
 export interface PublishPayload {
   caption: string;
   message: Omit<TGSendPhoto, 'photo'>;
@@ -102,7 +102,7 @@ export class TelegramPostComposer {
       const posterUrl = this.getPosterUrlForEdit(gig.poster);
       if (posterUrl) {
         return {
-          kind: 'media',
+          kind: TelegramGigPostEditKind.Media,
           payload: {
             chatId,
             messageId,
@@ -120,7 +120,7 @@ export class TelegramPostComposer {
 
     if (post?.fileId) {
       return {
-        kind: 'caption',
+        kind: TelegramGigPostEditKind.Caption,
         payload: {
           chatId,
           messageId,
@@ -133,7 +133,7 @@ export class TelegramPostComposer {
     }
 
     return {
-      kind: 'text',
+      kind: TelegramGigPostEditKind.Text,
       payload: {
         chatId,
         messageId,
@@ -152,7 +152,7 @@ export class TelegramPostComposer {
     const post = this.pickTgPost(gig.posts, PostType.Publish);
     const chatId = post?.chatId;
     const messageId = post?.id;
-    if (!chatId || !messageId) return;
+    if (!chatId || !messageId) return undefined;
 
     const appBaseUrl = (process.env.APP_BASE_URL ?? '').trim();
     const url =
@@ -178,7 +178,7 @@ export class TelegramPostComposer {
       const posterUrl = this.getPosterUrlForEdit(gig.poster);
       if (posterUrl) {
         return {
-          kind: 'media',
+          kind: TelegramGigPostEditKind.Media,
           payload: {
             chatId,
             messageId,
@@ -195,7 +195,7 @@ export class TelegramPostComposer {
 
     if (post?.fileId) {
       return {
-        kind: 'caption',
+        kind: TelegramGigPostEditKind.Caption,
         payload: {
           chatId,
           messageId,
@@ -207,7 +207,7 @@ export class TelegramPostComposer {
     }
 
     return {
-      kind: 'text',
+      kind: TelegramGigPostEditKind.Text,
       payload: {
         chatId,
         messageId,
