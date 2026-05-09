@@ -5,6 +5,7 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { of } from 'rxjs';
 import type { TGMessage } from './types/message.types';
 import { BucketService } from '../bucket/bucket.service';
+import { TelegramAuthService } from './telegram-auth.service';
 import { TelegramService } from './telegram.service';
 
 describe('TelegramService', () => {
@@ -30,6 +31,7 @@ describe('TelegramService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TelegramService,
+        TelegramAuthService,
         {
           provide: HttpService,
           useValue: mockHttpService,

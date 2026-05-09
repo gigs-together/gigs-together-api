@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { TelegramAuthService } from './telegram-auth.service';
 import { TelegramService } from './telegram.service';
 import { HttpModule } from '@nestjs/axios';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -29,6 +30,7 @@ import { TelegramLoginWidgetAuthService } from './telegram-login-widget-auth.ser
   ],
   controllers: [TelegramAuthController],
   providers: [
+    TelegramAuthService,
     TelegramService,
     TelegramInitDataAuthService,
     TelegramAccessExchangeService,
