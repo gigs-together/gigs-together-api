@@ -17,12 +17,18 @@ import { TelegramBotClient } from './telegram-bot.client';
 import { TelegramAuthService } from './telegram-auth.service';
 import type { TelegramInitDataParseResult } from './telegram-auth.service';
 import type { TelegramLoginWidgetValidationPayload } from './types/telegram-login-widget-validation-payload';
-import { TelegramPostComposer } from './telegram-post-composer.service';
+import {
+  TelegramPostComposer,
+  TelegramGigPostEditKind,
+  WeeklyDigestMainChannelSendKind,
+  WeeklyDigestMainChannelSendPlan,
+} from './telegram-post-composer.service';
 import type {
   GetPostUrlPayload,
   PublishPayload,
 } from './telegram-post-composer.service';
-import { TelegramGigPostEditKind } from './types/telegram-gig-post-edit-kind.enum';
+
+export { WEEKLY_DIGEST_EMPTY_CHANNEL_MESSAGE_EN } from './telegram-post-composer.service';
 
 interface EditSubmissionFeedbackPayload {
   chatId: TGChatId;
@@ -176,8 +182,45 @@ export class TelegramService {
   async publishWeeklyDigestToMainChannel(
     gigs: readonly GigDocument[],
   ): Promise<void> {
-    // TODO
-    void gigs;
+    const chatIdRaw = process.env.MAIN_CHANNEL_ID;
+    const chatId =
+      chatIdRaw !== undefined && chatIdRaw !== null
+        ? String(chatIdRaw).trim()
+        : '';
+
+    if (!chatId) {
+      this.logger.warn(
+        'publishWeeklyDigestToMainChannel skipped: MAIN_CHANNEL_ID is empty',
+      );
+      return;
+    }
+
+    try {
+      const plan: WeeklyDigestMainChannelSendPlan =
+        this.telegramPostComposer.composeWeeklyDigestMainChannelSendPlan({
+          chatId,
+          gigs,
+        });
+
+      switch (plan.kind) {
+        case WeeklyDigestMainChannelSendKind.SendMessage:
+          await this.telegramBotClient.sendMessage(plan.payload);
+          return;
+        case WeeklyDigestMainChannelSendKind.SendPhoto:
+          await this.telegramBotClient.sendPhoto(plan.payload);
+          return;
+        case WeeklyDigestMainChannelSendKind.SendMediaGroup:
+          await this.telegramBotClient.sendMediaGroup(plan.payload);
+          return;
+      }
+    } catch (e: unknown) {
+      logError(this.logger, {
+        error: e,
+        note: 'Weekly digest publish to main channel failed',
+        context: TelegramService.name,
+      });
+      throw e;
+    }
   }
 
   publishMain(gig: GigDocument): Promise<TGMessage> {

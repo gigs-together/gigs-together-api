@@ -1,12 +1,18 @@
 import { Test } from '@nestjs/testing';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import type { GigDocument } from '../gig/gig.schema';
 import { Messenger } from '../gig/types/messenger.enum';
 import { PostType } from '../gig/types/postType.enum';
 import { BucketService } from '../bucket/bucket.service';
-import { TelegramPostComposer } from './telegram-post-composer.service';
+import {
+  TelegramPostComposer,
+  WEEKLY_DIGEST_EMPTY_CHANNEL_MESSAGE_EN,
+  WeeklyDigestMainChannelSendKind,
+} from './telegram-post-composer.service';
+import { TELEGRAM_MEDIA_CAPTION_MAX_CHARS } from './telegram-bot.client';
 import type { BuildGigPermalinkPayload } from './telegram-post-composer.service';
 
-describe('TelegramGigPostComposer', () => {
+describe('TelegramPostComposer', () => {
   let composer: TelegramPostComposer;
 
   const mockBucket = {
@@ -94,6 +100,130 @@ describe('TelegramGigPostComposer', () => {
       expect(caption).toContain('Concert</a>');
       expect(caption).toContain('📍 Hall');
       expect(caption).toContain('🎫 https://tickets.example/x');
+    });
+  });
+
+  describe('composeWeeklyDigestMainChannelSendPlan', () => {
+    it('should return empty-week sendMessage when gigs list is empty', () => {
+      const plan = composer.composeWeeklyDigestMainChannelSendPlan({
+        chatId: '-1001',
+        gigs: [],
+      });
+
+      expect(plan).toEqual({
+        kind: WeeklyDigestMainChannelSendKind.SendMessage,
+        payload: {
+          chat_id: '-1001',
+          text: WEEKLY_DIGEST_EMPTY_CHANNEL_MESSAGE_EN,
+        },
+      });
+    });
+
+    it('should return sendMediaGroup with caption on first item when at least two posters resolve', () => {
+      mockBucket.getPublicFileUrl.mockReturnValue('https://cdn.example/p.jpg');
+
+      const gigs = [
+        {
+          _id: 'a',
+          title: 'Alpha',
+          date: 10,
+          posts: [],
+          poster: { bucketPath: 'gigs/a.jpg' },
+        },
+        {
+          _id: 'b',
+          title: 'Beta',
+          date: 20,
+          posts: [],
+          poster: { bucketPath: 'gigs/b.jpg' },
+        },
+      ] as unknown as GigDocument[];
+
+      const plan = composer.composeWeeklyDigestMainChannelSendPlan({
+        chatId: '-1002',
+        gigs,
+      });
+
+      expect(plan.kind).toBe(WeeklyDigestMainChannelSendKind.SendMediaGroup);
+      if (plan.kind !== WeeklyDigestMainChannelSendKind.SendMediaGroup) return;
+
+      expect(plan.payload.chat_id).toBe('-1002');
+      expect(plan.payload.media).toHaveLength(2);
+      expect(plan.payload.media[0]).toMatchObject({
+        type: 'photo',
+        media: 'https://cdn.example/p.jpg',
+        caption: expect.stringMatching(/Alpha/s),
+      });
+      expect(plan.payload.media[1]).toEqual({
+        type: 'photo',
+        media: 'https://cdn.example/p.jpg',
+      });
+    });
+
+    it('should return sendPhoto with digest fallback id when exactly one poster resolves', () => {
+      mockBucket.getPublicFileUrl.mockReturnValue(
+        'https://cdn.example/only.jpg',
+      );
+
+      const gigs = [
+        {
+          _id: 'a',
+          title: 'Only',
+          date: 10,
+          posts: [],
+          poster: { bucketPath: 'gigs/a.jpg' },
+        },
+      ] as unknown as GigDocument[];
+
+      const plan = composer.composeWeeklyDigestMainChannelSendPlan({
+        chatId: '-1003',
+        gigs,
+      });
+
+      expect(plan).toEqual({
+        kind: WeeklyDigestMainChannelSendKind.SendPhoto,
+        payload: {
+          chat_id: '-1003',
+          photo: 'https://cdn.example/only.jpg',
+          caption: expect.stringMatching(/Only/s),
+        },
+      });
+    });
+
+    it('should return caption as plain sendMessage when no posters resolve', () => {
+      const gigs = [
+        {
+          _id: 'a',
+          title: 'TextOnly',
+          date: 86_400_000,
+          posts: [],
+        },
+      ] as unknown as GigDocument[];
+
+      const plan = composer.composeWeeklyDigestMainChannelSendPlan({
+        chatId: '-1004',
+        gigs,
+      });
+
+      expect(plan.kind).toBe(WeeklyDigestMainChannelSendKind.SendMessage);
+      if (plan.kind !== WeeklyDigestMainChannelSendKind.SendMessage) return;
+
+      expect(plan.payload.chat_id).toBe('-1004');
+      expect(plan.payload.text).toContain('TextOnly');
+    });
+  });
+
+  describe('formatWeeklyDigestCaptionLines', () => {
+    it('should append ellipsis when caption exceeds maxChars', () => {
+      const longTitle = 'X'.repeat(1100);
+      const gigs = [
+        { _id: '1', title: longTitle, date: 86_400_000, posts: [] },
+      ] as unknown as GigDocument[];
+
+      const text = composer.formatWeeklyDigestCaptionLines(gigs);
+
+      expect(text.endsWith('\n…')).toBe(true);
+      expect(text.length).toBeLessThanOrEqual(TELEGRAM_MEDIA_CAPTION_MAX_CHARS);
     });
   });
 });

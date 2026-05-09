@@ -9,11 +9,21 @@ import type {
   TGEditMessageReplyMarkup,
   TGEditMessageText,
   TGMessage,
+  TGSendMediaGroup,
   TGSendMessage,
   TGSendPhoto,
 } from './types/message.types';
 import type { TGChat } from './types/chat.types';
 import type { TGAnswerCallbackQuery } from './types/update.types';
+
+/** Telegram Bot API: max caption length for photos and media albums (1024 chars ≈ 1 KiB). */
+export const TELEGRAM_MEDIA_CAPTION_MAX_CHARS = 1024;
+
+/** Telegram Bot API: minimum media items per `sendMediaGroup` request. */
+export const TELEGRAM_MEDIA_GROUP_MIN_ITEMS = 2;
+
+/** Telegram Bot API: maximum media items per `sendMediaGroup` request. */
+export const TELEGRAM_MEDIA_GROUP_MAX_ITEMS = 10;
 
 /**
  * Low-level Telegram Bot HTTP adapter around `api.telegram.org`.
@@ -33,7 +43,7 @@ export class TelegramBotClient {
 
   async send(
     payload: TGSendMessage | TGSendPhoto,
-    gigId?: string,
+    gigId = '',
   ): Promise<TGMessage | undefined> {
     try {
       if (this.isPhotoPayload(payload)) {
@@ -54,9 +64,9 @@ export class TelegramBotClient {
     return res.data.result;
   }
 
-  private async sendPhoto(
+  async sendPhoto(
     payload: TGSendPhoto,
-    gigId?: string,
+    gigId = '',
   ): Promise<TGMessage | undefined> {
     if (!payload) {
       throw new Error('No payload in sendPhoto');
@@ -118,6 +128,26 @@ export class TelegramBotClient {
     });
 
     const res = await firstValueFrom(res$);
+    return res.data.result;
+  }
+
+  async sendMediaGroup(payload: TGSendMediaGroup): Promise<TGMessage[]> {
+    const { chat_id, media } = payload;
+    if (
+      media.length < TELEGRAM_MEDIA_GROUP_MIN_ITEMS ||
+      media.length > TELEGRAM_MEDIA_GROUP_MAX_ITEMS
+    ) {
+      throw new RangeError(
+        `sendMediaGroup expects ${TELEGRAM_MEDIA_GROUP_MIN_ITEMS}–${TELEGRAM_MEDIA_GROUP_MAX_ITEMS} media items, got ${media.length}`,
+      );
+    }
+
+    const res = await firstValueFrom(
+      this.httpService.post('sendMediaGroup', {
+        chat_id,
+        media,
+      }),
+    );
     return res.data.result;
   }
 

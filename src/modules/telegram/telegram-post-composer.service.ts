@@ -4,6 +4,8 @@ import type {
   TGEditMessageMedia,
   TGEditMessageText,
   TGMessage,
+  TGSendMediaGroup,
+  TGSendMessage,
   TGSendPhoto,
   TGChatId,
 } from './types/message.types';
@@ -13,8 +15,45 @@ import { Action } from './types/action.enum';
 import { PostType } from '../gig/types/postType.enum';
 import { Messenger } from '../gig/types/messenger.enum';
 import type { TGInlineKeyboardMarkup } from './types/update.types';
-import { TelegramGigPostEditKind } from './types/telegram-gig-post-edit-kind.enum';
 import { BucketService } from '../bucket/bucket.service';
+import {
+  TELEGRAM_MEDIA_CAPTION_MAX_CHARS,
+  TELEGRAM_MEDIA_GROUP_MAX_ITEMS,
+} from './telegram-bot.client';
+
+export const WEEKLY_DIGEST_EMPTY_CHANNEL_MESSAGE_EN =
+  'There are no gigs scheduled for this week.';
+
+export enum TelegramGigPostEditKind {
+  Media = 'media',
+  Caption = 'caption',
+  Text = 'text',
+}
+
+export enum WeeklyDigestMainChannelSendKind {
+  SendMessage = 'sendMessage',
+  SendPhoto = 'sendPhoto',
+  SendMediaGroup = 'sendMediaGroup',
+}
+
+export interface ComposeWeeklyDigestMainChannelPlanParams {
+  readonly chatId: TGChatId;
+  readonly gigs: readonly GigDocument[];
+}
+
+export type WeeklyDigestMainChannelSendPlan =
+  | {
+      readonly kind: WeeklyDigestMainChannelSendKind.SendMessage;
+      readonly payload: TGSendMessage;
+    }
+  | {
+      readonly kind: WeeklyDigestMainChannelSendKind.SendPhoto;
+      readonly payload: TGSendPhoto;
+    }
+  | {
+      readonly kind: WeeklyDigestMainChannelSendKind.SendMediaGroup;
+      readonly payload: TGSendMediaGroup;
+    };
 
 type TelegramGigPostEditComposition =
   | { kind: TelegramGigPostEditKind.Media; payload: TGEditMessageMedia }
@@ -253,6 +292,115 @@ export class TelegramPostComposer {
         post?.chatId &&
         post?.id
       );
+    });
+  }
+
+  formatWeeklyDigestCaptionLines(gigs: readonly GigDocument[]): string {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      weekday: 'long',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+
+    const lines = gigs.map((g) => {
+      const dateLabel = formatter.format(new Date(g.date));
+      return `${g.title} — ${dateLabel}`;
+    });
+
+    let body = lines.join('\n');
+    if (body.length <= TELEGRAM_MEDIA_CAPTION_MAX_CHARS) {
+      return body;
+    }
+
+    const ellipsis = '\n…';
+    const budget = TELEGRAM_MEDIA_CAPTION_MAX_CHARS - ellipsis.length;
+    if (budget <= 0) {
+      return '…'.slice(0, TELEGRAM_MEDIA_CAPTION_MAX_CHARS);
+    }
+
+    body = body.slice(0, budget);
+    const lastBreak = body.lastIndexOf('\n');
+    if (lastBreak > budget * 0.5) {
+      body = body.slice(0, lastBreak);
+    }
+    return `${body.trimEnd()}${ellipsis}`;
+  }
+
+  /**
+   * Builds the Bot API payload for publishing the weekly digest to the main channel
+   * (empty-week notice, media album, single photo, or plain text).
+   */
+  composeWeeklyDigestMainChannelSendPlan(
+    params: ComposeWeeklyDigestMainChannelPlanParams,
+  ): WeeklyDigestMainChannelSendPlan {
+    const { chatId, gigs } = params;
+
+    if (gigs.length === 0) {
+      return {
+        kind: WeeklyDigestMainChannelSendKind.SendMessage,
+        payload: {
+          chat_id: chatId,
+          text: WEEKLY_DIGEST_EMPTY_CHANNEL_MESSAGE_EN,
+        },
+      };
+    }
+
+    const caption = this.formatWeeklyDigestCaptionLines(gigs);
+
+    const firstChunk = gigs.slice(0, TELEGRAM_MEDIA_GROUP_MAX_ITEMS);
+    const posterRefs = firstChunk
+      .map((gig) => this.getPosterReferenceForDigestAlbum(gig))
+      .filter((ref): ref is string => ref !== undefined && ref !== '');
+
+    if (posterRefs.length >= 2) {
+      const media = posterRefs.map((mediaUrl, index) =>
+        index === 0
+          ? {
+              type: 'photo' as const,
+              media: mediaUrl,
+              caption,
+            }
+          : {
+              type: 'photo' as const,
+              media: mediaUrl,
+            },
+      );
+
+      return {
+        kind: WeeklyDigestMainChannelSendKind.SendMediaGroup,
+        payload: {
+          chat_id: chatId,
+          media,
+        },
+      };
+    }
+
+    if (posterRefs.length === 1) {
+      return {
+        kind: WeeklyDigestMainChannelSendKind.SendPhoto,
+        payload: {
+          chat_id: chatId,
+          photo: posterRefs[0],
+          caption,
+        },
+      };
+    }
+
+    return {
+      kind: WeeklyDigestMainChannelSendKind.SendMessage,
+      payload: {
+        chat_id: chatId,
+        text: caption,
+      },
+    };
+  }
+
+  getPosterReferenceForDigestAlbum(gig: GigDocument): string | undefined {
+    const moderationPost = this.pickTgPost(gig.posts, PostType.Moderation);
+    return this.getPosterUrlOrFileId({
+      post: moderationPost,
+      poster: gig.poster,
     });
   }
 
