@@ -297,18 +297,37 @@ export class TelegramPostComposer {
 
   formatWeeklyDigestCaptionLines(gigs: readonly GigDocument[]): string {
     const formatter = new Intl.DateTimeFormat('en-US', {
-      weekday: 'long',
+      weekday: 'short',
       month: 'short',
       day: 'numeric',
-      year: 'numeric',
     });
 
-    const lines = gigs.map((g) => {
-      const dateLabel = formatter.format(new Date(g.date));
-      return `${g.title} — ${dateLabel}`;
+    const appBaseUrl = (process.env.APP_BASE_URL ?? '').trim();
+
+    const lines = gigs.map((gig) => {
+      const { title, date, endDate } = gig;
+      const url =
+        appBaseUrl && gig.publicId && gig.country && gig.city
+          ? this.buildGigPermalink({
+              baseUrl: appBaseUrl,
+              publicId: gig.publicId,
+              country: gig.country,
+              city: gig.city,
+            })
+          : undefined;
+      const titleLabel = url ? `<a href="${url}">${title}</a>` : title;
+      const dateLabel = formatter.format(new Date(date));
+      const endDateLabel = endDate
+        ? formatter.format(new Date(endDate))
+        : undefined;
+      return [
+        titleLabel,
+        `${dateLabel}${endDateLabel ? ` — ${endDateLabel}` : ''}`,
+        [gig.venue, `<a href="${gig.ticketsUrl}">Tickets</a>`].join(' • '),
+      ].join('\n');
     });
 
-    let body = lines.join('\n');
+    let body = lines.join('\n\n');
     if (body.length <= TELEGRAM_MEDIA_CAPTION_MAX_CHARS) {
       return body;
     }
@@ -360,6 +379,7 @@ export class TelegramPostComposer {
               type: TGInputMediaType.Photo,
               media: mediaUrl,
               caption,
+              parse_mode: TGParseMode.HTML,
             }
           : {
               type: TGInputMediaType.Photo,
@@ -383,6 +403,7 @@ export class TelegramPostComposer {
           chat_id: chatId,
           photo: posterRefs[0],
           caption,
+          parse_mode: TGParseMode.HTML,
         },
       };
     }
@@ -392,6 +413,7 @@ export class TelegramPostComposer {
       payload: {
         chat_id: chatId,
         text: caption,
+        parse_mode: TGParseMode.HTML,
       },
     };
   }
