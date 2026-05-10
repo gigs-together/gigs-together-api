@@ -406,7 +406,17 @@ export class TelegramPostComposer {
   }
 
   composeMainPost(gig: GigDocument): TGSendPhoto {
-    const chatId = process.env.MAIN_CHANNEL_ID;
+    const chatIdRaw = process.env.MAIN_CHANNEL_ID;
+    const chatId =
+      chatIdRaw !== undefined && chatIdRaw !== null
+        ? String(chatIdRaw).trim()
+        : '';
+
+    if (!chatId) {
+      throw new BadRequestException(
+        'Cannot compose main channel post: MAIN_CHANNEL_ID is not configured.',
+      );
+    }
 
     const caption = this.buildMainPostCaption(gig);
 
@@ -428,7 +438,18 @@ export class TelegramPostComposer {
   }
 
   composeModerationPost(gig: GigDocument): TGSendPhoto {
-    const chatId = process.env.MODERATION_CHANNEL_ID;
+    const chatIdRaw = process.env.MODERATION_CHANNEL_ID;
+    const chatId =
+      chatIdRaw !== undefined && chatIdRaw !== null
+        ? String(chatIdRaw).trim()
+        : '';
+
+    if (!chatId) {
+      throw new BadRequestException(
+        'Cannot compose moderation channel post: MODERATION_CHANNEL_ID is not configured.',
+      );
+    }
+
     const replyMarkup = this.buildModerationPostReplyMarkup(gig);
 
     const caption = this.buildCaption({
@@ -467,17 +488,12 @@ export class TelegramPostComposer {
             text: '✅ Approve',
             callback_data: `${Action.Approve}:${gig._id}`,
           },
-          editGigUrl
-            ? {
-                text: '✏️ Edit',
-                url: editGigUrl,
-              }
-            : undefined,
+          ...(editGigUrl ? [{ text: '✏️ Edit', url: editGigUrl }] : []),
           {
             text: '❌ Reject',
             callback_data: `${Action.Reject}:${gig._id}`,
           },
-        ].filter(Boolean),
+        ],
       ],
     };
   }

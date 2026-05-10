@@ -114,6 +114,29 @@ describe('TelegramPostComposer', () => {
       delete process.env.MAIN_CHANNEL_ID;
     });
 
+    it('should throw BadRequestException when MAIN_CHANNEL_ID is not configured', () => {
+      delete process.env.MAIN_CHANNEL_ID;
+
+      const gig = {
+        _id: 'gig-env',
+        title: 'Show',
+        ticketsUrl: 'https://tickets.example/x',
+        venue: 'Hall',
+        date: 86_400_000,
+        posts: [
+          {
+            to: Messenger.Telegram,
+            type: PostType.Moderation,
+            chatId: -100,
+            id: 1,
+            fileId: 'fid',
+          },
+        ],
+      } as unknown as GigDocument;
+
+      expect(() => composer.composeMainPost(gig)).toThrow(BadRequestException);
+    });
+
     it('should throw BadRequestException when gig has no moderation file_id or poster URL', () => {
       const gig = {
         _id: 'gig1',
@@ -159,6 +182,25 @@ describe('TelegramPostComposer', () => {
 
     afterEach(() => {
       delete process.env.MODERATION_CHANNEL_ID;
+    });
+
+    it('should throw BadRequestException when MODERATION_CHANNEL_ID is not configured', () => {
+      delete process.env.MODERATION_CHANNEL_ID;
+
+      mockBucket.getPublicFileUrl.mockReturnValue('https://cdn.example/p.jpg');
+
+      const gig = {
+        _id: 'gig-mod-env',
+        title: 'Show',
+        ticketsUrl: 'https://tickets.example/x',
+        venue: 'Hall',
+        date: 86_400_000,
+        poster: { bucketPath: 'gigs/x.jpg' },
+      } as unknown as GigDocument;
+
+      expect(() => composer.composeModerationPost(gig)).toThrow(
+        BadRequestException,
+      );
     });
 
     it('should throw BadRequestException when gig has no poster URL', () => {
