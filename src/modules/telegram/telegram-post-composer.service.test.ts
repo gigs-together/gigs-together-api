@@ -13,6 +13,7 @@ import {
 import { TELEGRAM_MEDIA_CAPTION_MAX_CHARS } from './telegram-bot.client';
 import { TGInputMediaType } from './types/message.types';
 import type { BuildGigPermalinkPayload } from './telegram-post-composer.service';
+import { Action } from './types/action.enum';
 
 describe('TelegramPostComposer', () => {
   let composer: TelegramPostComposer;
@@ -68,6 +69,73 @@ describe('TelegramPostComposer', () => {
       });
 
       expect(url).toBe('https://t.me/c/1234567890/5');
+    });
+  });
+
+  describe('buildAfterPublishModerationReplyMarkup', () => {
+    it('should return undefined when neither publish nor edit URL is provided', () => {
+      expect(
+        composer.buildAfterPublishModerationReplyMarkup({}),
+      ).toBeUndefined();
+    });
+
+    it('should return one-row keyboard with Post and Edit when both URLs are provided', () => {
+      expect(
+        composer.buildAfterPublishModerationReplyMarkup({
+          publishPostUrl: 'https://t.me/c/1/9',
+          editGigUrl: 'https://app.example/edit?startapp=x',
+        }),
+      ).toEqual({
+        inline_keyboard: [
+          [
+            { text: '🔗 Post', url: 'https://t.me/c/1/9' },
+            { text: '✏️ Edit', url: 'https://app.example/edit?startapp=x' },
+          ],
+        ],
+      });
+    });
+
+    it('should include only Post button when edit URL is missing', () => {
+      expect(
+        composer.buildAfterPublishModerationReplyMarkup({
+          publishPostUrl: 'https://t.me/x/1',
+        }),
+      ).toEqual({
+        inline_keyboard: [[{ text: '🔗 Post', url: 'https://t.me/x/1' }]],
+      });
+    });
+  });
+
+  describe('buildRejectedModerationReplyMarkup', () => {
+    it('should build rejected callback keyboard for gig id', () => {
+      expect(composer.buildRejectedModerationReplyMarkup('gig-a')).toEqual({
+        inline_keyboard: [
+          [
+            {
+              text: '❌ Rejected',
+              callback_data: `${Action.Rejected}:gig-a`,
+            },
+          ],
+        ],
+      });
+    });
+  });
+
+  describe('buildSubmissionFeedbackPostLinkReplyMarkup', () => {
+    it('should return undefined when post URL is missing', () => {
+      expect(
+        composer.buildSubmissionFeedbackPostLinkReplyMarkup(undefined),
+      ).toBeUndefined();
+    });
+
+    it('should build Post url button when post URL is provided', () => {
+      expect(
+        composer.buildSubmissionFeedbackPostLinkReplyMarkup(
+          'https://t.me/ch/77',
+        ),
+      ).toEqual({
+        inline_keyboard: [[{ text: '🔗 Post', url: 'https://t.me/ch/77' }]],
+      });
     });
   });
 

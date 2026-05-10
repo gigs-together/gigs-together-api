@@ -2,7 +2,6 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { TGMessage, TGSendPhoto, TGChatId } from './types/message.types';
 import { TGParseMode } from './types/message.types';
 import type { GigDocument } from '../gig/gig.schema';
-import { Action } from './types/action.enum';
 import { TGChat } from './types/chat.types';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
@@ -196,7 +195,7 @@ export class TelegramService {
     );
   }
 
-  async handleAfterPublish(payload: HandleAfterPublishPayload) {
+  async handleAfterPublish(payload: HandleAfterPublishPayload): Promise<void> {
     const { suggestedBy, moderationPost, publishPost, title, publicId } =
       payload;
     const editGigUrl = publicId
@@ -208,33 +207,13 @@ export class TelegramService {
       chatId: publishPost.chatId,
     });
 
-    const replyButtons = [
-      ...(publishPostChatIdUrl
-        ? [
-            {
-              text: '🔗 Post',
-              url: publishPostChatIdUrl,
-            },
-          ]
-        : []),
-      ...(editGigUrl
-        ? [
-            {
-              text: '✏️ Edit',
-              url: editGigUrl,
-            },
-          ]
-        : []),
-    ];
-
     const replyMarkup =
-      replyButtons.length > 0
-        ? {
-            inline_keyboard: [replyButtons],
-          }
-        : undefined;
+      this.telegramPostComposer.buildAfterPublishModerationReplyMarkup({
+        publishPostUrl: publishPostChatIdUrl,
+        editGigUrl,
+      });
 
-    // Clean moderation post content & keep only Edit button.
+    // Clean moderation post caption; optional 🔗 Post / ✏️ Edit row comes from composer markup.
     // NOTE: Telegram can't remove media from a photo message via edit APIs,
     // so the poster will remain, but the caption/text will be cleaned.
     await this.telegramBotClient.editMessageCaption({
@@ -266,19 +245,8 @@ export class TelegramService {
     await this.telegramBotClient.editMessageReplyMarkup({
       chatId: moderationMessage.chatId,
       messageId: moderationMessage.messageId,
-      replyMarkup: {
-        inline_keyboard: [
-          [
-            {
-              text: '❌ Rejected',
-              callback_data: `${Action.Rejected}:${gigId}`,
-            },
-          ],
-        ],
-        // TODO: reason for rejection
-        // force_reply: true,
-        // input_field_placeholder: 'Reason?',
-      },
+      replyMarkup:
+        this.telegramPostComposer.buildRejectedModerationReplyMarkup(gigId),
     });
 
     if (suggestedBy.feedbackMessageId != null) {
@@ -303,18 +271,10 @@ export class TelegramService {
       chatId,
       messageId,
       caption: `${title} is ${status}`,
-      replyMarkup: url
-        ? {
-            inline_keyboard: [
-              [
-                {
-                  text: '🔗 Post',
-                  url,
-                },
-              ],
-            ],
-          }
-        : undefined,
+      replyMarkup:
+        this.telegramPostComposer.buildSubmissionFeedbackPostLinkReplyMarkup(
+          url,
+        ),
     });
   }
 

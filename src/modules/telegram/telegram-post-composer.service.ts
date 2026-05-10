@@ -13,6 +13,7 @@ import type {
 import { TGInputMediaType, TGParseMode } from './types/message.types';
 import type { TGChat } from './types/chat.types';
 import { GigDocument, GigPost, GigPoster } from '../gig/gig.schema';
+import type { GigId } from '../gig/types/gig.types';
 import { Action } from './types/action.enum';
 import { PostType } from '../gig/types/postType.enum';
 import { Messenger } from '../gig/types/messenger.enum';
@@ -82,6 +83,11 @@ export interface GetPostUrlPayload {
   chatId?: TGChatId;
   chatUsername?: TGChat['username'];
   messageId: TGMessage['message_id'];
+}
+
+export interface BuildAfterPublishModerationReplyMarkupParams {
+  readonly publishPostUrl?: string;
+  readonly editGigUrl?: string;
 }
 
 /**
@@ -503,6 +509,54 @@ export class TelegramPostComposer {
     return editGigBaseUrl && publicId
       ? `${editGigBaseUrl}?startapp=${encodeURIComponent(String(publicId))}`
       : undefined;
+  }
+
+  buildAfterPublishModerationReplyMarkup(
+    params: BuildAfterPublishModerationReplyMarkupParams,
+  ): TGInlineKeyboardMarkup | undefined {
+    const { publishPostUrl, editGigUrl } = params;
+    const row: { text: string; url: string }[] = [];
+
+    if (publishPostUrl) {
+      row.push({ text: '🔗 Post', url: publishPostUrl });
+    }
+    if (editGigUrl) {
+      row.push({ text: '✏️ Edit', url: editGigUrl });
+    }
+
+    if (row.length === 0) {
+      return undefined;
+    }
+
+    return { inline_keyboard: [row] };
+  }
+
+  buildRejectedModerationReplyMarkup(gigId: GigId): TGInlineKeyboardMarkup {
+    return {
+      inline_keyboard: [
+        [
+          {
+            text: '❌ Rejected',
+            callback_data: `${Action.Rejected}:${String(gigId)}`,
+          },
+        ],
+      ],
+      // TODO: reason for rejection
+      // force_reply: true,
+      // input_field_placeholder: 'Reason?',
+    };
+  }
+
+  buildSubmissionFeedbackPostLinkReplyMarkup(
+    postUrl?: string,
+  ): TGInlineKeyboardMarkup | undefined {
+    if (!postUrl) {
+      return undefined;
+    }
+
+    return {
+      inline_keyboard: [[{ text: '🔗 Post', url: postUrl }]],
+    };
   }
 
   composeSubmissionFeedbackPost(
