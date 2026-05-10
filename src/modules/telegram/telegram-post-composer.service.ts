@@ -84,11 +84,6 @@ export interface GetPostUrlPayload {
   messageId: TGMessage['message_id'];
 }
 
-interface GetPosterPayload {
-  post?: GigPost;
-  poster?: GigPoster;
-}
-
 /**
  * Composes Telegram Bot API payloads for gig-related channel/moderation posts
  * (captions, inline keyboards, permalink URLs, edit payloads).
@@ -393,10 +388,7 @@ export class TelegramPostComposer {
 
   getPosterReferenceForDigestAlbum(gig: GigDocument): string | undefined {
     const moderationPost = this.pickTgPost(gig.posts, PostType.Moderation);
-    return this.getPosterFileIdOrUrl({
-      post: moderationPost,
-      poster: gig.poster,
-    });
+    return moderationPost?.fileId ?? this.getPosterUrl(gig.poster);
   }
 
   private getPosterUrl(poster?: GigPoster): string | undefined {
@@ -407,15 +399,6 @@ export class TelegramPostComposer {
       return this.bucketService.getPublicFileUrl(bucketPath) ?? externalUrl;
     }
     return externalUrl;
-  }
-
-  private getPosterFileIdOrUrl(payload: GetPosterPayload): string | undefined {
-    const { post, poster } = payload;
-    if (post?.fileId) {
-      return post.fileId;
-    }
-
-    return this.getPosterUrl(poster);
   }
 
   composeMainPost(gig: GigDocument): TGSendPhoto {
@@ -442,10 +425,7 @@ export class TelegramPostComposer {
     });
 
     const moderationPost = this.pickTgPost(gig.posts, PostType.Moderation);
-    const poster = this.getPosterFileIdOrUrl({
-      post: moderationPost,
-      poster: gig.poster,
-    });
+    const poster = moderationPost?.fileId ?? this.getPosterUrl(gig.poster);
 
     return {
       chat_id: chatId,
@@ -467,7 +447,7 @@ export class TelegramPostComposer {
       endDate: gig.endDate,
     });
 
-    const poster = this.getPosterFileIdOrUrl({ poster: gig.poster });
+    const poster = this.getPosterUrl(gig.poster);
 
     return {
       chat_id: chatId,
@@ -537,10 +517,7 @@ export class TelegramPostComposer {
     });
 
     const moderationPost = this.pickTgPost(gig.posts, PostType.Moderation);
-    const poster = this.getPosterFileIdOrUrl({
-      post: moderationPost,
-      poster: gig.poster,
-    });
+    const poster = moderationPost?.fileId ?? this.getPosterUrl(gig.poster);
 
     // TODO: add some language like "You've submitted, blablabla..."
     return {
