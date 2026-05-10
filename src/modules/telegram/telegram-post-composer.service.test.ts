@@ -1,5 +1,6 @@
+import { BadRequestException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import type { GigDocument } from '../gig/gig.schema';
 import { Messenger } from '../gig/types/messenger.enum';
 import { PostType } from '../gig/types/postType.enum';
@@ -101,6 +102,136 @@ describe('TelegramPostComposer', () => {
       expect(caption).toContain('Concert</a>');
       expect(caption).toContain('📍 Hall');
       expect(caption).toContain('🎫 https://tickets.example/x');
+    });
+  });
+
+  describe('composeMainPost', () => {
+    beforeEach(() => {
+      process.env.MAIN_CHANNEL_ID = '-1001';
+    });
+
+    afterEach(() => {
+      delete process.env.MAIN_CHANNEL_ID;
+    });
+
+    it('should throw BadRequestException when gig has no moderation file_id or poster URL', () => {
+      const gig = {
+        _id: 'gig1',
+        title: 'Show',
+        ticketsUrl: 'https://tickets.example/x',
+        venue: 'Hall',
+        date: 86_400_000,
+        posts: [],
+      } as unknown as GigDocument;
+
+      expect(() => composer.composeMainPost(gig)).toThrow(BadRequestException);
+    });
+
+    it('should use moderation Telegram file_id as photo when present', () => {
+      const gig = {
+        _id: 'gig2',
+        title: 'Show',
+        ticketsUrl: 'https://tickets.example/x',
+        venue: 'Hall',
+        date: 86_400_000,
+        posts: [
+          {
+            to: Messenger.Telegram,
+            type: PostType.Moderation,
+            chatId: -100,
+            id: 5,
+            fileId: 'file-id-abc',
+          },
+        ],
+      } as unknown as GigDocument;
+
+      const payload = composer.composeMainPost(gig);
+
+      expect(payload.photo).toBe('file-id-abc');
+      expect(payload.chat_id).toBe('-1001');
+    });
+  });
+
+  describe('composeModerationPost', () => {
+    beforeEach(() => {
+      process.env.MODERATION_CHANNEL_ID = '-2001';
+    });
+
+    afterEach(() => {
+      delete process.env.MODERATION_CHANNEL_ID;
+    });
+
+    it('should throw BadRequestException when gig has no poster URL', () => {
+      const gig = {
+        _id: 'gig-m1',
+        title: 'Show',
+        ticketsUrl: 'https://tickets.example/x',
+        venue: 'Hall',
+        date: 86_400_000,
+      } as unknown as GigDocument;
+
+      expect(() => composer.composeModerationPost(gig)).toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should return TGSendPhoto with poster URL from bucket when present', () => {
+      mockBucket.getPublicFileUrl.mockReturnValue('https://cdn.example/p.jpg');
+
+      const gig = {
+        _id: 'gig-m2',
+        title: 'Show',
+        ticketsUrl: 'https://tickets.example/x',
+        venue: 'Hall',
+        date: 86_400_000,
+        poster: { bucketPath: 'gigs/x.jpg' },
+      } as unknown as GigDocument;
+
+      const payload = composer.composeModerationPost(gig);
+
+      expect(payload.photo).toBe('https://cdn.example/p.jpg');
+      expect(payload.chat_id).toBe('-2001');
+    });
+  });
+
+  describe('composeSubmissionFeedbackPost', () => {
+    it('should throw BadRequestException when gig has no moderation file_id or poster URL', () => {
+      const gig = {
+        _id: 'gig-s1',
+        title: 'Show',
+        ticketsUrl: 'https://tickets.example/x',
+        venue: 'Hall',
+        date: 86_400_000,
+        posts: [],
+      } as unknown as GigDocument;
+
+      expect(() => composer.composeSubmissionFeedbackPost(gig, 999)).toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should use moderation Telegram file_id as photo when present', () => {
+      const gig = {
+        _id: 'gig-s2',
+        title: 'Show',
+        ticketsUrl: 'https://tickets.example/x',
+        venue: 'Hall',
+        date: 86_400_000,
+        posts: [
+          {
+            to: Messenger.Telegram,
+            type: PostType.Moderation,
+            chatId: -100,
+            id: 3,
+            fileId: 'file-feedback',
+          },
+        ],
+      } as unknown as GigDocument;
+
+      const payload = composer.composeSubmissionFeedbackPost(gig, 424242);
+
+      expect(payload.photo).toBe('file-feedback');
+      expect(payload.chat_id).toBe(424242);
     });
   });
 

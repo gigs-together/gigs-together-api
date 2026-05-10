@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import type {
   TGEditMessageCaption,
   TGEditMessageMedia,
@@ -183,25 +183,7 @@ export class TelegramPostComposer {
     const messageId = post?.id;
     if (!chatId || !messageId) return undefined;
 
-    const appBaseUrl = (process.env.APP_BASE_URL ?? '').trim();
-    const url =
-      appBaseUrl && gig.publicId && gig.country && gig.city
-        ? this.buildGigPermalink({
-            baseUrl: appBaseUrl,
-            publicId: gig.publicId,
-            country: gig.country,
-            city: gig.city,
-          })
-        : undefined;
-
-    const caption = this.buildCaption({
-      url,
-      title: gig.title,
-      ticketsUrl: gig.ticketsUrl,
-      venue: gig.venue,
-      date: gig.date,
-      endDate: gig.endDate,
-    });
+    const caption = this.buildMainPostCaption(gig);
 
     if (opts?.updateMedia && post?.fileId) {
       const posterUrl = this.getPosterUrlForEdit(gig.poster);
@@ -245,6 +227,28 @@ export class TelegramPostComposer {
         disableWebPagePreview: true,
       },
     };
+  }
+
+  private buildMainPostCaption(gig: GigDocument): string {
+    const appBaseUrl = (process.env.APP_BASE_URL ?? '').trim();
+    const url =
+      appBaseUrl && gig.publicId && gig.country && gig.city
+        ? this.buildGigPermalink({
+            baseUrl: appBaseUrl,
+            publicId: gig.publicId,
+            country: gig.country,
+            city: gig.city,
+          })
+        : undefined;
+
+    return this.buildCaption({
+      url,
+      title: gig.title,
+      ticketsUrl: gig.ticketsUrl,
+      venue: gig.venue,
+      date: gig.date,
+      endDate: gig.endDate,
+    });
   }
 
   buildCaption(payload: BuildCaptionPayload): string {
@@ -391,10 +395,10 @@ export class TelegramPostComposer {
     return moderationPost?.fileId ?? this.getPosterUrl(gig.poster);
   }
 
-  private getPosterUrl(poster?: GigPoster): string | undefined {
-    if (!poster) return;
+  private getPosterUrl(posterInfo?: GigPoster): string | undefined {
+    if (!posterInfo) return;
 
-    const { bucketPath, externalUrl } = poster;
+    const { bucketPath, externalUrl } = posterInfo;
     if (bucketPath) {
       return this.bucketService.getPublicFileUrl(bucketPath) ?? externalUrl;
     }
@@ -404,28 +408,16 @@ export class TelegramPostComposer {
   composeMainPost(gig: GigDocument): TGSendPhoto {
     const chatId = process.env.MAIN_CHANNEL_ID;
 
-    const appBaseUrl = (process.env.APP_BASE_URL ?? '').trim();
-    const url =
-      appBaseUrl && gig.publicId && gig.country && gig.city
-        ? this.buildGigPermalink({
-            baseUrl: appBaseUrl,
-            publicId: gig.publicId,
-            country: gig.country,
-            city: gig.city,
-          })
-        : undefined;
-
-    const caption = this.buildCaption({
-      url,
-      title: gig.title,
-      ticketsUrl: gig.ticketsUrl,
-      venue: gig.venue,
-      date: gig.date,
-      endDate: gig.endDate,
-    });
+    const caption = this.buildMainPostCaption(gig);
 
     const moderationPost = this.pickTgPost(gig.posts, PostType.Moderation);
     const poster = moderationPost?.fileId ?? this.getPosterUrl(gig.poster);
+
+    if (poster === undefined || poster === '') {
+      throw new BadRequestException(
+        'Cannot compose main channel post: gig has no poster (moderation file_id or poster URL).',
+      );
+    }
 
     return {
       chat_id: chatId,
@@ -448,6 +440,12 @@ export class TelegramPostComposer {
     });
 
     const poster = this.getPosterUrl(gig.poster);
+
+    if (poster === undefined || poster === '') {
+      throw new BadRequestException(
+        'Cannot compose moderation channel post: gig has no poster URL.',
+      );
+    }
 
     return {
       chat_id: chatId,
@@ -518,6 +516,12 @@ export class TelegramPostComposer {
 
     const moderationPost = this.pickTgPost(gig.posts, PostType.Moderation);
     const poster = moderationPost?.fileId ?? this.getPosterUrl(gig.poster);
+
+    if (poster === undefined || poster === '') {
+      throw new BadRequestException(
+        'Cannot compose submission feedback post: gig has no poster (moderation file_id or poster URL).',
+      );
+    }
 
     // TODO: add some language like "You've submitted, blablabla..."
     return {
