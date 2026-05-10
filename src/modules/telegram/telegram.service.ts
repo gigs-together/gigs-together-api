@@ -1,30 +1,20 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import type {
-  TGMessage,
-  TGSendMessage,
-  TGSendPhoto,
-  TGChatId,
-} from './types/message.types';
+import type { TGMessage, TGSendPhoto, TGChatId } from './types/message.types';
 import { TGParseMode } from './types/message.types';
-import type { GigDocument, GigPost } from '../gig/gig.schema';
-import type { TGAnswerCallbackQuery } from './types/update.types';
+import type { GigDocument } from '../gig/gig.schema';
 import { Action } from './types/action.enum';
 import { TGChat } from './types/chat.types';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
-import { PostType } from '../gig/types/postType.enum';
 import { logError } from '../../shared/utils/logging';
 import { TelegramBotClient } from './telegram-bot.client';
 import { TelegramAuthService } from './telegram-auth.service';
-import type { TelegramInitDataParseResult } from './telegram-auth.service';
-import type { TelegramLoginWidgetValidationPayload } from './types/telegram-login-widget-validation-payload';
 import {
   TelegramPostComposer,
   PostEditKind,
   WeeklyDigestMainChannelSendKind,
   WeeklyDigestMainChannelSendPlan,
 } from './telegram-post-composer.service';
-import type { GetPostUrlPayload } from './telegram-post-composer.service';
 
 export { WEEKLY_DIGEST_EMPTY_CHANNEL_MESSAGE_EN } from './telegram-post-composer.service';
 
@@ -64,17 +54,45 @@ export class TelegramService {
 
   private static readonly CHAT_ERROR_TTL_MS = 60_000 * 5;
 
-  async sendMessage(payload: TGSendMessage): Promise<TGMessage> {
-    return this.telegramBotClient.sendMessage(payload);
-  }
+  readonly sendMessage: TelegramBotClient['sendMessage'] =
+    this.telegramBotClient.sendMessage.bind(this.telegramBotClient);
 
-  async sendPhoto(payload: TGSendPhoto): Promise<TGMessage | undefined> {
-    return this.telegramBotClient.sendPhoto(payload);
-  }
+  readonly sendPhoto: TelegramBotClient['sendPhoto'] =
+    this.telegramBotClient.sendPhoto.bind(this.telegramBotClient);
 
-  async answerCallbackQuery(payload: TGAnswerCallbackQuery): Promise<void> {
-    return this.telegramBotClient.answerCallbackQuery(payload);
-  }
+  readonly answerCallbackQuery: TelegramBotClient['answerCallbackQuery'] =
+    this.telegramBotClient.answerCallbackQuery.bind(this.telegramBotClient);
+
+  readonly pickTgPost: TelegramPostComposer['pickTgPost'] =
+    this.telegramPostComposer.pickTgPost.bind(this.telegramPostComposer);
+
+  readonly parseTelegramInitDataString: TelegramAuthService['parseTelegramInitDataString'] =
+    this.telegramAuthService.parseTelegramInitDataString.bind(
+      this.telegramAuthService,
+    );
+
+  readonly validateTelegramInitData: TelegramAuthService['validateTelegramInitData'] =
+    this.telegramAuthService.validateTelegramInitData.bind(
+      this.telegramAuthService,
+    );
+
+  readonly validateTelegramInitDataAuthDate: TelegramAuthService['validateTelegramInitDataAuthDate'] =
+    this.telegramAuthService.validateTelegramInitDataAuthDate.bind(
+      this.telegramAuthService,
+    );
+
+  readonly validateTelegramLoginWidget: TelegramAuthService['validateTelegramLoginWidget'] =
+    this.telegramAuthService.validateTelegramLoginWidget.bind(
+      this.telegramAuthService,
+    );
+
+  readonly validateTelegramLoginWidgetAuthDate: TelegramAuthService['validateTelegramLoginWidgetAuthDate'] =
+    this.telegramAuthService.validateTelegramLoginWidgetAuthDate.bind(
+      this.telegramAuthService,
+    );
+
+  readonly getPostUrl: TelegramPostComposer['getPostUrl'] =
+    this.telegramPostComposer.getPostUrl.bind(this.telegramPostComposer);
 
   async editModerationPost(
     gig: GigDocument,
@@ -117,45 +135,6 @@ export class TelegramService {
       case PostEditKind.Text:
         return this.telegramBotClient.editMessageText(composed.payload);
     }
-  }
-
-  parseTelegramInitDataString(initData: string): TelegramInitDataParseResult {
-    return this.telegramAuthService.parseTelegramInitDataString(initData);
-  }
-
-  validateTelegramInitData(
-    dataCheckString: string,
-    receivedHash: string,
-  ): void {
-    return this.telegramAuthService.validateTelegramInitData(
-      dataCheckString,
-      receivedHash,
-    );
-  }
-
-  validateTelegramInitDataAuthDate(authDateRaw: string | undefined): void {
-    return this.telegramAuthService.validateTelegramInitDataAuthDate(
-      authDateRaw,
-    );
-  }
-
-  validateTelegramLoginWidget(
-    payload: TelegramLoginWidgetValidationPayload,
-  ): void {
-    return this.telegramAuthService.validateTelegramLoginWidget(payload);
-  }
-
-  validateTelegramLoginWidgetAuthDate(authDateSec: number): void {
-    return this.telegramAuthService.validateTelegramLoginWidgetAuthDate(
-      authDateSec,
-    );
-  }
-
-  pickTgPost(
-    posts: GigPost[] | undefined,
-    type: PostType,
-  ): GigPost | undefined {
-    return this.telegramPostComposer.pickTgPost(posts, type);
   }
 
   async publishWeeklyDigestToMainChannel(
@@ -377,9 +356,5 @@ export class TelegramService {
       await this.cache.set(errorKey, true, TelegramService.CHAT_ERROR_TTL_MS);
       return undefined;
     }
-  }
-
-  getPostUrl(payload: GetPostUrlPayload): string | undefined {
-    return this.telegramPostComposer.getPostUrl(payload);
   }
 }
