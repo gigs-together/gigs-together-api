@@ -35,9 +35,14 @@ export class TelegramAuthService {
     dataCheckString: string,
     receivedHash: string,
   ): void {
+    const botToken = process.env.BOT_TOKEN;
+    if (!botToken) {
+      throw new ForbiddenException('BOT_TOKEN is not configured');
+    }
+
     const secretKey = crypto
       .createHmac('sha256', 'WebAppData')
-      .update(process.env.BOT_TOKEN)
+      .update(botToken)
       .digest();
 
     const computedHash = crypto

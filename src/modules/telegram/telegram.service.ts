@@ -202,13 +202,13 @@ export class TelegramService {
     }
   }
 
-  publishMain(gig: GigDocument): Promise<TGMessage> {
+  publishMain(gig: GigDocument): Promise<TGMessage | undefined> {
     const composedMainPost: TGSendPhoto =
       this.telegramPostComposer.composeMainPost(gig);
     return this.telegramBotClient.sendPhoto(composedMainPost, String(gig._id));
   }
 
-  async sendToModeration(gig: GigDocument): Promise<TGMessage> {
+  async sendToModeration(gig: GigDocument): Promise<TGMessage | undefined> {
     const composedModerationPost: TGSendPhoto =
       this.telegramPostComposer.composeModerationPost(gig);
     return this.telegramBotClient.sendPhoto(
@@ -230,19 +230,23 @@ export class TelegramService {
     });
 
     const replyButtons = [
-      publishPostChatIdUrl
-        ? {
-            text: '🔗 Post',
-            url: publishPostChatIdUrl,
-          }
-        : undefined,
-      editGigUrl
-        ? {
-            text: '✏️ Edit',
-            url: editGigUrl,
-          }
-        : undefined,
-    ].filter(Boolean);
+      ...(publishPostChatIdUrl
+        ? [
+            {
+              text: '🔗 Post',
+              url: publishPostChatIdUrl,
+            },
+          ]
+        : []),
+      ...(editGigUrl
+        ? [
+            {
+              text: '✏️ Edit',
+              url: editGigUrl,
+            },
+          ]
+        : []),
+    ];
 
     const replyMarkup =
       replyButtons.length > 0
@@ -268,13 +272,15 @@ export class TelegramService {
       messageId: publishPost.messageId,
     });
 
-    await this.editSubmissionFeedback({
-      chatId: suggestedBy.userId,
-      messageId: suggestedBy.feedbackMessageId,
-      title,
-      status: 'Published',
-      url: publishPostUsernameUrl,
-    });
+    if (suggestedBy.feedbackMessageId != null) {
+      await this.editSubmissionFeedback({
+        chatId: suggestedBy.userId,
+        messageId: suggestedBy.feedbackMessageId,
+        title,
+        status: 'Published',
+        url: publishPostUsernameUrl,
+      });
+    }
   }
 
   async handlePostReject({ suggestedBy, moderationMessage, gigId, title }) {
@@ -296,19 +302,23 @@ export class TelegramService {
       },
     });
 
-    await this.editSubmissionFeedback({
-      chatId: suggestedBy.userId,
-      messageId: suggestedBy.feedbackMessageId,
-      title,
-      status: 'Rejected',
-    });
+    if (suggestedBy.feedbackMessageId != null) {
+      await this.editSubmissionFeedback({
+        chatId: suggestedBy.userId,
+        messageId: suggestedBy.feedbackMessageId,
+        title,
+        status: 'Rejected',
+      });
+    }
   }
 
   private editSubmissionFeedback(
     payload: EditSubmissionFeedbackPayload,
-  ): Promise<TGMessage> {
+  ): Promise<TGMessage | undefined> {
     const { chatId, messageId, title, status, url } = payload;
-    if (!chatId || !messageId) return;
+    if (!chatId || messageId == null) {
+      return Promise.resolve(undefined);
+    }
 
     return this.telegramBotClient.editMessageCaption({
       chatId,
@@ -332,7 +342,7 @@ export class TelegramService {
   async sendSubmissionFeedback(
     gig: GigDocument,
     chatId: TGChatId,
-  ): Promise<TGMessage> {
+  ): Promise<TGMessage | undefined> {
     const composedSubmissionFeedbackPost: TGSendPhoto =
       this.telegramPostComposer.composeSubmissionFeedbackPost(gig, chatId);
     return this.telegramBotClient.sendPhoto(
