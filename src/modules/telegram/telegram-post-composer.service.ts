@@ -304,8 +304,30 @@ export class TelegramPostComposer {
 
     const appBaseUrl = (process.env.APP_BASE_URL ?? '').trim();
 
+    const PREFIX = "Here's what is happening this week:";
+    const GIGS_SEPARATOR = '\n\n';
+    const GIG_INFO_SEPARATOR = '\n';
+    const GIG_INFO_ITEMS_SEPARATOR = ' • ';
+    const TICKETS = 'Tickets';
+
+    const plainBlocks: string[] = [PREFIX];
+    for (const gig of gigs) {
+      const dateLabel = formatter.format(new Date(gig.date));
+      const endDateLabel = gig.endDate
+        ? formatter.format(new Date(gig.endDate))
+        : undefined;
+      const datesLabel = `${dateLabel}${endDateLabel ? ` — ${endDateLabel}` : ''}`;
+      plainBlocks.push(
+        [
+          gig.title,
+          datesLabel,
+          [gig.venue, TICKETS].join(GIG_INFO_ITEMS_SEPARATOR),
+        ].join(GIG_INFO_SEPARATOR),
+      );
+    }
+    const digestPlaintext = plainBlocks.join(GIGS_SEPARATOR);
+
     const lines = gigs.map((gig) => {
-      const { title, date, endDate } = gig;
       const url =
         appBaseUrl && gig.publicId && gig.country && gig.city
           ? this.buildGigPermalink({
@@ -315,20 +337,24 @@ export class TelegramPostComposer {
               city: gig.city,
             })
           : undefined;
-      const titleLabel = url ? `<a href="${url}">${title}</a>` : title;
-      const dateLabel = formatter.format(new Date(date));
-      const endDateLabel = endDate
-        ? formatter.format(new Date(endDate))
+      const titleLabel = url ? `<a href="${url}">${gig.title}</a>` : gig.title;
+      const dateLabel = formatter.format(new Date(gig.date));
+      const endDateLabel = gig.endDate
+        ? formatter.format(new Date(gig.endDate))
         : undefined;
+      const datesLabel = `${dateLabel}${endDateLabel ? ` — ${endDateLabel}` : ''}`;
+
+      const ticketsLabel = `<a href="${gig.ticketsUrl}">${TICKETS}</a>`;
+
       return [
         titleLabel,
-        `${dateLabel}${endDateLabel ? ` — ${endDateLabel}` : ''}`,
-        [gig.venue, `<a href="${gig.ticketsUrl}">Tickets</a>`].join(' • '),
-      ].join('\n');
+        datesLabel,
+        [gig.venue, ticketsLabel].join(GIG_INFO_ITEMS_SEPARATOR),
+      ].join(GIG_INFO_SEPARATOR);
     });
 
-    let body = lines.join('\n\n');
-    if (body.length <= TELEGRAM_MEDIA_CAPTION_MAX_CHARS) {
+    let body = [PREFIX, lines.join(GIGS_SEPARATOR)].join(GIGS_SEPARATOR);
+    if (digestPlaintext.length <= TELEGRAM_MEDIA_CAPTION_MAX_CHARS) {
       return body;
     }
 
