@@ -5,8 +5,7 @@ import { TelegramService } from '../telegram/telegram.service';
 import { getDigestUpcomingInclusiveDayRangeMs } from './digest-date-range';
 
 /**
- * Digest Telegram publishing. Cron providers in this module should call `publish`;
- * use `ScheduleModule` from `AppModule` (already registered globally).
+ * Digest Telegram publishing. {@link DigestCronService} triggers `publish` on a weekly schedule.
  */
 @Injectable()
 export class DigestService {
