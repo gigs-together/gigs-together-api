@@ -16,8 +16,6 @@ import type {
 import type { TGChat } from './types/chat.types';
 import type { TGAnswerCallbackQuery } from './types/update.types';
 
-export const TELEGRAM_MEDIA_CAPTION_MAX_CHARS = 1024;
-export const TELEGRAM_SEND_MESSAGE_TEXT_MAX_CHARS = 4096;
 export const TELEGRAM_CALLBACK_QUERY_NOTIFICATION_MAX_CHARS = 200;
 export const TELEGRAM_MEDIA_GROUP_MIN_ITEMS = 2;
 export const TELEGRAM_MEDIA_GROUP_MAX_ITEMS = 10;
@@ -31,6 +29,10 @@ export const TELEGRAM_MEDIA_GROUP_MAX_ITEMS = 10;
  *
  * Dependency injection supplies {@link HttpService} only; logging relies on Nest's
  * {@link Logger} constructed with this class name (no separate logger provider).
+ *
+ * Does not assert caption/message UTF-16 length when formatting may apply — Telegram counts
+ * after entity parsing. Keeps unambiguous checks: {@link answerCallbackQuery} plain {@code text},
+ * {@link sendMediaGroup} item bounds, non-empty {@link sendPhoto} reference.
  */
 @Injectable()
 export class TelegramBotClient {
@@ -39,12 +41,6 @@ export class TelegramBotClient {
   constructor(private readonly httpService: HttpService) {}
 
   async sendMessage(payload: TGSendMessage): Promise<TGMessage> {
-    TelegramBotClient.assertUtf16LengthAtMost(
-      payload.text,
-      TELEGRAM_SEND_MESSAGE_TEXT_MAX_CHARS,
-      'sendMessage text',
-    );
-
     const res$ = this.httpService.post('sendMessage', payload);
     const res = await firstValueFrom(res$);
     return res.data.result;
@@ -58,12 +54,6 @@ export class TelegramBotClient {
       throw new Error('No payload in sendPhoto');
     }
     const { photo, reply_markup, ...rest } = payload;
-
-    TelegramBotClient.assertUtf16LengthAtMost(
-      payload.caption,
-      TELEGRAM_MEDIA_CAPTION_MAX_CHARS,
-      'sendPhoto caption',
-    );
 
     if (!TelegramBotClient.isNonEmptyPhotoInput(photo)) {
       throw new RangeError(
@@ -138,14 +128,6 @@ export class TelegramBotClient {
     ) {
       throw new RangeError(
         `sendMediaGroup expects ${TELEGRAM_MEDIA_GROUP_MIN_ITEMS}–${TELEGRAM_MEDIA_GROUP_MAX_ITEMS} media items, got ${media.length}`,
-      );
-    }
-
-    for (let i = 0; i < media.length; i++) {
-      TelegramBotClient.assertUtf16LengthAtMost(
-        media[i]?.caption,
-        TELEGRAM_MEDIA_CAPTION_MAX_CHARS,
-        `sendMediaGroup media[${i}] caption`,
       );
     }
 
@@ -269,12 +251,6 @@ export class TelegramBotClient {
       disableWebPagePreview,
     } = payload;
 
-    TelegramBotClient.assertUtf16LengthAtMost(
-      text,
-      TELEGRAM_SEND_MESSAGE_TEXT_MAX_CHARS,
-      'editMessageText text',
-    );
-
     const res = await firstValueFrom(
       this.httpService.post('editMessageText', {
         chat_id: chatId,
@@ -298,12 +274,6 @@ export class TelegramBotClient {
       disableWebPagePreview,
     } = payload;
 
-    TelegramBotClient.assertUtf16LengthAtMost(
-      caption,
-      TELEGRAM_MEDIA_CAPTION_MAX_CHARS,
-      'editMessageCaption caption',
-    );
-
     const res = await firstValueFrom(
       this.httpService.post('editMessageCaption', {
         chat_id: chatId,
@@ -320,12 +290,6 @@ export class TelegramBotClient {
 
   async editMessageMedia(payload: TGEditMessageMedia): Promise<TGMessage> {
     const { chatId, messageId, media, replyMarkup } = payload;
-
-    TelegramBotClient.assertUtf16LengthAtMost(
-      media?.caption,
-      TELEGRAM_MEDIA_CAPTION_MAX_CHARS,
-      'editMessageMedia media.caption',
-    );
 
     const res = await firstValueFrom(
       this.httpService.post('editMessageMedia', {

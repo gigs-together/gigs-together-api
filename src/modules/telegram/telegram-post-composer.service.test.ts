@@ -10,8 +10,8 @@ import {
   WEEKLY_DIGEST_EMPTY_CHANNEL_MESSAGE_EN,
   WeeklyDigestMainChannelSendKind,
 } from './telegram-post-composer.service';
-import { TELEGRAM_MEDIA_CAPTION_MAX_CHARS } from './telegram-bot.client';
-import { TGInputMediaType } from './types/message.types';
+import { TELEGRAM_MEDIA_CAPTION_MAX_CHARS } from './telegram-post-composer.service';
+import { TGInputMediaType, TGParseMode } from './types/message.types';
 import type { BuildGigPermalinkPayload } from './telegram-post-composer.service';
 import { Action } from './types/action.enum';
 
@@ -428,6 +428,7 @@ describe('TelegramPostComposer', () => {
           chat_id: '-1003',
           photo: 'https://cdn.example/only.jpg',
           caption: expect.stringMatching(/Only/s),
+          parse_mode: TGParseMode.HTML,
         },
       });
     });
@@ -455,14 +456,21 @@ describe('TelegramPostComposer', () => {
     });
   });
 
-  describe('formatWeeklyDigestCaptionLines', () => {
-    it('should append ellipsis when caption exceeds maxChars', () => {
+  describe('composeWeeklyDigestCaption', () => {
+    it('should append ellipsis when plain digest exceeds Telegram caption limit', () => {
       const longTitle = 'X'.repeat(1100);
       const gigs = [
-        { _id: '1', title: longTitle, date: 86_400_000, posts: [] },
+        {
+          _id: '1',
+          title: longTitle,
+          date: 86_400_000,
+          venue: 'Hall',
+          ticketsUrl: 'https://tickets.example/e',
+          posts: [],
+        },
       ] as unknown as GigDocument[];
 
-      const text = composer.formatWeeklyDigestCaptionLines(gigs);
+      const text = composer.composeWeeklyDigestCaption(gigs);
 
       expect(text.endsWith('\n…')).toBe(true);
       expect(text.length).toBeLessThanOrEqual(TELEGRAM_MEDIA_CAPTION_MAX_CHARS);

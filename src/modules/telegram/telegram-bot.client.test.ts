@@ -6,8 +6,6 @@ import type { TGMessage } from './types/message.types';
 import { TGInputMediaType } from './types/message.types';
 import {
   TelegramBotClient,
-  TELEGRAM_MEDIA_CAPTION_MAX_CHARS,
-  TELEGRAM_SEND_MESSAGE_TEXT_MAX_CHARS,
   TELEGRAM_CALLBACK_QUERY_NOTIFICATION_MAX_CHARS,
 } from './telegram-bot.client';
 
@@ -64,41 +62,9 @@ describe('TelegramBotClient', () => {
       });
       expect(result).toEqual(mockMessage);
     });
-
-    it('should throw RangeError when text exceeds Telegram Bot API limit', async () => {
-      const text = 'x'.repeat(TELEGRAM_SEND_MESSAGE_TEXT_MAX_CHARS + 1);
-
-      await expect(client.sendMessage({ chat_id: 1, text })).rejects.toThrow(
-        RangeError,
-      );
-      await expect(client.sendMessage({ chat_id: 1, text })).rejects.toThrow(
-        /sendMessage text/,
-      );
-      expect(mockHttpService.post).not.toHaveBeenCalled();
-    });
   });
 
   describe('sendPhoto', () => {
-    it('should throw RangeError when caption exceeds Telegram Bot API limit', async () => {
-      const caption = 'x'.repeat(TELEGRAM_MEDIA_CAPTION_MAX_CHARS + 1);
-
-      await expect(
-        client.sendPhoto({
-          chat_id: 1,
-          photo: 'https://cdn.example/a.jpg',
-          caption,
-        }),
-      ).rejects.toThrow(RangeError);
-      await expect(
-        client.sendPhoto({
-          chat_id: 1,
-          photo: 'https://cdn.example/a.jpg',
-          caption,
-        }),
-      ).rejects.toThrow(/sendPhoto caption/);
-      expect(mockHttpService.post).not.toHaveBeenCalled();
-    });
-
     it('should throw RangeError when photo string is empty', async () => {
       await expect(
         client.sendPhoto({
@@ -119,9 +85,7 @@ describe('TelegramBotClient', () => {
   });
 
   describe('sendMediaGroup', () => {
-    it('should throw RangeError when a media item caption exceeds Telegram Bot API limit', async () => {
-      const caption = 'x'.repeat(TELEGRAM_MEDIA_CAPTION_MAX_CHARS + 1);
-
+    it('should throw RangeError when media item count is outside Telegram Bot API limits', async () => {
       await expect(
         client.sendMediaGroup({
           chat_id: 1,
@@ -129,106 +93,49 @@ describe('TelegramBotClient', () => {
             {
               type: TGInputMediaType.Photo,
               media: 'https://cdn.example/a.jpg',
-              caption,
-            },
-            {
-              type: TGInputMediaType.Photo,
-              media: 'https://cdn.example/b.jpg',
             },
           ],
         }),
       ).rejects.toThrow(RangeError);
-      await expect(
-        client.sendMediaGroup({
+      expect(mockHttpService.post).not.toHaveBeenCalled();
+    });
+
+    it('should send the correct HTTP request', async () => {
+      mockHttpService.post.mockReturnValue(
+        of({
+          data: {
+            result: [
+              {
+                message_id: 1,
+                date: 1,
+                chat: { id: -1001, type: 'channel' },
+              },
+            ],
+          },
+        }),
+      );
+
+      await client.sendMediaGroup({
+        chat_id: 1,
+        media: [
+          {
+            type: TGInputMediaType.Photo,
+            media: 'https://cdn.example/a.jpg',
+          },
+          {
+            type: TGInputMediaType.Photo,
+            media: 'https://cdn.example/b.jpg',
+          },
+        ],
+      });
+
+      expect(mockHttpService.post).toHaveBeenCalledWith(
+        'sendMediaGroup',
+        expect.objectContaining({
           chat_id: 1,
-          media: [
-            {
-              type: TGInputMediaType.Photo,
-              media: 'https://cdn.example/a.jpg',
-              caption,
-            },
-            {
-              type: TGInputMediaType.Photo,
-              media: 'https://cdn.example/b.jpg',
-            },
-          ],
+          media: expect.any(Array),
         }),
-      ).rejects.toThrow(/sendMediaGroup media\[0\] caption/);
-      expect(mockHttpService.post).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('editMessageText', () => {
-    it('should throw RangeError when text exceeds Telegram Bot API limit', async () => {
-      const text = 'x'.repeat(TELEGRAM_SEND_MESSAGE_TEXT_MAX_CHARS + 1);
-
-      await expect(
-        client.editMessageText({
-          chatId: 1,
-          messageId: 2,
-          text,
-        }),
-      ).rejects.toThrow(RangeError);
-      await expect(
-        client.editMessageText({
-          chatId: 1,
-          messageId: 2,
-          text,
-        }),
-      ).rejects.toThrow(/editMessageText text/);
-      expect(mockHttpService.post).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('editMessageCaption', () => {
-    it('should throw RangeError when caption exceeds Telegram Bot API limit', async () => {
-      const caption = 'x'.repeat(TELEGRAM_MEDIA_CAPTION_MAX_CHARS + 1);
-
-      await expect(
-        client.editMessageCaption({
-          chatId: 1,
-          messageId: 2,
-          caption,
-        }),
-      ).rejects.toThrow(RangeError);
-      await expect(
-        client.editMessageCaption({
-          chatId: 1,
-          messageId: 2,
-          caption,
-        }),
-      ).rejects.toThrow(/editMessageCaption caption/);
-      expect(mockHttpService.post).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('editMessageMedia', () => {
-    it('should throw RangeError when media caption exceeds Telegram Bot API limit', async () => {
-      const caption = 'x'.repeat(TELEGRAM_MEDIA_CAPTION_MAX_CHARS + 1);
-
-      await expect(
-        client.editMessageMedia({
-          chatId: 1,
-          messageId: 2,
-          media: {
-            type: TGInputMediaType.Photo,
-            media: 'https://cdn.example/a.jpg',
-            caption,
-          },
-        }),
-      ).rejects.toThrow(RangeError);
-      await expect(
-        client.editMessageMedia({
-          chatId: 1,
-          messageId: 2,
-          media: {
-            type: TGInputMediaType.Photo,
-            media: 'https://cdn.example/a.jpg',
-            caption,
-          },
-        }),
-      ).rejects.toThrow(/editMessageMedia media\.caption/);
-      expect(mockHttpService.post).not.toHaveBeenCalled();
+      );
     });
   });
 

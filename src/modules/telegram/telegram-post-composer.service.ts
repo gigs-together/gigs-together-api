@@ -19,10 +19,9 @@ import { PostType } from '../gig/types/postType.enum';
 import { Messenger } from '../gig/types/messenger.enum';
 import type { TGInlineKeyboardMarkup } from './types/update.types';
 import { BucketService } from '../bucket/bucket.service';
-import {
-  TELEGRAM_MEDIA_CAPTION_MAX_CHARS,
-  TELEGRAM_MEDIA_GROUP_MAX_ITEMS,
-} from './telegram-bot.client';
+import { TELEGRAM_MEDIA_GROUP_MAX_ITEMS } from './telegram-bot.client';
+
+export const TELEGRAM_MEDIA_CAPTION_MAX_CHARS = 1024;
 
 export const WEEKLY_DIGEST_EMPTY_CHANNEL_MESSAGE_EN =
   'There are no gigs scheduled for this week.';
