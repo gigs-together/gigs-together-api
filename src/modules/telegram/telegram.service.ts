@@ -154,7 +154,7 @@ export class TelegramService {
 
     try {
       const plan: WeeklyDigestMainChannelSendPlan =
-        this.telegramPostComposer.composeWeeklyDigestMainChannelSendPlan({
+        this.telegramPostComposer.composeWeeklyDigest({
           chatId,
           gigs,
         });

@@ -39,7 +39,7 @@ export enum WeeklyDigestMainChannelSendKind {
   SendMediaGroup = 'sendMediaGroup',
 }
 
-export interface ComposeWeeklyDigestMainChannelPlanParams {
+export interface ComposeWeeklyDigestParams {
   readonly chatId: TGChatId;
   readonly gigs: readonly GigDocument[];
 }
@@ -89,6 +89,19 @@ export interface BuildAfterPublishModerationReplyMarkupParams {
   readonly publishPostUrl?: string;
   readonly editGigUrl?: string;
 }
+
+interface ComposedText {
+  plain: string;
+  html: string;
+}
+
+const DATE_LOCALE = 'en-GB';
+const DATE_FORMAT: Intl.DateTimeFormatOptions = {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+  weekday: 'short',
+};
 
 /**
  * Composes Telegram Bot API payloads for gig-related channel/moderation posts
@@ -258,10 +271,10 @@ export class TelegramPostComposer {
   }
 
   buildCaption(payload: BuildCaptionPayload): string {
-    const dateFormatter = new Intl.DateTimeFormat('en-GB', {
-      year: 'numeric',
-      month: 'short', // e.g., "Nov"
-      day: '2-digit',
+    const dateFormatter = new Intl.DateTimeFormat(DATE_LOCALE, {
+      year: DATE_FORMAT.year,
+      month: DATE_FORMAT.month,
+      day: DATE_FORMAT.day,
     });
     const date = dateFormatter.format(new Date(payload.date));
     const endDate = payload.endDate
@@ -295,11 +308,11 @@ export class TelegramPostComposer {
     });
   }
 
-  formatWeeklyDigestCaptionLines(gigs: readonly GigDocument[]): string {
-    const formatter = new Intl.DateTimeFormat('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
+  formatWeeklyDigestCaptionLines(gigs: readonly GigDocument[]): ComposedText {
+    const formatter = new Intl.DateTimeFormat(DATE_LOCALE, {
+      weekday: DATE_FORMAT.weekday,
+      month: DATE_FORMAT.month,
+      day: DATE_FORMAT.day,
     });
 
     const appBaseUrl = (process.env.APP_BASE_URL ?? '').trim();
@@ -325,7 +338,7 @@ export class TelegramPostComposer {
         ].join(GIG_INFO_SEPARATOR),
       );
     }
-    const digestPlaintext = plainBlocks.join(GIGS_SEPARATOR);
+    const digestPlainText = plainBlocks.join(GIGS_SEPARATOR);
 
     const lines = gigs.map((gig) => {
       const url =
@@ -354,9 +367,17 @@ export class TelegramPostComposer {
     });
 
     let body = [PREFIX, lines.join(GIGS_SEPARATOR)].join(GIGS_SEPARATOR);
-    if (digestPlaintext.length <= TELEGRAM_MEDIA_CAPTION_MAX_CHARS) {
-      return body;
+    return { plain: digestPlainText, html: body };
+  }
+
+  composeWeeklyDigestCaption(gigs: readonly GigDocument[]): string {
+    const { plain, html } = this.formatWeeklyDigestCaptionLines(gigs);
+
+    if (plain.length <= TELEGRAM_MEDIA_CAPTION_MAX_CHARS) {
+      return html;
     }
+
+    let body = html;
 
     const ellipsis = '\n…';
     const budget = TELEGRAM_MEDIA_CAPTION_MAX_CHARS - ellipsis.length;
@@ -376,8 +397,8 @@ export class TelegramPostComposer {
    * Builds the Bot API payload for publishing the weekly digest to the main channel
    * (empty-week notice, media album, single photo, or plain text).
    */
-  composeWeeklyDigestMainChannelSendPlan(
-    params: ComposeWeeklyDigestMainChannelPlanParams,
+  composeWeeklyDigest(
+    params: ComposeWeeklyDigestParams,
   ): WeeklyDigestMainChannelSendPlan {
     const { chatId, gigs } = params;
 
@@ -391,7 +412,7 @@ export class TelegramPostComposer {
       };
     }
 
-    const caption = this.formatWeeklyDigestCaptionLines(gigs);
+    const caption = this.composeWeeklyDigestCaption(gigs);
 
     const firstChunk = gigs.slice(0, TELEGRAM_MEDIA_GROUP_MAX_ITEMS);
     const posterRefs = firstChunk

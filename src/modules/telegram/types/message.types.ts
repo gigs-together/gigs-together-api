@@ -6,7 +6,6 @@ export type TGChatId = string | number;
 
 export enum TGParseMode {
   HTML = 'HTML',
-  Markdown = 'Markdown',
   MarkdownV2 = 'MarkdownV2',
 }
 

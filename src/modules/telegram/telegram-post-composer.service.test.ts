@@ -345,9 +345,9 @@ describe('TelegramPostComposer', () => {
     });
   });
 
-  describe('composeWeeklyDigestMainChannelSendPlan', () => {
+  describe('composeWeeklyDigest', () => {
     it('should return empty-week sendMessage when gigs list is empty', () => {
-      const plan = composer.composeWeeklyDigestMainChannelSendPlan({
+      const plan = composer.composeWeeklyDigest({
         chatId: '-1001',
         gigs: [],
       });
@@ -381,7 +381,7 @@ describe('TelegramPostComposer', () => {
         },
       ] as unknown as GigDocument[];
 
-      const plan = composer.composeWeeklyDigestMainChannelSendPlan({
+      const plan = composer.composeWeeklyDigest({
         chatId: '-1002',
         gigs,
       });
@@ -417,7 +417,7 @@ describe('TelegramPostComposer', () => {
         },
       ] as unknown as GigDocument[];
 
-      const plan = composer.composeWeeklyDigestMainChannelSendPlan({
+      const plan = composer.composeWeeklyDigest({
         chatId: '-1003',
         gigs,
       });
@@ -442,7 +442,7 @@ describe('TelegramPostComposer', () => {
         },
       ] as unknown as GigDocument[];
 
-      const plan = composer.composeWeeklyDigestMainChannelSendPlan({
+      const plan = composer.composeWeeklyDigest({
         chatId: '-1004',
         gigs,
       });
