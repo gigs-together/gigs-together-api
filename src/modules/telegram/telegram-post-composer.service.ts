@@ -249,15 +249,12 @@ export class TelegramPostComposer {
 
   private buildMainPostCaption(gig: GigDocument): string {
     const appBaseUrl = (process.env.APP_BASE_URL ?? '').trim();
-    const url =
-      appBaseUrl && gig.publicId && gig.country && gig.city
-        ? this.buildGigPermalink({
-            baseUrl: appBaseUrl,
-            publicId: gig.publicId,
-            country: gig.country,
-            city: gig.city,
-          })
-        : undefined;
+    const url = this.buildGigPermalink({
+      baseUrl: appBaseUrl,
+      publicId: gig.publicId,
+      country: gig.country,
+      city: gig.city,
+    });
 
     return this.buildCaption({
       url,
@@ -307,7 +304,9 @@ export class TelegramPostComposer {
     });
   }
 
-  formatWeeklyDigestCaptionLines(gigs: readonly GigDocument[]): ComposedText {
+  formatWeeklyDigestCaptionLines(
+    gigDocs: readonly GigDocument[],
+  ): ComposedText {
     const formatter = new Intl.DateTimeFormat(DATE_LOCALE, {
       weekday: DATE_FORMAT.weekday,
       month: DATE_FORMAT.month,
@@ -322,51 +321,58 @@ export class TelegramPostComposer {
     const GIG_INFO_ITEMS_SEPARATOR = ' • ';
     const TICKETS = 'Tickets';
 
-    const plainBlocks: string[] = [PREFIX];
-    for (const gig of gigs) {
+    const gigs = gigDocs.map((gig: GigDocument) => {
       const dateLabel = formatter.format(new Date(gig.date));
       const endDateLabel = gig.endDate
         ? formatter.format(new Date(gig.endDate))
         : undefined;
       const datesLabel = `${dateLabel}${endDateLabel ? ` — ${endDateLabel}` : ''}`;
-      plainBlocks.push(
-        [
-          gig.title,
-          datesLabel,
-          [gig.venue, TICKETS].join(GIG_INFO_ITEMS_SEPARATOR),
-        ].join(GIG_INFO_SEPARATOR),
-      );
-    }
-    const digestPlainText = plainBlocks.join(GIGS_SEPARATOR);
-
-    const lines = gigs.map((gig) => {
-      const url =
-        appBaseUrl && gig.publicId && gig.country && gig.city
-          ? this.buildGigPermalink({
-              baseUrl: appBaseUrl,
-              publicId: gig.publicId,
-              country: gig.country,
-              city: gig.city,
-            })
-          : undefined;
-      const titleLabel = url ? `<a href="${url}">${gig.title}</a>` : gig.title;
-      const dateLabel = formatter.format(new Date(gig.date));
-      const endDateLabel = gig.endDate
-        ? formatter.format(new Date(gig.endDate))
-        : undefined;
-      const datesLabel = `${dateLabel}${endDateLabel ? ` — ${endDateLabel}` : ''}`;
-
-      const ticketsLabel = `<a href="${gig.ticketsUrl}">${TICKETS}</a>`;
-
-      return [
-        titleLabel,
-        datesLabel,
-        [gig.venue, ticketsLabel].join(GIG_INFO_ITEMS_SEPARATOR),
-      ].join(GIG_INFO_SEPARATOR);
+      return {
+        dates: datesLabel,
+        title: gig.title,
+        venue: gig.venue,
+        ticketsUrl: gig.ticketsUrl,
+        publicId: gig.publicId,
+        city: gig.city,
+        country: gig.country,
+      };
     });
 
-    let body = [PREFIX, lines.join(GIGS_SEPARATOR)].join(GIGS_SEPARATOR);
-    return { plain: digestPlainText, html: body };
+    const plainLines: string[] = [PREFIX];
+    for (const gig of gigs) {
+      const plainLine = [
+        gig.title,
+        gig.dates,
+        [gig.venue, TICKETS].join(GIG_INFO_ITEMS_SEPARATOR),
+      ].join(GIG_INFO_SEPARATOR);
+
+      plainLines.push(plainLine);
+    }
+    const plainText = plainLines.join(GIGS_SEPARATOR);
+
+    const htmlLines: string[] = [PREFIX];
+    for (const gig of gigs) {
+      const url = this.buildGigPermalink({
+        baseUrl: appBaseUrl,
+        publicId: gig.publicId,
+        country: gig.country,
+        city: gig.city,
+      });
+
+      const titleLabel = url ? `<a href="${url}">${gig.title}</a>` : gig.title;
+      const ticketsLabel = `<a href="${gig.ticketsUrl}">${TICKETS}</a>`;
+
+      const htmlLine = [
+        titleLabel,
+        gig.dates,
+        [gig.venue, ticketsLabel].join(GIG_INFO_ITEMS_SEPARATOR),
+      ].join(GIG_INFO_SEPARATOR);
+
+      htmlLines.push(htmlLine);
+    }
+
+    const htmlText = htmlLines.join(GIGS_SEPARATOR);
+    return { plain: plainText, html: htmlText };
   }
 
   composeWeeklyDigestCaption(gigs: readonly GigDocument[]): string {
@@ -385,7 +391,7 @@ export class TelegramPostComposer {
     }
 
     body = body.slice(0, budget);
-    const lastBreak = body.lastIndexOf('\n');
+    const lastBreak = body.lastIndexOf('\n\n');
     if (lastBreak > budget * 0.5) {
       body = body.slice(0, lastBreak);
     }
@@ -670,19 +676,23 @@ export class TelegramPostComposer {
     };
   }
 
-  buildGigPermalink(input: BuildGigPermalinkPayload): string {
-    const country = (input.country ?? '').trim().toLowerCase();
-    const city = (input.city ?? '').trim().toLowerCase();
+  buildGigPermalink(input: BuildGigPermalinkPayload): string | undefined {
+    if (!input.baseUrl || !input.publicId || !input.country || !input.city) {
+      return undefined;
+    }
+
+    const country = input.country.trim().toLowerCase();
+    const city = input.city.trim().toLowerCase();
 
     // Current frontend routes:
     // - /feed/[country]/[city]
     // - gig anchor: #<publicId>
-    const u = new URL(
+    const url = new URL(
       `/feed/${encodeURIComponent(country)}/${encodeURIComponent(city)}`,
       input.baseUrl,
     );
-    u.hash = input.publicId ?? '';
-    return u.toString();
+    url.hash = input.publicId;
+    return url.toString();
   }
 
   getPostUrl(payload: GetPostUrlPayload): string | undefined {
