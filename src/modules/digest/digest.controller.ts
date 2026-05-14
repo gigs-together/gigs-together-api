@@ -9,7 +9,7 @@ import { DigestService } from './digest.service';
 import { DigestPublishGuard } from './guards/digest-publish.guard';
 
 /**
- * Manual digest publish hook (operators / external cron).
+ * Manual digest publish hook (authenticated POST for operators).
  * Requires DIGEST_PUBLISH_SECRET; if unset, POST returns 503.
  */
 @Controller('digest')

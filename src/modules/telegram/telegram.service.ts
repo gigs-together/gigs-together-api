@@ -40,6 +40,10 @@ interface HandleAfterPublishPayload {
   publicId?: string;
 }
 
+interface WeeklyDigestMainChannelPublishResult {
+  readonly postUrl: string;
+}
+
 @Injectable()
 export class TelegramService {
   constructor(
@@ -138,7 +142,7 @@ export class TelegramService {
 
   async publishWeeklyDigestToMainChannel(
     gigs: readonly GigDocument[],
-  ): Promise<void> {
+  ): Promise<WeeklyDigestMainChannelPublishResult | undefined> {
     const chatIdRaw = process.env.MAIN_CHANNEL_ID;
     const chatId =
       chatIdRaw !== undefined && chatIdRaw !== null
@@ -159,17 +163,14 @@ export class TelegramService {
           gigs,
         });
 
-      switch (plan.kind) {
-        case WeeklyDigestMainChannelSendKind.SendMessage:
-          await this.telegramBotClient.sendMessage(plan.payload);
-          return;
-        case WeeklyDigestMainChannelSendKind.SendPhoto:
-          await this.telegramBotClient.sendPhoto(plan.payload);
-          return;
-        case WeeklyDigestMainChannelSendKind.SendMediaGroup:
-          await this.telegramBotClient.sendMediaGroup(plan.payload);
-          return;
+      const published = await this.dispatchWeeklyDigestMainChannelPlan(plan);
+      if (published === undefined) {
+        throw new Error(
+          'Weekly digest publish finished without a Telegram message_id or post URL',
+        );
       }
+
+      return published;
     } catch (e: unknown) {
       logError(this.logger, {
         error: e,
@@ -178,6 +179,45 @@ export class TelegramService {
       });
       throw e;
     }
+  }
+
+  private async dispatchWeeklyDigestMainChannelPlan(
+    plan: WeeklyDigestMainChannelSendPlan,
+  ): Promise<WeeklyDigestMainChannelPublishResult | undefined> {
+    const chatId = plan.payload.chat_id;
+
+    let messageId: number | undefined;
+    switch (plan.kind) {
+      case WeeklyDigestMainChannelSendKind.SendMessage: {
+        const msg = await this.telegramBotClient.sendMessage(plan.payload);
+        messageId = msg.message_id;
+        break;
+      }
+      case WeeklyDigestMainChannelSendKind.SendPhoto: {
+        const msg = await this.telegramBotClient.sendPhoto(plan.payload);
+        messageId = msg?.message_id;
+        break;
+      }
+      case WeeklyDigestMainChannelSendKind.SendMediaGroup: {
+        const msgs = await this.telegramBotClient.sendMediaGroup(plan.payload);
+        messageId = msgs[0]?.message_id;
+        break;
+      }
+    }
+
+    if (messageId === undefined) {
+      return;
+    }
+
+    const postUrl = this.telegramPostComposer.getPostUrl({
+      chatId,
+      messageId,
+    });
+    if (postUrl === undefined) {
+      return;
+    }
+
+    return { postUrl };
   }
 
   publishMain(gig: GigDocument): Promise<TGMessage | undefined> {

@@ -6,11 +6,11 @@ import { DigestService } from './digest.service';
 describe('DigestCronService', () => {
   let cronService: DigestCronService;
 
-  const publishMock = vi.fn();
+  const publishIfEligibleMock = vi.fn();
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    publishMock.mockResolvedValue(undefined);
+    publishIfEligibleMock.mockResolvedValue(undefined);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -18,7 +18,7 @@ describe('DigestCronService', () => {
         {
           provide: DigestService,
           useValue: {
-            publish: publishMock,
+            publishIfEligible: publishIfEligibleMock,
           },
         },
       ],
@@ -27,11 +27,19 @@ describe('DigestCronService', () => {
     cronService = module.get<DigestCronService>(DigestCronService);
   });
 
+  describe('onModuleInit', () => {
+    it('should trigger digest publish eligibility check once', () => {
+      cronService.onModuleInit();
+
+      expect(publishIfEligibleMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('publishWeeklyDigestScheduled', () => {
-    it('should delegate to digest publish when the scheduled handler runs', async () => {
+    it('should delegate to digest publish eligibility when the scheduled handler runs', async () => {
       await cronService.publishWeeklyDigestScheduled();
 
-      expect(publishMock).toHaveBeenCalledTimes(1);
+      expect(publishIfEligibleMock).toHaveBeenCalledTimes(1);
     });
   });
 });

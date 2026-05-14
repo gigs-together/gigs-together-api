@@ -112,7 +112,11 @@ describe('TelegramService', () => {
         chat: { id: -1001, type: 'channel' },
       });
 
-      await service.publishWeeklyDigestToMainChannel([]);
+      await expect(
+        service.publishWeeklyDigestToMainChannel([]),
+      ).resolves.toEqual({
+        postUrl: 'https://t.me/c/1/1',
+      });
 
       expect(sendMessageSpy).toHaveBeenCalledWith({
         chat_id: '-1001',
@@ -167,7 +171,11 @@ describe('TelegramService', () => {
         },
       ] as unknown as GigDocument[];
 
-      await service.publishWeeklyDigestToMainChannel(gigs);
+      await expect(
+        service.publishWeeklyDigestToMainChannel(gigs),
+      ).resolves.toEqual({
+        postUrl: 'https://t.me/c/1/1',
+      });
 
       expect(mockHttpService.post).toHaveBeenCalledWith(
         'sendMediaGroup',
@@ -226,7 +234,11 @@ describe('TelegramService', () => {
         },
       ] as unknown as GigDocument[];
 
-      await service.publishWeeklyDigestToMainChannel(gigs);
+      await expect(
+        service.publishWeeklyDigestToMainChannel(gigs),
+      ).resolves.toEqual({
+        postUrl: 'https://t.me/c/1/3',
+      });
 
       expect(mockHttpService.post).toHaveBeenCalledWith(
         'sendPhoto',
@@ -236,6 +248,19 @@ describe('TelegramService', () => {
           caption: expect.stringMatching(/Only/s),
         }),
       );
+    });
+
+    it('should return undefined and not call Telegram when MAIN_CHANNEL_ID is unset', async () => {
+      delete process.env.MAIN_CHANNEL_ID;
+
+      const bot = testingModule.get(TelegramBotClient);
+      const sendMessageSpy = vi.spyOn(bot, 'sendMessage');
+
+      await expect(
+        service.publishWeeklyDigestToMainChannel([]),
+      ).resolves.toBeUndefined();
+
+      expect(sendMessageSpy).not.toHaveBeenCalled();
     });
   });
 });
