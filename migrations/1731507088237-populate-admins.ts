@@ -10,9 +10,15 @@ const { BOT_ADMINS } = process.env;
 const Admin = mongoose.model('Admin', AdminSchema);
 
 export async function up(): Promise<void> {
+  if (!BOT_ADMINS || !MONGO_URI) {
+    throw new Error('BOT_ADMINS and MONGO_URI must be set in the environment');
+  }
+
   const admins: { [key: string]: number } = JSON.parse(BOT_ADMINS);
-  if (!admins) {
-    throw new Error('BOT_ADMINS not found in process.env');
+  if (typeof admins !== 'object' || admins === null || Array.isArray(admins)) {
+    throw new Error(
+      'BOT_ADMINS must be a JSON object mapping username to telegram id',
+    );
   }
   await mongoose.connect(MONGO_URI);
   const operations = Object.entries(admins).map(([username, id]) => ({
