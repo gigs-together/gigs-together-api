@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { CronTime } from 'cron';
 import type { Model } from 'mongoose';
@@ -42,6 +42,8 @@ export function getPreviousEstimatedDigestCronFireDate(
  */
 @Injectable()
 export class DigestService {
+  private readonly logger = new Logger(DigestService.name);
+
   constructor(
     private readonly gigService: GigService,
     private readonly telegramService: TelegramService,
@@ -61,6 +63,7 @@ export class DigestService {
     const digestPostUrl = publishResult?.postUrl;
     if (digestPostUrl) {
       await this.recordSuccessfulPublication(digestPostUrl);
+      this.logger.log(`Weekly digest published successfully: ${digestPostUrl}`);
     }
   }
 
