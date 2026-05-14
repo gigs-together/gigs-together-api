@@ -107,43 +107,43 @@ Depending on which flows you want to exercise, you may also need:
 - S3 storage: `S3_*`
 - AI: `AI_URL`, `AI_API_KEY`, `AI_MODEL`
 - Frontend integration: `APP_BASE_URL`, `FEED_REVALIDATE_SECRET`
-- Digest scheduling / manual publish hook: `DIGEST_PUBLISH_CRON_EXPRESSION`, `DIGEST_PUBLISH_SECRET`
 - CORS: `CORS_ORIGINS`
 
 ### Environment variables reference
 
 Current variables defined in `.env.example`:
 
-| Variable                               | Required                                     | Purpose                                                                                                                                                      |
-| -------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `PORT`                                 | Optional                                     | NestJS port. Defaults to `3000`.                                                                                                                             |
-| `BOT_ADMINS`                           | Usually yes                                  | Telegram admin map used by bot workflows.                                                                                                                    |
-| `BOT_TOKEN`                            | For Telegram flows                           | Telegram bot token.                                                                                                                                          |
-| `BOT_SECRET`                           | For Telegram webhook flows                   | Shared secret for webhook protection.                                                                                                                        |
-| `MAIN_CHANNEL_ID`                      | For Telegram flows                           | Main Telegram channel id.                                                                                                                                    |
-| `MODERATION_CHANNEL_ID`                | For moderation flows                         | Moderation Telegram channel id.                                                                                                                              |
-| `DIRECT_MESSAGES_URL`                  | For Telegram UX                              | Link used in bot/admin flows.                                                                                                                                |
-| `EDIT_GIG_URL`                         | For edit flows                               | Frontend or app URL for editing gigs.                                                                                                                        |
-| `MONGO_URI`                            | Yes                                          | MongoDB connection string.                                                                                                                                   |
-| `MONGO_DB`                             | Yes for Docker/local setup                   | MongoDB database name.                                                                                                                                       |
-| `MONGO_PORT`                           | Yes for Docker/local setup                   | Local MongoDB port mapping.                                                                                                                                  |
-| `CALENDAR_ID`                          | Optional                                     | Google Calendar id.                                                                                                                                          |
-| `GOOGLE_AUTH_JSON`                     | Optional                                     | Base64-encoded or raw Google auth JSON.                                                                                                                      |
-| `S3_BUCKET`                            | Optional                                     | Bucket name for poster storage.                                                                                                                              |
-| `S3_ENDPOINT`                          | Optional                                     | S3-compatible endpoint, for example Cloudflare R2.                                                                                                           |
-| `S3_ACCESS_KEY_ID`                     | Optional                                     | Storage access key.                                                                                                                                          |
-| `S3_SECRET_ACCESS_KEY`                 | Optional                                     | Storage secret key.                                                                                                                                          |
-| `S3_POSTERS_PREFIX`                    | Optional                                     | Poster object prefix. Defaults to `gigs`.                                                                                                                    |
-| `S3_PUBLIC_BASE_URL`                   | Optional but required for public bucket mode | Public URL base for uploaded posters.                                                                                                                        |
-| `CORS_ORIGINS`                         | Optional                                     | CORS mode or comma-separated allowlist.                                                                                                                      |
-| `EXTERNAL_POSTER_URL_FALLBACK_ENABLED` | Optional                                     | Enables fallback poster URL behavior.                                                                                                                        |
-| `DEFAULT_GIG_POSTER_URL`               | Optional                                     | Default public poster URL for gigs without posters.                                                                                                          |
-| `AI_URL`                               | Optional                                     | AI service base URL.                                                                                                                                         |
-| `AI_API_KEY`                           | Optional                                     | AI service key.                                                                                                                                              |
-| `AI_MODEL`                             | Optional                                     | AI model identifier.                                                                                                                                         |
-| `APP_BASE_URL`                         | Optional                                     | Frontend base URL.                                                                                                                                           |
-| `DIGEST_PUBLISH_SECRET`                | Optional                                     | Shared secret for `POST /digest/publish` (`x-digest-publish-secret`). Returns 503 when unset.                                                                |
-| `DIGEST_PUBLISH_CRON_EXPRESSION`       | Optional                                     | Cron pattern for scheduled digest runs. Default `0 12 * * 1` (Monday 12:00, Europe/Madrid). If set but invalid, the default is used and a warning is logged. |
+| Variable                               | Required                                     | Purpose                                             |
+| -------------------------------------- | -------------------------------------------- | --------------------------------------------------- |
+| `PORT`                                 | No                                           | NestJS port. Defaults to `3000`.                    |
+| `BOT_ADMINS`                           | Usually yes                                  | Telegram admin map used by bot workflows.           |
+| `BOT_TOKEN`                            | For Telegram flows                           | Telegram bot token.                                 |
+| `BOT_SECRET`                           | For Telegram webhook flows                   | Shared secret for webhook protection.               |
+| `MAIN_CHANNEL_ID`                      | For Telegram flows                           | Main Telegram channel id.                           |
+| `MODERATION_CHANNEL_ID`                | For moderation flows                         | Moderation Telegram channel id.                     |
+| `DIRECT_MESSAGES_URL`                  | For Telegram UX                              | Link used in bot/admin flows.                       |
+| `EDIT_GIG_URL`                         | For edit flows                               | Frontend or app URL for editing gigs.               |
+| `MONGO_URI`                            | Yes                                          | MongoDB connection string.                          |
+| `MONGO_DB`                             | Yes for Docker/local setup                   | MongoDB database name.                              |
+| `MONGO_PORT`                           | Yes for Docker/local setup                   | Local MongoDB port mapping.                         |
+| `CALENDAR_ID`                          | Optional                                     | Google Calendar id.                                 |
+| `GOOGLE_AUTH_JSON`                     | Optional                                     | Base64-encoded or raw Google auth JSON.             |
+| `S3_BUCKET`                            | Optional                                     | Bucket name for poster storage.                     |
+| `S3_ENDPOINT`                          | Optional                                     | S3-compatible endpoint, for example Cloudflare R2.  |
+| `S3_ACCESS_KEY_ID`                     | Optional                                     | Storage access key.                                 |
+| `S3_SECRET_ACCESS_KEY`                 | Optional                                     | Storage secret key.                                 |
+| `S3_POSTERS_PREFIX`                    | No                                           | Poster object prefix. Defaults to `gigs`.           |
+| `S3_PUBLIC_BASE_URL`                   | Optional but required for public bucket mode | Public URL base for uploaded posters.               |
+| `CORS_ORIGINS`                         | No                                           | CORS mode or comma-separated allowlist.             |
+| `EXTERNAL_POSTER_URL_FALLBACK_ENABLED` | No                                           | Enables fallback poster URL behavior.               |
+| `DEFAULT_GIG_POSTER_URL`               | No                                           | Default public poster URL for gigs without posters. |
+| `AI_URL`                               | Optional                                     | AI service base URL.                                |
+| `AI_API_KEY`                           | Optional                                     | AI service key.                                     |
+| `AI_MODEL`                             | Optional                                     | AI model identifier.                                |
+| `APP_BASE_URL`                         | Optional                                     | Frontend base URL.                                  |
+| `FEED_REVALIDATE_SECRET`               | Optional                                     | Secret for frontend feed revalidation.              |
+
+### CORS behavior
 
 `src/main.ts` supports the following `CORS_ORIGINS` modes:
 
