@@ -89,6 +89,10 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const pathForLog = request.originalUrl ?? request.url;
     const clientIp = getClientIp(request);
 
+    if (status === HttpStatus.UNAUTHORIZED) {
+      return response.status(status).json(errorResponse);
+    }
+
     if (status === HttpStatus.NOT_FOUND) {
       this.logger.warn(
         `Not found ${request.method} ${pathForLog} ip=${clientIp}`,

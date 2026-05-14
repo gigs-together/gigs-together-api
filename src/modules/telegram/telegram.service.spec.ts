@@ -4,11 +4,20 @@ import { HttpService } from '@nestjs/axios';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { of } from 'rxjs';
 import type { TGMessage } from './types/message.types';
+import type { GigDocument } from '../gig/gig.schema';
 import { BucketService } from '../bucket/bucket.service';
-import { TelegramService } from './telegram.service';
+import {
+  TelegramService,
+  WEEKLY_DIGEST_EMPTY_CHANNEL_MESSAGE_EN,
+} from './telegram.service';
+import { TelegramAuthService } from './telegram-auth.service';
+import { TelegramBotClient } from './telegram-bot.client';
+import { TelegramPostComposer } from './telegram-post-composer.service';
+import { TGInputMediaType } from './types/message.types';
 
 describe('TelegramService', () => {
   let service: TelegramService;
+  let testingModule: TestingModule;
 
   const mockHttpService = {
     post: vi.fn(),
@@ -23,13 +32,16 @@ describe('TelegramService', () => {
   };
 
   const mockBucketService = {
-    getPublicPosterUrl: vi.fn(),
+    getPublicFileUrl: vi.fn(),
   };
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
+    testingModule = await Test.createTestingModule({
       providers: [
         TelegramService,
+        TelegramAuthService,
+        TelegramBotClient,
+        TelegramPostComposer,
         {
           provide: HttpService,
           useValue: mockHttpService,
@@ -45,12 +57,13 @@ describe('TelegramService', () => {
       ],
     }).compile();
 
-    service = module.get<TelegramService>(TelegramService);
+    service = testingModule.get<TelegramService>(TelegramService);
   });
 
   afterEach(() => {
     vi.clearAllMocks();
     delete process.env.S3_PUBLIC_BASE_URL;
+    delete process.env.MAIN_CHANNEL_ID;
   });
 
   it('should be defined', () => {
@@ -83,6 +96,171 @@ describe('TelegramService', () => {
         text,
       });
       expect(result).toEqual(mockMessage);
+    });
+  });
+
+  describe('publishWeeklyDigestToMainChannel', () => {
+    beforeEach(() => {
+      process.env.MAIN_CHANNEL_ID = '-1001';
+    });
+
+    it('should send English empty-week notice when there are no gigs', async () => {
+      const bot = testingModule.get(TelegramBotClient);
+      const sendMessageSpy = vi.spyOn(bot, 'sendMessage').mockResolvedValue({
+        message_id: 1,
+        date: 1,
+        chat: { id: -1001, type: 'channel' },
+      });
+
+      await expect(
+        service.publishWeeklyDigestToMainChannel([]),
+      ).resolves.toEqual({
+        postUrl: 'https://t.me/c/1/1',
+      });
+
+      expect(sendMessageSpy).toHaveBeenCalledWith({
+        chat_id: '-1001',
+        text: WEEKLY_DIGEST_EMPTY_CHANNEL_MESSAGE_EN,
+      });
+    });
+
+    it('should send sendMediaGroup when two posters resolve from bucket URLs', async () => {
+      mockBucketService.getPublicFileUrl.mockReturnValue(
+        'https://cdn.example/poster.jpg',
+      );
+
+      mockHttpService.post.mockImplementation((method: string) => {
+        if (method === 'sendMediaGroup') {
+          return of({
+            data: {
+              result: [
+                {
+                  message_id: 1,
+                  date: 1,
+                  chat: { id: -1001, type: 'channel' },
+                },
+              ],
+            },
+          });
+        }
+        return of({
+          data: {
+            result: {
+              message_id: 2,
+              date: 1,
+              chat: { id: -1001, type: 'channel' },
+            },
+          },
+        });
+      });
+
+      const gigs = [
+        {
+          _id: 'a',
+          title: 'Alpha',
+          date: 10,
+          posts: [],
+          poster: { bucketPath: 'gigs/a.jpg' },
+        },
+        {
+          _id: 'b',
+          title: 'Beta',
+          date: 20,
+          posts: [],
+          poster: { bucketPath: 'gigs/b.jpg' },
+        },
+      ] as unknown as GigDocument[];
+
+      await expect(
+        service.publishWeeklyDigestToMainChannel(gigs),
+      ).resolves.toEqual({
+        postUrl: 'https://t.me/c/1/1',
+      });
+
+      expect(mockHttpService.post).toHaveBeenCalledWith(
+        'sendMediaGroup',
+        expect.objectContaining({
+          chat_id: '-1001',
+          media: [
+            expect.objectContaining({
+              type: TGInputMediaType.Photo,
+              media: 'https://cdn.example/poster.jpg',
+              caption: expect.stringMatching(/Alpha/s),
+            }),
+            expect.objectContaining({
+              type: TGInputMediaType.Photo,
+              media: 'https://cdn.example/poster.jpg',
+            }),
+          ],
+        }),
+      );
+    });
+
+    it('should send sendPhoto when exactly one poster resolves', async () => {
+      mockBucketService.getPublicFileUrl.mockReturnValue(
+        'https://cdn.example/only.jpg',
+      );
+
+      mockHttpService.post.mockImplementation((method: string) => {
+        if (method === 'sendPhoto') {
+          return of({
+            data: {
+              result: {
+                message_id: 3,
+                date: 1,
+                chat: { id: -1001, type: 'channel' },
+              },
+            },
+          });
+        }
+        return of({
+          data: {
+            result: {
+              message_id: 1,
+              date: 1,
+              chat: { id: -1001, type: 'channel' },
+            },
+          },
+        });
+      });
+
+      const gigs = [
+        {
+          _id: 'a',
+          title: 'Only',
+          date: 10,
+          posts: [],
+          poster: { bucketPath: 'gigs/a.jpg' },
+        },
+      ] as unknown as GigDocument[];
+
+      await expect(
+        service.publishWeeklyDigestToMainChannel(gigs),
+      ).resolves.toEqual({
+        postUrl: 'https://t.me/c/1/3',
+      });
+
+      expect(mockHttpService.post).toHaveBeenCalledWith(
+        'sendPhoto',
+        expect.objectContaining({
+          chat_id: '-1001',
+          photo: 'https://cdn.example/only.jpg',
+          caption: expect.stringMatching(/Only/s),
+        }),
+      );
+    });
+
+    it('should return undefined and not call Telegram when MAIN_CHANNEL_ID is unset', async () => {
+      delete process.env.MAIN_CHANNEL_ID;
+
+      const bot = testingModule.get(TelegramBotClient);
+      const sendMessageSpy = vi.spyOn(bot, 'sendMessage');
+
+      await expect(
+        service.publishWeeklyDigestToMainChannel([]),
+      ).resolves.toBeUndefined();
+
+      expect(sendMessageSpy).not.toHaveBeenCalled();
     });
   });
 });

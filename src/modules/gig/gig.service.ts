@@ -71,6 +71,18 @@ interface GenerateUniquePublicIdPayload {
   excludeMongoId?: Types.ObjectId;
 }
 
+interface GigPublishedBaseFilterParams {
+  readonly from: number;
+  readonly to?: number;
+  readonly city?: string;
+  readonly country?: string;
+}
+
+interface GigPublishedInclusiveMsRangeParams {
+  readonly fromMs: number;
+  readonly toMs: number;
+}
+
 // TODO: add allowing only specific status transitions
 @Injectable()
 export class GigService {
@@ -402,7 +414,11 @@ export class GigService {
       : undefined;
   }
 
-  private async mapGigsToV1Gigs(
+  /**
+   * Maps stored gigs to the same public shape as list endpoints (calendar URLs, poster URLs, etc.).
+   * Exposed for DigestModule and other internal callers that query gigs directly.
+   */
+  async mapGigsToV1Gigs(
     gigs: GigDocument[],
   ): Promise<V1GetGigsResponseBody['gigs']> {
     const externalFallbackEnabled = envBool(
@@ -448,6 +464,44 @@ export class GigService {
     return mapped;
   }
 
+  private buildPublishedGigsBaseFilter(
+    params: GigPublishedBaseFilterParams,
+  ): Record<string, unknown> {
+    const { from, to, city, country } = params;
+
+    const dateFilter: { $gte: number; $lte?: number } = { $gte: from };
+    if (to !== undefined) dateFilter.$lte = to;
+
+    const baseFilter: Record<string, unknown> = {
+      status: Status.Published,
+      date: dateFilter,
+    };
+    if (city && country) {
+      baseFilter.city = city;
+      baseFilter.country = country;
+    }
+
+    return baseFilter;
+  }
+
+  /**
+   * Published gigs in `[fromMs, toMs]` by gig `date`, ascending, same filter rules as v1 list (no cursor).
+   */
+  async getPublishedGigDocumentsInInclusiveMsRange(
+    params: GigPublishedInclusiveMsRangeParams,
+  ): Promise<GigDocument[]> {
+    const filter = this.buildPublishedGigsBaseFilter({
+      from: params.fromMs,
+      to: params.toMs,
+    });
+
+    return this.gigModel
+      .find(filter)
+      .collation({ locale: 'en', strength: 2 })
+      .sort({ date: 1, _id: 1 })
+      .exec();
+  }
+
   async getPublishedGigsV1(
     query: V1GigGetRequestQuery,
   ): Promise<V1GetGigsResponseBody> {
@@ -471,17 +525,12 @@ export class GigService {
       );
     }
 
-    const dateFilter: { $gte: number; $lte?: number } = { $gte: from };
-    if (to !== undefined) dateFilter.$lte = to;
-
-    const baseFilter: Record<string, unknown> = {
-      status: Status.Published,
-      date: dateFilter,
-    };
-    if (city && country) {
-      baseFilter.city = city;
-      baseFilter.country = country;
-    }
+    const baseFilter = this.buildPublishedGigsBaseFilter({
+      from,
+      to,
+      city,
+      country,
+    });
 
     const and: Record<string, unknown>[] = [baseFilter];
 

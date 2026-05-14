@@ -109,7 +109,7 @@ export class GigPosterService {
     });
   }
 
-  async upload(payload: UploadPosterPayload): Promise<GigPoster> | undefined {
+  async upload(payload: UploadPosterPayload): Promise<GigPoster | undefined> {
     const { url, file, context } = payload;
 
     if (file) {

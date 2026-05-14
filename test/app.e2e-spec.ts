@@ -4,14 +4,32 @@ import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { AppController } from '../src/app.controller';
 import { AppService } from '../src/app.service';
+import type { AppHealthResponse } from '../src/app.types';
 
 describe('AppController (e2e)', () => {
   let app: INestApplication;
+  const healthResponse: AppHealthResponse = {
+    ok: true,
+    service: 'gigs-together-api',
+    checks: {
+      mongodb: {
+        ok: true,
+      },
+    },
+  };
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       controllers: [AppController],
-      providers: [AppService],
+      providers: [
+        {
+          provide: AppService,
+          useValue: {
+            getRoot: () => ({ ok: true, service: 'gigs-together-api' }),
+            getHealth: async () => healthResponse,
+          },
+        },
+      ],
     }).compile();
 
     app = moduleFixture.createNestApplication();
@@ -31,6 +49,6 @@ describe('AppController (e2e)', () => {
   it('/health (GET)', async () => {
     const res = await request(app.getHttpServer()).get('/health');
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ ok: true });
+    expect(res.body).toEqual(healthResponse);
   });
 });

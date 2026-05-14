@@ -4,6 +4,11 @@ import type { TGInlineKeyboardMarkup } from './update.types';
 
 export type TGChatId = string | number;
 
+export enum TGParseMode {
+  HTML = 'HTML',
+  MarkdownV2 = 'MarkdownV2',
+}
+
 export interface TGMessage {
   message_id: number;
   from?: TGUser;
@@ -18,7 +23,7 @@ export interface TGMessage {
 export interface TGSendMessage {
   chat_id: TGChatId;
   text: string;
-  parse_mode?: string;
+  parse_mode?: TGParseMode;
   disable_web_page_preview?: boolean;
 
   [key: string]: unknown;
@@ -40,7 +45,7 @@ export interface TGEditMessageText {
   chatId?: TGChatId;
   messageId?: number;
   text?: string;
-  parseMode?: string;
+  parseMode?: TGParseMode;
   disableWebPagePreview?: boolean;
   replyMarkup?: TGInlineKeyboardMarkup;
 }
@@ -49,24 +54,40 @@ export interface TGEditMessageCaption {
   chatId?: TGChatId;
   messageId?: number;
   caption?: string;
-  parseMode?: string;
+  parseMode?: TGParseMode;
   disableWebPagePreview?: boolean;
   replyMarkup?: TGInlineKeyboardMarkup;
 }
 
-export interface TGInputMediaPhoto {
-  type: 'photo';
+export enum TGInputMediaType {
+  Photo = 'photo',
+  Video = 'video',
+  Animation = 'animation',
+  Audio = 'audio',
+  Document = 'document',
+}
+
+export interface TGInputMedia {
+  type: TGInputMediaType;
   media: string;
   caption?: string;
-  parse_mode?: string;
+  parse_mode?: TGParseMode;
   show_caption_above_media?: boolean;
   has_spoiler?: boolean;
+}
+
+export interface TGSendMediaGroup {
+  chat_id: TGChatId;
+  media: TGInputMedia[];
+  disable_notification?: boolean;
+  protect_content?: boolean;
+  message_thread_id?: number;
 }
 
 export interface TGEditMessageMedia {
   chatId?: TGChatId;
   messageId?: number;
-  media?: TGInputMediaPhoto;
+  media?: TGInputMedia;
   replyMarkup?: TGInlineKeyboardMarkup;
 }
 
@@ -79,6 +100,7 @@ export interface TGSendPhoto {
   chat_id: TGChatId;
   photo: InputFile | string;
   caption?: string;
+  parse_mode?: TGParseMode;
   reply_markup?: TGInlineKeyboardMarkup;
   business_connection_id?: string;
   message_thread_id?: number;

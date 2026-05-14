@@ -125,24 +125,34 @@ export class ReceiverService {
   private async processCallbackQueryOrThrow(
     callbackQuery: TGCallbackQuery,
   ): Promise<void> {
-    const [action, data] = callbackQuery.data.split(':');
+    const { data, message } = callbackQuery;
+    if (!data || !message) {
+      await this.telegramService.answerCallbackQuery({
+        callback_query_id: callbackQuery.id,
+        text: 'Invalid callback payload',
+        show_alert: false,
+      });
+      return;
+    }
+
+    const [action, callbackPayload] = data.split(':');
     // TODO: some more security?
     switch (action) {
       case Action.Approve: {
         await this.handleGigApprove({
-          gigId: data,
+          gigId: callbackPayload,
           moderationPost: {
-            messageId: callbackQuery.message.message_id,
-            chatId: callbackQuery.message.chat.id,
+            messageId: message.message_id,
+            chatId: message.chat.id,
           },
         });
         break;
       }
       case Action.Reject: {
         await this.handleGigReject({
-          gigId: data,
-          messageId: callbackQuery.message.message_id,
-          chatId: callbackQuery.message.chat.id,
+          gigId: callbackPayload,
+          messageId: message.message_id,
+          chatId: message.chat.id,
         });
         break;
       }
@@ -158,7 +168,7 @@ export class ReceiverService {
       case Action.Status: {
         await this.telegramService.answerCallbackQuery({
           callback_query_id: callbackQuery.id,
-          text: data ? `Status is ${data}` : undefined,
+          text: callbackPayload ? `Status is ${callbackPayload}` : undefined,
           show_alert: false,
         });
         return;
@@ -240,12 +250,14 @@ export class ReceiverService {
     const authorTelegramId = user.tgUser.id;
     if (authorTelegramId) {
       try {
-        const res: TGMessage =
-          await this.telegramService.sendSubmissionFeedback(
-            savedGig,
-            authorTelegramId,
-          );
-        updateGigPayload['suggestedBy.feedbackMessageId'] = res.message_id;
+        const feedbackMsg = await this.telegramService.sendSubmissionFeedback(
+          savedGig,
+          authorTelegramId,
+        );
+        if (feedbackMsg) {
+          updateGigPayload['suggestedBy.feedbackMessageId'] =
+            feedbackMsg.message_id;
+        }
       } catch (e) {
         // DM notification shouldn't block gig creation.
         this.logger.warn(
@@ -366,9 +378,9 @@ export class ReceiverService {
     const tgPublishPost = await this.telegramService.publishMain(updatedGig);
 
     const publishedChatId =
-      tgPublishPost.sender_chat?.id ?? tgPublishPost.chat?.id;
-    const publishedMessageId = tgPublishPost.message_id;
-    const publishedFileId = getBiggestTgPhotoFileId(tgPublishPost.photo); // but should be the same as in moderation one
+      tgPublishPost?.sender_chat?.id ?? tgPublishPost?.chat?.id;
+    const publishedMessageId = tgPublishPost?.message_id;
+    const publishedFileId = getBiggestTgPhotoFileId(tgPublishPost?.photo); // but should be the same as in moderation one
 
     const updateGigPayload: UpdateQuery<Gig> = {
       status: Status.Published,
@@ -395,17 +407,23 @@ export class ReceiverService {
       city: updatedGig.city,
     });
 
-    await this.telegramService.handleAfterPublish({
-      title: updatedGig.title,
-      publicId: updatedGig.publicId,
-      suggestedBy: updatedGig.suggestedBy,
-      moderationPost,
-      publishPost: {
-        username: tgPublishPost.chat.username,
-        chatId: tgPublishPost.chat.id,
-        messageId: tgPublishPost.message_id,
-      },
-    });
+    if (tgPublishPost) {
+      await this.telegramService.handleAfterPublish({
+        title: updatedGig.title,
+        publicId: updatedGig.publicId,
+        suggestedBy: updatedGig.suggestedBy,
+        moderationPost,
+        publishPost: {
+          username: tgPublishPost.chat.username,
+          chatId: tgPublishPost.chat.id,
+          messageId: tgPublishPost.message_id,
+        },
+      });
+    } else {
+      this.logger.warn(
+        `publishMain returned no Telegram message for gig ${gigId}; skipping handleAfterPublish`,
+      );
+    }
 
     const calendarGig = this.gigService.gigToCalendarPayload(updatedGig);
     await this.calendarService.addEvent(calendarGig);

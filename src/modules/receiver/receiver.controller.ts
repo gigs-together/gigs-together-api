@@ -59,13 +59,16 @@ export class ReceiverController {
     // TelegramWebhookGuard marks request.telegramWebhook.allowed; when denied we just no-op.
     // (No throwing here — avoid 4xx which triggers Telegram retries.)
     if (req.telegramWebhook?.allowed !== true) {
-      return;
+      return Promise.resolve();
     }
 
     if (update.callback_query) {
       return this.receiverService.handleCallbackQuery(update.callback_query);
     }
-    return this.receiverService.handleMessage(update.message);
+    if (update.message) {
+      return this.receiverService.handleMessage(update.message);
+    }
+    return Promise.resolve();
   }
 
   @Version('1')
