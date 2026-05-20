@@ -20,12 +20,13 @@ export interface TelegramAccessTokenIdentity {
 }
 
 /**
- * Signed access JWT body: stable `sub` + extensible `identity`.
+ * Signed access JWT body: stable `sub`, extensible `identity`, and `isAdmin` snapshot at issue time.
  */
 export interface AccessTokenPayload {
   readonly sub: string;
   readonly typ: 'access';
   readonly identity: AccessTokenIdentityPayload;
+  readonly isAdmin: boolean;
 }
 
 /**

@@ -53,7 +53,28 @@ describe('AccessJwtService', () => {
     const verified = await sut.verifyAccessToken(token);
     expect(verified.identity).toEqual(identity);
     expect(verified.isAdmin).toBe(true);
+    expect(adminService.isAdmin).toHaveBeenCalledTimes(2);
     expect(adminService.isAdmin).toHaveBeenCalledWith(4_242);
+  });
+
+  it('should embed isAdmin in the signed access JWT payload', async () => {
+    adminService.isAdmin.mockResolvedValue(true);
+    const token = await sut.signAccessToken(telegramIdentity());
+    const decoded = jwtService.decode(token);
+    expect(decoded).toMatchObject({
+      typ: 'access',
+      isAdmin: true,
+    });
+  });
+
+  it('should embed isAdmin false in the signed access JWT when user is not admin', async () => {
+    adminService.isAdmin.mockResolvedValue(false);
+    const token = await sut.signAccessToken(telegramIdentity());
+    const decoded = jwtService.decode(token);
+    expect(decoded).toMatchObject({
+      typ: 'access',
+      isAdmin: false,
+    });
   });
 
   it('throws when JWT_SECRET is missing on sign', () => {

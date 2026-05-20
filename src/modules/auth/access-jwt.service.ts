@@ -39,7 +39,13 @@ export class AccessJwtService {
   async signAccessToken(identity: AccessTokenIdentityPayload): Promise<string> {
     const secret = this.requireAccessSecret();
     const sub = subjectFromAccessIdentity(identity);
-    const payload: AccessTokenPayload = { sub, typ: 'access', identity };
+    const isAdmin = await this.resolveIsAdminForIdentity(identity);
+    const payload: AccessTokenPayload = {
+      sub,
+      typ: 'access',
+      identity,
+      isAdmin,
+    };
     const expiresIn = getJwtAccessExpiresInSeconds(this.configService);
     return this.jwtService.signAsync(payload, {
       secret,
@@ -89,6 +95,17 @@ export class AccessJwtService {
     return secret.trim();
   }
 
+  private async resolveIsAdminForIdentity(
+    identity: AccessTokenIdentityPayload,
+  ): Promise<boolean> {
+    switch (identity.kind) {
+      case 'telegram':
+        return this.adminService.isAdmin(identity.telegramUserId);
+      default:
+        throw new UnauthorizedException('Unsupported access token identity');
+    }
+  }
+
   private async verifyIdentity(
     identity: AccessTokenIdentityPayload,
   ): Promise<VerifiedAccessToken> {
@@ -97,9 +114,7 @@ export class AccessJwtService {
         if (identity.snapshot.isBot === true) {
           throw new ForbiddenException('Bots are not allowed');
         }
-        const isAdmin = await this.adminService.isAdmin(
-          identity.telegramUserId,
-        );
+        const isAdmin = await this.resolveIsAdminForIdentity(identity);
         return { identity, isAdmin };
       }
       default:
