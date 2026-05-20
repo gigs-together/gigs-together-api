@@ -1,17 +1,24 @@
 import {
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
   Post,
   Req,
   Res,
   UnauthorizedException,
+  UseGuards,
   Version,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { AdminService } from '../admin/admin.service';
+import { AuthenticatedUser } from './decorators/authenticated-user.decorator';
+import { AccessJwtAuthGuard } from './guards/access-jwt-auth.guard';
+import { RequireAuthenticatedUserGuard } from './guards/require-authenticated-user.guard';
 import { authClientProfileFromAccessTokenIdentity } from '../../shared/mappers/auth-client-profile-from-identity';
 import type { AuthClientProfileResponseBody } from '../../shared/types/auth-client-profile.types';
+import type { User } from '../../shared/types/user.types';
+import { tgUserToTelegramAccessIdentity } from '../telegram/mappers/access-token-user.mapper';
 import { AccessJwtService } from './access-jwt.service';
 import { AuthCookiesService } from './auth-cookies.service';
 import { RefreshJwtService } from './refresh-jwt.service';
@@ -24,6 +31,20 @@ export class AuthController {
     private readonly authCookiesService: AuthCookiesService,
     private readonly refreshJwtService: RefreshJwtService,
   ) {}
+
+  /**
+   * Returns the current session profile from the access JWT cookie (for client gates and UI bootstrap).
+   * TODO: do we need to check from server cache - not just from JWT, cause it can be unactual.
+   */
+  @Version('1')
+  @Get('me')
+  @UseGuards(AccessJwtAuthGuard, RequireAuthenticatedUserGuard)
+  me(@AuthenticatedUser() user: User): AuthClientProfileResponseBody {
+    const identity = tgUserToTelegramAccessIdentity(user.tgUser);
+    return {
+      profile: authClientProfileFromAccessTokenIdentity(identity, user.isAdmin),
+    };
+  }
 
   /**
    * Issues new access + refresh cookies from a valid refresh cookie (rotation).
