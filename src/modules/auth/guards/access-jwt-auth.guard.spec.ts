@@ -1,7 +1,6 @@
 import type { ExecutionContext } from '@nestjs/common';
 import type { Request } from 'express';
-import type { AccessJwtService } from '../access-jwt.service';
-import type { AuthCookiesService } from '../auth-cookies.service';
+import type { AuthService } from '../auth.service';
 import { AccessJwtAuthGuard } from './access-jwt-auth.guard';
 
 type RequestWithCookies = Request & {
@@ -21,24 +20,25 @@ function httpContext(req: RequestWithCookies): ExecutionContext {
 }
 
 describe('AccessJwtAuthGuard', () => {
-  let accessJwt: { verifyAccessToken: ReturnType<typeof vi.fn> };
-  let cookies: { getAccessCookieName: ReturnType<typeof vi.fn> };
+  let authService: {
+    verifyAccessToken: ReturnType<typeof vi.fn>;
+    getAccessCookieName: ReturnType<typeof vi.fn>;
+  };
   let guard: AccessJwtAuthGuard;
 
   beforeEach(() => {
-    accessJwt = { verifyAccessToken: vi.fn() };
-    cookies = { getAccessCookieName: vi.fn().mockReturnValue('gt_access') };
-    guard = new AccessJwtAuthGuard(
-      accessJwt as unknown as AccessJwtService,
-      cookies as unknown as AuthCookiesService,
-    );
+    authService = {
+      verifyAccessToken: vi.fn(),
+      getAccessCookieName: vi.fn().mockReturnValue('gt_access'),
+    };
+    guard = new AccessJwtAuthGuard(authService as unknown as AuthService);
   });
 
   it('returns true and does not verify when cookie is absent', async () => {
     const req = asRequestWithCookies({ cookies: {} });
     const ok = await guard.canActivate(httpContext(req));
     expect(ok).toBe(true);
-    expect(accessJwt.verifyAccessToken).not.toHaveBeenCalled();
+    expect(authService.verifyAccessToken).not.toHaveBeenCalled();
     expect(req.user).toBeUndefined();
   });
 
@@ -46,11 +46,11 @@ describe('AccessJwtAuthGuard', () => {
     const req = asRequestWithCookies({ cookies: { gt_access: '   ' } });
     const ok = await guard.canActivate(httpContext(req));
     expect(ok).toBe(true);
-    expect(accessJwt.verifyAccessToken).not.toHaveBeenCalled();
+    expect(authService.verifyAccessToken).not.toHaveBeenCalled();
   });
 
   it('verifies and sets req.user when cookie is present', async () => {
-    accessJwt.verifyAccessToken.mockResolvedValue({
+    authService.verifyAccessToken.mockResolvedValue({
       identity: {
         kind: 'telegram',
         telegramUserId: 1,
@@ -61,7 +61,7 @@ describe('AccessJwtAuthGuard', () => {
     const req = asRequestWithCookies({ cookies: { gt_access: 'jwt-here' } });
     const ok = await guard.canActivate(httpContext(req));
     expect(ok).toBe(true);
-    expect(accessJwt.verifyAccessToken).toHaveBeenCalledWith('jwt-here');
+    expect(authService.verifyAccessToken).toHaveBeenCalledWith('jwt-here');
     expect(req.user).toEqual({
       tgUser: expect.objectContaining({ id: 1, first_name: 'A' }),
       isAdmin: true,

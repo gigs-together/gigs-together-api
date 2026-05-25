@@ -3,12 +3,7 @@ import { AuthController } from './auth.controller';
 describe('AuthController', () => {
   describe('me', () => {
     it('should return client profile from authenticated user', () => {
-      const controller = new AuthController(
-        {} as never,
-        {} as never,
-        {} as never,
-        {} as never,
-      );
+      const controller = new AuthController({} as never, {} as never);
 
       const result = controller.me({
         tgUser: {
@@ -28,12 +23,7 @@ describe('AuthController', () => {
     });
 
     it('should reflect non-admin flag in profile', () => {
-      const controller = new AuthController(
-        {} as never,
-        {} as never,
-        {} as never,
-        {} as never,
-      );
+      const controller = new AuthController({} as never, {} as never);
 
       const result = controller.me({
         tgUser: {

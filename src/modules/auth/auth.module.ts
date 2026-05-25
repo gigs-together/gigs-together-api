@@ -3,12 +3,9 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { Admin, AdminSchema } from '../../shared/schemas/admin.schema';
-import { getJwtAccessExpiresInSeconds } from './auth-jwt-expires';
-import { AccessJwtService } from './access-jwt.service';
-import { RefreshJwtService } from './refresh-jwt.service';
+import { AuthService } from './auth.service';
 import { AccessJwtAuthGuard } from './guards/access-jwt-auth.guard';
 import { AuthenticatedUserGuard } from './guards/authenticated-user.guard';
-import { AuthCookiesService } from './auth-cookies.service';
 import { AuthController } from './auth.controller';
 import { AuthorizationService } from './authorization.service';
 
@@ -23,7 +20,8 @@ import { AuthorizationService } from './authorization.service';
         if (!secret?.trim()) {
           throw new Error('JWT_SECRET is required');
         }
-        const expiresIn = getJwtAccessExpiresInSeconds(configService);
+        const expiresIn =
+          AuthService.resolveAccessExpiresInSeconds(configService);
         return {
           secret,
           signOptions: {
@@ -37,17 +35,13 @@ import { AuthorizationService } from './authorization.service';
   controllers: [AuthController],
   providers: [
     AuthorizationService,
-    AccessJwtService,
-    RefreshJwtService,
-    AuthCookiesService,
+    AuthService,
     AccessJwtAuthGuard,
     AuthenticatedUserGuard,
   ],
   exports: [
     AuthorizationService,
-    AccessJwtService,
-    RefreshJwtService,
-    AuthCookiesService,
+    AuthService,
     AccessJwtAuthGuard,
     AuthenticatedUserGuard,
     JwtModule,

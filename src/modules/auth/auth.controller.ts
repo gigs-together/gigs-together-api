@@ -18,18 +18,14 @@ import { authClientProfileFromAccessTokenIdentity } from '../../shared/mappers/a
 import type { AuthClientProfileResponseBody } from '../../shared/types/auth-client-profile.types';
 import type { User } from '../../shared/types/user.types';
 import { tgUserToTelegramAccessIdentity } from '../telegram/mappers/access-token-user.mapper';
-import { AccessJwtService } from './access-jwt.service';
-import { AuthCookiesService } from './auth-cookies.service';
-import { RefreshJwtService } from './refresh-jwt.service';
+import { AuthService } from './auth.service';
 import { AuthorizationService } from './authorization.service';
 
 @Controller('auth')
 export class AuthController {
   constructor(
     private readonly authorizationService: AuthorizationService,
-    private readonly accessJwtService: AccessJwtService,
-    private readonly authCookiesService: AuthCookiesService,
-    private readonly refreshJwtService: RefreshJwtService,
+    private readonly authService: AuthService,
   ) {}
 
   /**
@@ -56,23 +52,23 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<AuthClientProfileResponseBody> {
-    const refreshName = this.authCookiesService.getRefreshCookieName();
+    const refreshName = this.authService.getRefreshCookieName();
     const token = req.cookies?.[refreshName]?.trim();
     if (!token) {
       throw new UnauthorizedException('Missing refresh token');
     }
-    const identity = await this.refreshJwtService.verifyRefreshToken(token);
-    const accessToken = await this.accessJwtService.signAccessToken(identity);
-    const newRefresh = await this.refreshJwtService.signRefreshToken(identity);
-    this.authCookiesService.setAccessTokenCookie(
+    const identity = await this.authService.verifyRefreshToken(token);
+    const accessToken = await this.authService.signAccessToken(identity);
+    const newRefresh = await this.authService.signRefreshToken(identity);
+    this.authService.setAccessTokenCookie(
       res,
       accessToken,
-      this.accessJwtService.getExpiresInSeconds(),
+      this.authService.getAccessExpiresInSeconds(),
     );
-    this.authCookiesService.setRefreshTokenCookie(
+    this.authService.setRefreshTokenCookie(
       res,
       newRefresh,
-      this.refreshJwtService.getExpiresInSeconds(),
+      this.authService.getRefreshExpiresInSeconds(),
     );
     const isAdmin =
       identity.kind === 'telegram'
@@ -90,6 +86,6 @@ export class AuthController {
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
   logout(@Res({ passthrough: true }) res: Response): void {
-    this.authCookiesService.clearAllAuthCookies(res);
+    this.authService.clearAllAuthCookies(res);
   }
 }
