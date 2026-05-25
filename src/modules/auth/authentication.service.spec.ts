@@ -3,7 +3,7 @@ import type { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import type { Response } from 'express';
 import type { AccessTokenIdentityPayload } from '../../shared/types/access-token-identity.types';
-import { AuthService } from './auth.service';
+import { AuthenticationService } from './authentication.service';
 
 const ACCESS_SECRET = 'test-access-secret-at-least-32-chars!!';
 const REFRESH_SECRET = 'test-refresh-secret-at-least-32-chars!!';
@@ -33,10 +33,10 @@ function refreshTelegramIdentity(): AccessTokenIdentityPayload {
   };
 }
 
-describe('AuthService', () => {
+describe('AuthenticationService', () => {
   let jwtService: JwtService;
   let config: ConfigService;
-  let sut: AuthService;
+  let sut: AuthenticationService;
 
   beforeEach(() => {
     config = mockConfig({
@@ -49,24 +49,24 @@ describe('AuthService', () => {
       secret: ACCESS_SECRET,
       signOptions: { expiresIn: 3_600, algorithm: 'HS256' },
     });
-    sut = new AuthService(jwtService, config);
+    sut = new AuthenticationService(jwtService, config);
   });
 
   describe('JWT expires', () => {
     it('should return default access TTL when unset', () => {
-      const service = new AuthService(
+      const service = new AuthenticationService(
         jwtService,
         mockConfig({ JWT_SECRET: ACCESS_SECRET }),
       );
       expect(service.getAccessExpiresInSeconds()).toBe(3_600);
-      expect(AuthService.resolveAccessExpiresInSeconds(mockConfig({}))).toBe(
-        3_600,
-      );
+      expect(
+        AuthenticationService.resolveAccessExpiresInSeconds(mockConfig({})),
+      ).toBe(3_600);
     });
 
     it('should parse positive access TTL from env', () => {
       expect(
-        AuthService.resolveAccessExpiresInSeconds(
+        AuthenticationService.resolveAccessExpiresInSeconds(
           mockConfig({ JWT_ACCESS_EXPIRES_IN_SEC: '7200' }),
         ),
       ).toBe(7_200);
@@ -74,7 +74,7 @@ describe('AuthService', () => {
 
     it('should floor non-integer access TTL strings', () => {
       expect(
-        AuthService.resolveAccessExpiresInSeconds(
+        AuthenticationService.resolveAccessExpiresInSeconds(
           mockConfig({ JWT_ACCESS_EXPIRES_IN_SEC: '90.7' }),
         ),
       ).toBe(90);
@@ -82,26 +82,26 @@ describe('AuthService', () => {
 
     it('should fall back when access TTL is zero or invalid', () => {
       expect(
-        AuthService.resolveAccessExpiresInSeconds(
+        AuthenticationService.resolveAccessExpiresInSeconds(
           mockConfig({ JWT_ACCESS_EXPIRES_IN_SEC: '0' }),
         ),
       ).toBe(3_600);
       expect(
-        AuthService.resolveAccessExpiresInSeconds(
+        AuthenticationService.resolveAccessExpiresInSeconds(
           mockConfig({ JWT_ACCESS_EXPIRES_IN_SEC: 'nope' }),
         ),
       ).toBe(3_600);
     });
 
     it('should return default refresh TTL when unset', () => {
-      expect(AuthService.resolveRefreshExpiresInSeconds(mockConfig({}))).toBe(
-        2_592_000,
-      );
+      expect(
+        AuthenticationService.resolveRefreshExpiresInSeconds(mockConfig({})),
+      ).toBe(2_592_000);
     });
 
     it('should parse positive refresh TTL from env', () => {
       expect(
-        AuthService.resolveRefreshExpiresInSeconds(
+        AuthenticationService.resolveRefreshExpiresInSeconds(
           mockConfig({ JWT_REFRESH_EXPIRES_IN_SEC: '86400' }),
         ),
       ).toBe(86_400);
@@ -124,7 +124,7 @@ describe('AuthService', () => {
       const badConfig = mockConfig({
         JWT_REFRESH_SECRET: REFRESH_SECRET,
       });
-      const service = new AuthService(jwtService, badConfig);
+      const service = new AuthenticationService(jwtService, badConfig);
       return expect(
         service.signAccessToken(telegramIdentity()),
       ).rejects.toThrow('JWT_SECRET is required');
@@ -140,7 +140,7 @@ describe('AuthService', () => {
         secret: otherSecret,
         signOptions: { expiresIn: 3_600, algorithm: 'HS256' },
       });
-      const otherSut = new AuthService(otherJwt, otherConfig);
+      const otherSut = new AuthenticationService(otherJwt, otherConfig);
       const token = await otherSut.signAccessToken(telegramIdentity());
       return expect(sut.authenticateAccessToken(token)).rejects.toBeInstanceOf(
         UnauthorizedException,
@@ -156,7 +156,7 @@ describe('AuthService', () => {
           identity: telegramIdentity(),
         }),
       } as unknown as JwtService;
-      const service = new AuthService(mockJwt, config);
+      const service = new AuthenticationService(mockJwt, config);
       return expect(
         service.authenticateAccessToken('x'),
       ).rejects.toBeInstanceOf(UnauthorizedException);
@@ -171,7 +171,7 @@ describe('AuthService', () => {
           identity: telegramIdentity(),
         }),
       } as unknown as JwtService;
-      const service = new AuthService(mockJwt, config);
+      const service = new AuthenticationService(mockJwt, config);
       return expect(
         service.authenticateAccessToken('x'),
       ).rejects.toBeInstanceOf(UnauthorizedException);
@@ -186,7 +186,7 @@ describe('AuthService', () => {
           identity: null,
         }),
       } as unknown as JwtService;
-      const service = new AuthService(mockJwt, config);
+      const service = new AuthenticationService(mockJwt, config);
       return expect(
         service.authenticateAccessToken('x'),
       ).rejects.toBeInstanceOf(UnauthorizedException);
@@ -201,7 +201,7 @@ describe('AuthService', () => {
           identity: { kind: 'oauth' },
         }),
       } as unknown as JwtService;
-      const service = new AuthService(mockJwt, config);
+      const service = new AuthenticationService(mockJwt, config);
       return expect(
         service.authenticateAccessToken('x'),
       ).rejects.toBeInstanceOf(UnauthorizedException);
@@ -212,7 +212,7 @@ describe('AuthService', () => {
         signAsync: vi.fn(),
         verifyAsync: vi.fn().mockRejectedValue(new Error('bad sig')),
       } as unknown as JwtService;
-      const service = new AuthService(mockJwt, config);
+      const service = new AuthenticationService(mockJwt, config);
       return expect(
         service.authenticateAccessToken('x'),
       ).rejects.toBeInstanceOf(UnauthorizedException);
@@ -225,7 +225,7 @@ describe('AuthService', () => {
         secret: REFRESH_SECRET,
         signOptions: { expiresIn: 86_400, algorithm: 'HS256' },
       });
-      sut = new AuthService(jwtService, config);
+      sut = new AuthenticationService(jwtService, config);
     });
 
     it('should return configured refresh TTL from getRefreshExpiresInSeconds', () => {
@@ -243,7 +243,7 @@ describe('AuthService', () => {
       const badConfig = mockConfig({
         JWT_SECRET: ACCESS_SECRET,
       });
-      const service = new AuthService(jwtService, badConfig);
+      const service = new AuthenticationService(jwtService, badConfig);
       return expect(
         service.signRefreshToken(refreshTelegramIdentity()),
       ).rejects.toThrow('JWT_REFRESH_SECRET is required');
@@ -279,7 +279,7 @@ describe('AuthService', () => {
           identity: refreshTelegramIdentity(),
         }),
       } as unknown as JwtService;
-      const service = new AuthService(mockJwt, config);
+      const service = new AuthenticationService(mockJwt, config);
       return expect(
         service.authenticateRefreshToken('x'),
       ).rejects.toBeInstanceOf(UnauthorizedException);
@@ -294,7 +294,7 @@ describe('AuthService', () => {
           identity: refreshTelegramIdentity(),
         }),
       } as unknown as JwtService;
-      const service = new AuthService(mockJwt, config);
+      const service = new AuthenticationService(mockJwt, config);
       return expect(
         service.authenticateRefreshToken('x'),
       ).rejects.toBeInstanceOf(UnauthorizedException);
@@ -309,7 +309,7 @@ describe('AuthService', () => {
           identity: { kind: 'oauth' },
         }),
       } as unknown as JwtService;
-      const service = new AuthService(mockJwt, config);
+      const service = new AuthenticationService(mockJwt, config);
       return expect(
         service.authenticateRefreshToken('x'),
       ).rejects.toBeInstanceOf(UnauthorizedException);
@@ -318,7 +318,7 @@ describe('AuthService', () => {
 
   describe('auth cookies', () => {
     beforeEach(() => {
-      sut = new AuthService(jwtService, mockConfig({}));
+      sut = new AuthenticationService(jwtService, mockConfig({}));
     });
 
     it('defaults access cookie name to gt_access', () => {
@@ -330,7 +330,7 @@ describe('AuthService', () => {
     });
 
     it('uses trimmed custom cookie names from env', () => {
-      const service = new AuthService(
+      const service = new AuthenticationService(
         jwtService,
         mockConfig({
           ACCESS_TOKEN_COOKIE_NAME: '  my_access  ',
@@ -342,7 +342,7 @@ describe('AuthService', () => {
     });
 
     it('setAccessTokenCookie sets maxAge from expiresInSec (seconds → ms)', () => {
-      const service = new AuthService(
+      const service = new AuthenticationService(
         jwtService,
         mockConfig({ NODE_ENV: 'dev' }),
       );

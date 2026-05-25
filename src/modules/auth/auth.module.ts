@@ -3,7 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { Admin, AdminSchema } from '../../shared/schemas/admin.schema';
-import { AuthService } from './auth.service';
+import { AuthenticationService } from './authentication.service';
 import { AccessJwtAuthGuard } from './guards/access-jwt-auth.guard';
 import { AuthenticatedUserGuard } from './guards/authenticated-user.guard';
 import { AuthController } from './auth.controller';
@@ -21,7 +21,7 @@ import { AuthorizationService } from './authorization.service';
           throw new Error('JWT_SECRET is required');
         }
         const expiresIn =
-          AuthService.resolveAccessExpiresInSeconds(configService);
+          AuthenticationService.resolveAccessExpiresInSeconds(configService);
         return {
           secret,
           signOptions: {
@@ -34,14 +34,14 @@ import { AuthorizationService } from './authorization.service';
   ],
   controllers: [AuthController],
   providers: [
-    AuthService,
+    AuthenticationService,
     AuthorizationService,
     AccessJwtAuthGuard,
     AuthenticatedUserGuard,
   ],
   exports: [
     AuthorizationService,
-    AuthService,
+    AuthenticationService,
     AccessJwtAuthGuard,
     AuthenticatedUserGuard,
     JwtModule,

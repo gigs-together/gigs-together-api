@@ -1,6 +1,6 @@
 import type { ExecutionContext } from '@nestjs/common';
 import type { Request } from 'express';
-import type { AuthService } from '../auth.service';
+import type { AuthenticationService } from '../authentication.service';
 import type { AuthorizationService } from '../authorization.service';
 import { AccessJwtAuthGuard } from './access-jwt-auth.guard';
 
@@ -21,15 +21,17 @@ function httpContext(req: RequestWithCookies): ExecutionContext {
 }
 
 describe('AccessJwtAuthGuard', () => {
-  let authService: { getAccessCookieName: ReturnType<typeof vi.fn> };
+  let authenticationService: { getAccessCookieName: ReturnType<typeof vi.fn> };
   let authorizationService: { verifyAccessToken: ReturnType<typeof vi.fn> };
   let guard: AccessJwtAuthGuard;
 
   beforeEach(() => {
-    authService = { getAccessCookieName: vi.fn().mockReturnValue('gt_access') };
+    authenticationService = {
+      getAccessCookieName: vi.fn().mockReturnValue('gt_access'),
+    };
     authorizationService = { verifyAccessToken: vi.fn() };
     guard = new AccessJwtAuthGuard(
-      authService as unknown as AuthService,
+      authenticationService as unknown as AuthenticationService,
       authorizationService as unknown as AuthorizationService,
     );
   });

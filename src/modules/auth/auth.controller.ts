@@ -18,14 +18,14 @@ import { authClientProfileFromAccessTokenIdentity } from '../../shared/mappers/a
 import type { AuthClientProfileResponseBody } from '../../shared/types/auth-client-profile.types';
 import type { User } from '../../shared/types/user.types';
 import { tgUserToTelegramAccessIdentity } from '../telegram/mappers/access-token-user.mapper';
-import { AuthService } from './auth.service';
+import { AuthenticationService } from './authentication.service';
 import { AuthorizationService } from './authorization.service';
 
 @Controller('auth')
 export class AuthController {
   constructor(
     private readonly authorizationService: AuthorizationService,
-    private readonly authService: AuthService,
+    private readonly authenticationService: AuthenticationService,
   ) {}
 
   /**
@@ -52,27 +52,27 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<AuthClientProfileResponseBody> {
-    const refreshName = this.authService.getRefreshCookieName();
+    const refreshName = this.authenticationService.getRefreshCookieName();
     const token = req.cookies?.[refreshName]?.trim();
     if (!token) {
       throw new UnauthorizedException('Missing refresh token');
     }
     const verified = await this.authorizationService.verifyRefreshToken(token);
-    const accessToken = await this.authService.signAccessToken(
+    const accessToken = await this.authenticationService.signAccessToken(
       verified.identity,
     );
-    const newRefresh = await this.authService.signRefreshToken(
+    const newRefresh = await this.authenticationService.signRefreshToken(
       verified.identity,
     );
-    this.authService.setAccessTokenCookie(
+    this.authenticationService.setAccessTokenCookie(
       res,
       accessToken,
-      this.authService.getAccessExpiresInSeconds(),
+      this.authenticationService.getAccessExpiresInSeconds(),
     );
-    this.authService.setRefreshTokenCookie(
+    this.authenticationService.setRefreshTokenCookie(
       res,
       newRefresh,
-      this.authService.getRefreshExpiresInSeconds(),
+      this.authenticationService.getRefreshExpiresInSeconds(),
     );
     return {
       profile: authClientProfileFromAccessTokenIdentity(
@@ -89,6 +89,6 @@ export class AuthController {
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
   logout(@Res({ passthrough: true }) res: Response): void {
-    this.authService.clearAllAuthCookies(res);
+    this.authenticationService.clearAllAuthCookies(res);
   }
 }

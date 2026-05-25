@@ -34,7 +34,7 @@ type CookieKind = 'access' | 'refresh';
  * Access + refresh JWT signing/verification and HttpOnly auth cookies.
  */
 @Injectable()
-export class AuthService {
+export class AuthenticationService {
   /** Default access JWT TTL: 3_600 s = 1 h = 60 min. */
   private static readonly DEFAULT_ACCESS_EXPIRES_IN_SEC = 3_600;
 
@@ -47,27 +47,31 @@ export class AuthService {
   ) {}
 
   static resolveAccessExpiresInSeconds(config: ConfigService): number {
-    return AuthService.resolveExpiresInSeconds(
+    return AuthenticationService.resolveExpiresInSeconds(
       config,
       'JWT_ACCESS_EXPIRES_IN_SEC',
-      AuthService.DEFAULT_ACCESS_EXPIRES_IN_SEC,
+      AuthenticationService.DEFAULT_ACCESS_EXPIRES_IN_SEC,
     );
   }
 
   static resolveRefreshExpiresInSeconds(config: ConfigService): number {
-    return AuthService.resolveExpiresInSeconds(
+    return AuthenticationService.resolveExpiresInSeconds(
       config,
       'JWT_REFRESH_EXPIRES_IN_SEC',
-      AuthService.DEFAULT_REFRESH_EXPIRES_IN_SEC,
+      AuthenticationService.DEFAULT_REFRESH_EXPIRES_IN_SEC,
     );
   }
 
   getAccessExpiresInSeconds(): number {
-    return AuthService.resolveAccessExpiresInSeconds(this.configService);
+    return AuthenticationService.resolveAccessExpiresInSeconds(
+      this.configService,
+    );
   }
 
   getRefreshExpiresInSeconds(): number {
-    return AuthService.resolveRefreshExpiresInSeconds(this.configService);
+    return AuthenticationService.resolveRefreshExpiresInSeconds(
+      this.configService,
+    );
   }
 
   async signAccessToken(identity: AccessTokenIdentityPayload): Promise<string> {

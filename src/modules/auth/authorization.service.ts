@@ -12,7 +12,7 @@ import type {
   AccessTokenIdentityPayload,
   VerifiedAccessToken,
 } from '../../shared/types/access-token-identity.types';
-import { AuthService } from './auth.service';
+import { AuthenticationService } from './authentication.service';
 
 /**
  * Admin list from MongoDB (cached). Used for JWT `isAdmin` and webhook checks.
@@ -28,7 +28,7 @@ export class AuthorizationService {
 
   constructor(
     @InjectModel(Admin.name) private readonly adminModel: Model<AdminDocument>,
-    private readonly authService: AuthService,
+    private readonly authenticationService: AuthenticationService,
     private readonly configService: ConfigService,
   ) {
     const raw = this.configService.get<string>('ADMIN_CACHE_TTL_MS');
@@ -82,12 +82,14 @@ export class AuthorizationService {
   }
 
   async verifyAccessToken(token: string): Promise<VerifiedAccessToken> {
-    const identity = await this.authService.authenticateAccessToken(token);
+    const identity =
+      await this.authenticationService.authenticateAccessToken(token);
     return this.authorizeAccessIdentity(identity);
   }
 
   async verifyRefreshToken(token: string): Promise<VerifiedAccessToken> {
-    const identity = await this.authService.authenticateRefreshToken(token);
+    const identity =
+      await this.authenticationService.authenticateRefreshToken(token);
     return this.authorizeAccessIdentity(identity);
   }
 

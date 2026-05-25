@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { AuthService } from '../auth/auth.service';
+import { AuthenticationService } from '../auth/authentication.service';
 import { tgUserToTelegramAccessIdentity } from './mappers/access-token-user.mapper';
 import type { TGUser } from './types/user.types';
 import type { V1TelegramAccessTokenExchangeResult } from './types/requests/v1-telegram-exchange-response';
@@ -10,7 +10,7 @@ import { authClientProfileFromAccessTokenIdentity } from '../../shared/mappers/a
  */
 @Injectable()
 export class TelegramAccessExchangeService {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authenticationService: AuthenticationService) {}
 
   /**
    * Signs access and refresh JWTs and the public profile. The caller sets HttpOnly cookies.
@@ -20,10 +20,14 @@ export class TelegramAccessExchangeService {
     readonly isAdmin: boolean;
   }): Promise<V1TelegramAccessTokenExchangeResult> {
     const identity = tgUserToTelegramAccessIdentity(user.tgUser);
-    const accessToken = await this.authService.signAccessToken(identity);
-    const refreshToken = await this.authService.signRefreshToken(identity);
-    const accessExpiresIn = this.authService.getAccessExpiresInSeconds();
-    const refreshExpiresIn = this.authService.getRefreshExpiresInSeconds();
+    const accessToken =
+      await this.authenticationService.signAccessToken(identity);
+    const refreshToken =
+      await this.authenticationService.signRefreshToken(identity);
+    const accessExpiresIn =
+      this.authenticationService.getAccessExpiresInSeconds();
+    const refreshExpiresIn =
+      this.authenticationService.getRefreshExpiresInSeconds();
     const profile = authClientProfileFromAccessTokenIdentity(
       identity,
       user.isAdmin,

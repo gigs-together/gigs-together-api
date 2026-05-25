@@ -5,12 +5,12 @@ import { getModelToken } from '@nestjs/mongoose';
 import { ConfigService } from '@nestjs/config';
 import { Admin } from '../../shared/schemas/admin.schema';
 import type { AccessTokenIdentityPayload } from '../../shared/types/access-token-identity.types';
-import { AuthService } from './auth.service';
+import { AuthenticationService } from './authentication.service';
 import { AuthorizationService } from './authorization.service';
 
 describe('AuthorizationService', () => {
   let service: AuthorizationService;
-  let authService: {
+  let authenticationService: {
     authenticateAccessToken: ReturnType<typeof vi.fn>;
     authenticateRefreshToken: ReturnType<typeof vi.fn>;
   };
@@ -31,7 +31,7 @@ describe('AuthorizationService', () => {
   };
 
   beforeEach(async () => {
-    authService = {
+    authenticationService = {
       authenticateAccessToken: vi.fn(),
       authenticateRefreshToken: vi.fn(),
     };
@@ -40,8 +40,8 @@ describe('AuthorizationService', () => {
       providers: [
         AuthorizationService,
         {
-          provide: AuthService,
-          useValue: authService,
+          provide: AuthenticationService,
+          useValue: authenticationService,
         },
         {
           provide: getModelToken(Admin.name),
@@ -128,15 +128,17 @@ describe('AuthorizationService', () => {
     };
 
     it('should authenticate then authorize access token', async () => {
-      authService.authenticateAccessToken.mockResolvedValue(identity);
+      authenticationService.authenticateAccessToken.mockResolvedValue(identity);
       await service.refreshAdminsCache();
       const result = await service.verifyAccessToken('jwt');
-      expect(authService.authenticateAccessToken).toHaveBeenCalledWith('jwt');
+      expect(
+        authenticationService.authenticateAccessToken,
+      ).toHaveBeenCalledWith('jwt');
       expect(result).toEqual({ identity, isAdmin: true });
     });
 
     it('should reject bot telegram snapshot', async () => {
-      authService.authenticateAccessToken.mockResolvedValue({
+      authenticationService.authenticateAccessToken.mockResolvedValue({
         ...identity,
         snapshot: { firstName: 'Bot', isBot: true },
       });
@@ -146,7 +148,7 @@ describe('AuthorizationService', () => {
     });
 
     it('should reject unsupported identity kind', async () => {
-      authService.authenticateAccessToken.mockResolvedValue({
+      authenticationService.authenticateAccessToken.mockResolvedValue({
         kind: 'oauth',
       } as unknown as AccessTokenIdentityPayload);
       await expect(service.verifyAccessToken('jwt')).rejects.toBeInstanceOf(
@@ -163,15 +165,19 @@ describe('AuthorizationService', () => {
     };
 
     it('should authenticate then authorize refresh token', async () => {
-      authService.authenticateRefreshToken.mockResolvedValue(identity);
+      authenticationService.authenticateRefreshToken.mockResolvedValue(
+        identity,
+      );
       await service.refreshAdminsCache();
       const result = await service.verifyRefreshToken('jwt');
-      expect(authService.authenticateRefreshToken).toHaveBeenCalledWith('jwt');
+      expect(
+        authenticationService.authenticateRefreshToken,
+      ).toHaveBeenCalledWith('jwt');
       expect(result).toEqual({ identity, isAdmin: false });
     });
 
     it('should reject bot telegram snapshot', async () => {
-      authService.authenticateRefreshToken.mockResolvedValue({
+      authenticationService.authenticateRefreshToken.mockResolvedValue({
         ...identity,
         snapshot: { firstName: 'Bot', isBot: true },
       });
@@ -181,7 +187,7 @@ describe('AuthorizationService', () => {
     });
 
     it('should reject unsupported identity kind', async () => {
-      authService.authenticateRefreshToken.mockResolvedValue({
+      authenticationService.authenticateRefreshToken.mockResolvedValue({
         kind: 'oauth',
       } as unknown as AccessTokenIdentityPayload);
       await expect(service.verifyRefreshToken('jwt')).rejects.toBeInstanceOf(
