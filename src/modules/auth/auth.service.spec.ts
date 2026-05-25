@@ -1,4 +1,4 @@
-import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import { UnauthorizedException } from '@nestjs/common';
 import type { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import type { Response } from 'express';
@@ -34,13 +34,11 @@ function refreshTelegramIdentity(): AccessTokenIdentityPayload {
 }
 
 describe('AuthService', () => {
-  let authorizationService: { isAdmin: ReturnType<typeof vi.fn> };
   let jwtService: JwtService;
   let config: ConfigService;
   let sut: AuthService;
 
   beforeEach(() => {
-    authorizationService = { isAdmin: vi.fn().mockResolvedValue(false) };
     config = mockConfig({
       JWT_SECRET: ACCESS_SECRET,
       JWT_ACCESS_EXPIRES_IN_SEC: '3600',
@@ -51,14 +49,13 @@ describe('AuthService', () => {
       secret: ACCESS_SECRET,
       signOptions: { expiresIn: 3_600, algorithm: 'HS256' },
     });
-    sut = new AuthService(jwtService, authorizationService as never, config);
+    sut = new AuthService(jwtService, config);
   });
 
   describe('JWT expires', () => {
     it('should return default access TTL when unset', () => {
       const service = new AuthService(
         jwtService,
-        authorizationService as never,
         mockConfig({ JWT_SECRET: ACCESS_SECRET }),
       );
       expect(service.getAccessExpiresInSeconds()).toBe(3_600);
@@ -116,25 +113,18 @@ describe('AuthService', () => {
       expect(sut.getAccessExpiresInSeconds()).toBe(3_600);
     });
 
-    it('signAccessToken then verifyAccessToken returns identity and isAdmin', async () => {
-      authorizationService.isAdmin.mockResolvedValue(true);
+    it('signAccessToken then authenticateAccessToken returns identity', async () => {
       const identity = telegramIdentity();
       const token = await sut.signAccessToken(identity);
-      const verified = await sut.verifyAccessToken(token);
-      expect(verified.identity).toEqual(identity);
-      expect(verified.isAdmin).toBe(true);
-      expect(authorizationService.isAdmin).toHaveBeenCalledWith(4_242);
+      const authenticated = await sut.authenticateAccessToken(token);
+      expect(authenticated).toEqual(identity);
     });
 
     it('throws when JWT_SECRET is missing on sign', () => {
       const badConfig = mockConfig({
         JWT_REFRESH_SECRET: REFRESH_SECRET,
       });
-      const service = new AuthService(
-        jwtService,
-        authorizationService as never,
-        badConfig,
-      );
+      const service = new AuthService(jwtService, badConfig);
       return expect(
         service.signAccessToken(telegramIdentity()),
       ).rejects.toThrow('JWT_SECRET is required');
@@ -150,13 +140,9 @@ describe('AuthService', () => {
         secret: otherSecret,
         signOptions: { expiresIn: 3_600, algorithm: 'HS256' },
       });
-      const otherSut = new AuthService(
-        otherJwt,
-        authorizationService as never,
-        otherConfig,
-      );
+      const otherSut = new AuthService(otherJwt, otherConfig);
       const token = await otherSut.signAccessToken(telegramIdentity());
-      return expect(sut.verifyAccessToken(token)).rejects.toBeInstanceOf(
+      return expect(sut.authenticateAccessToken(token)).rejects.toBeInstanceOf(
         UnauthorizedException,
       );
     });
@@ -170,14 +156,10 @@ describe('AuthService', () => {
           identity: telegramIdentity(),
         }),
       } as unknown as JwtService;
-      const service = new AuthService(
-        mockJwt,
-        authorizationService as never,
-        config,
-      );
-      return expect(service.verifyAccessToken('x')).rejects.toBeInstanceOf(
-        UnauthorizedException,
-      );
+      const service = new AuthService(mockJwt, config);
+      return expect(
+        service.authenticateAccessToken('x'),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
     });
 
     it('rejects tampered subject', () => {
@@ -189,14 +171,10 @@ describe('AuthService', () => {
           identity: telegramIdentity(),
         }),
       } as unknown as JwtService;
-      const service = new AuthService(
-        mockJwt,
-        authorizationService as never,
-        config,
-      );
-      return expect(service.verifyAccessToken('x')).rejects.toBeInstanceOf(
-        UnauthorizedException,
-      );
+      const service = new AuthService(mockJwt, config);
+      return expect(
+        service.authenticateAccessToken('x'),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
     });
 
     it('rejects when identity is missing or not an object', () => {
@@ -208,14 +186,10 @@ describe('AuthService', () => {
           identity: null,
         }),
       } as unknown as JwtService;
-      const service = new AuthService(
-        mockJwt,
-        authorizationService as never,
-        config,
-      );
-      return expect(service.verifyAccessToken('x')).rejects.toBeInstanceOf(
-        UnauthorizedException,
-      );
+      const service = new AuthService(mockJwt, config);
+      return expect(
+        service.authenticateAccessToken('x'),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
     });
 
     it('rejects unsupported identity kind in subject derivation', () => {
@@ -227,35 +201,10 @@ describe('AuthService', () => {
           identity: { kind: 'oauth' },
         }),
       } as unknown as JwtService;
-      const service = new AuthService(
-        mockJwt,
-        authorizationService as never,
-        config,
-      );
-      return expect(service.verifyAccessToken('x')).rejects.toBeInstanceOf(
-        UnauthorizedException,
-      );
-    });
-
-    it('rejects bot telegram snapshot', () => {
-      const mockJwt = {
-        signAsync: vi.fn(),
-        verifyAsync: vi.fn().mockResolvedValue({
-          typ: 'access',
-          sub: 'telegram:4242',
-          identity: telegramIdentity({
-            snapshot: { firstName: 'Bot', isBot: true },
-          }),
-        }),
-      } as unknown as JwtService;
-      const service = new AuthService(
-        mockJwt,
-        authorizationService as never,
-        config,
-      );
-      return expect(service.verifyAccessToken('x')).rejects.toBeInstanceOf(
-        ForbiddenException,
-      );
+      const service = new AuthService(mockJwt, config);
+      return expect(
+        service.authenticateAccessToken('x'),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
     });
 
     it('rejects when verifyAsync fails', () => {
@@ -263,14 +212,10 @@ describe('AuthService', () => {
         signAsync: vi.fn(),
         verifyAsync: vi.fn().mockRejectedValue(new Error('bad sig')),
       } as unknown as JwtService;
-      const service = new AuthService(
-        mockJwt,
-        authorizationService as never,
-        config,
-      );
-      return expect(service.verifyAccessToken('x')).rejects.toBeInstanceOf(
-        UnauthorizedException,
-      );
+      const service = new AuthService(mockJwt, config);
+      return expect(
+        service.authenticateAccessToken('x'),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
     });
   });
 
@@ -280,30 +225,25 @@ describe('AuthService', () => {
         secret: REFRESH_SECRET,
         signOptions: { expiresIn: 86_400, algorithm: 'HS256' },
       });
-      sut = new AuthService(jwtService, authorizationService as never, config);
+      sut = new AuthService(jwtService, config);
     });
 
     it('should return configured refresh TTL from getRefreshExpiresInSeconds', () => {
       expect(sut.getRefreshExpiresInSeconds()).toBe(86_400);
     });
 
-    it('signRefreshToken then verifyRefreshToken returns identity', async () => {
+    it('signRefreshToken then authenticateRefreshToken returns identity', async () => {
       const identity = refreshTelegramIdentity();
       const token = await sut.signRefreshToken(identity);
-      const out = await sut.verifyRefreshToken(token);
+      const out = await sut.authenticateRefreshToken(token);
       expect(out).toEqual(identity);
-      expect(authorizationService.isAdmin).toHaveBeenCalledWith(9001);
     });
 
     it('throws when JWT_REFRESH_SECRET is missing on sign', () => {
       const badConfig = mockConfig({
         JWT_SECRET: ACCESS_SECRET,
       });
-      const service = new AuthService(
-        jwtService,
-        authorizationService as never,
-        badConfig,
-      );
+      const service = new AuthService(jwtService, badConfig);
       return expect(
         service.signRefreshToken(refreshTelegramIdentity()),
       ).rejects.toThrow('JWT_REFRESH_SECRET is required');
@@ -325,7 +265,7 @@ describe('AuthService', () => {
           algorithm: 'HS256',
         },
       );
-      return expect(sut.verifyRefreshToken(token)).rejects.toBeInstanceOf(
+      return expect(sut.authenticateRefreshToken(token)).rejects.toBeInstanceOf(
         UnauthorizedException,
       );
     });
@@ -339,14 +279,10 @@ describe('AuthService', () => {
           identity: refreshTelegramIdentity(),
         }),
       } as unknown as JwtService;
-      const service = new AuthService(
-        mockJwt,
-        authorizationService as never,
-        config,
-      );
-      return expect(service.verifyRefreshToken('x')).rejects.toBeInstanceOf(
-        UnauthorizedException,
-      );
+      const service = new AuthService(mockJwt, config);
+      return expect(
+        service.authenticateRefreshToken('x'),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
     });
 
     it('rejects tampered subject', () => {
@@ -358,37 +294,10 @@ describe('AuthService', () => {
           identity: refreshTelegramIdentity(),
         }),
       } as unknown as JwtService;
-      const service = new AuthService(
-        mockJwt,
-        authorizationService as never,
-        config,
-      );
-      return expect(service.verifyRefreshToken('x')).rejects.toBeInstanceOf(
-        UnauthorizedException,
-      );
-    });
-
-    it('rejects bot telegram snapshot', () => {
-      const mockJwt = {
-        signAsync: vi.fn(),
-        verifyAsync: vi.fn().mockResolvedValue({
-          typ: 'refresh',
-          sub: 'telegram:9001',
-          identity: {
-            kind: 'telegram',
-            telegramUserId: 9001,
-            snapshot: { firstName: 'B', isBot: true },
-          },
-        }),
-      } as unknown as JwtService;
-      const service = new AuthService(
-        mockJwt,
-        authorizationService as never,
-        config,
-      );
-      return expect(service.verifyRefreshToken('x')).rejects.toBeInstanceOf(
-        ForbiddenException,
-      );
+      const service = new AuthService(mockJwt, config);
+      return expect(
+        service.authenticateRefreshToken('x'),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
     });
 
     it('rejects unsupported refresh identity kind', () => {
@@ -400,24 +309,16 @@ describe('AuthService', () => {
           identity: { kind: 'oauth' },
         }),
       } as unknown as JwtService;
-      const service = new AuthService(
-        mockJwt,
-        authorizationService as never,
-        config,
-      );
-      return expect(service.verifyRefreshToken('x')).rejects.toBeInstanceOf(
-        UnauthorizedException,
-      );
+      const service = new AuthService(mockJwt, config);
+      return expect(
+        service.authenticateRefreshToken('x'),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
     });
   });
 
   describe('auth cookies', () => {
     beforeEach(() => {
-      sut = new AuthService(
-        jwtService,
-        authorizationService as never,
-        mockConfig({}),
-      );
+      sut = new AuthService(jwtService, mockConfig({}));
     });
 
     it('defaults access cookie name to gt_access', () => {
@@ -431,7 +332,6 @@ describe('AuthService', () => {
     it('uses trimmed custom cookie names from env', () => {
       const service = new AuthService(
         jwtService,
-        authorizationService as never,
         mockConfig({
           ACCESS_TOKEN_COOKIE_NAME: '  my_access  ',
           REFRESH_TOKEN_COOKIE_NAME: 'my_refresh',
@@ -444,7 +344,6 @@ describe('AuthService', () => {
     it('setAccessTokenCookie sets maxAge from expiresInSec (seconds → ms)', () => {
       const service = new AuthService(
         jwtService,
-        authorizationService as never,
         mockConfig({ NODE_ENV: 'dev' }),
       );
       const res = { cookie: vi.fn() } as unknown as Response;

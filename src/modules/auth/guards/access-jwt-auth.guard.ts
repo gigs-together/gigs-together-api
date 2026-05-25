@@ -1,6 +1,7 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import type { Request } from 'express';
 import { AuthService } from '../auth.service';
+import { AuthorizationService } from '../authorization.service';
 import { verifiedAccessTokenToUser } from '../../../shared/mappers/verified-access-token-to-user.mapper';
 
 /**
@@ -10,7 +11,10 @@ import { verifiedAccessTokenToUser } from '../../../shared/mappers/verified-acce
  */
 @Injectable()
 export class AccessJwtAuthGuard implements CanActivate {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly authorizationService: AuthorizationService,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context
@@ -21,7 +25,7 @@ export class AccessJwtAuthGuard implements CanActivate {
     if (!token) {
       return true;
     }
-    const verified = await this.authService.verifyAccessToken(token);
+    const verified = await this.authorizationService.verifyAccessToken(token);
     req.user = verifiedAccessTokenToUser(verified);
     return true;
   }

@@ -1,20 +1,14 @@
-import {
-  ForbiddenException,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import type { Response } from 'express';
 import type {
   AccessTokenIdentityPayload,
   AccessTokenPayload,
-  VerifiedAccessToken,
 } from '../../shared/types/access-token-identity.types';
-import { AuthorizationService } from './authorization.service';
 
-/** Raw JWT body after `verify` (may include `typ: 'refresh'` only if mis-signed with access secret). */
-interface AccessJwtVerifiedShape {
+/** Payload shape returned by `verifyAsync` before narrowing to {@link AccessTokenPayload}. */
+interface AccessTokenPayloadShape {
   readonly typ?: string;
   readonly sub?: string;
   readonly identity?: unknown;
@@ -49,7 +43,6 @@ export class AuthService {
 
   constructor(
     private readonly jwtService: JwtService,
-    private readonly authorizationService: AuthorizationService,
     private readonly configService: ConfigService,
   ) {}
 
@@ -89,12 +82,13 @@ export class AuthService {
     });
   }
 
-  async verifyAccessToken(token: string): Promise<VerifiedAccessToken> {
+  async authenticateAccessToken(
+    token: string,
+  ): Promise<AccessTokenIdentityPayload> {
     const secret = this.requireAccessSecret();
-    /** Verified JWT shape before narrowing to {@link AccessTokenPayload} (refresh uses another secret; defense if mis-issued). */
-    let payload: AccessJwtVerifiedShape;
+    let payload: AccessTokenPayloadShape;
     try {
-      payload = await this.jwtService.verifyAsync<AccessJwtVerifiedShape>(
+      payload = await this.jwtService.verifyAsync<AccessTokenPayloadShape>(
         token,
         {
           secret,
@@ -119,7 +113,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid access token subject');
     }
 
-    return this.verifyAccessIdentity(identity);
+    return identity;
   }
 
   async signRefreshToken(
@@ -136,7 +130,9 @@ export class AuthService {
     });
   }
 
-  async verifyRefreshToken(token: string): Promise<AccessTokenIdentityPayload> {
+  async authenticateRefreshToken(
+    token: string,
+  ): Promise<AccessTokenIdentityPayload> {
     const secret = this.requireRefreshSecret();
     let payload: RefreshTokenJwtPayload;
     try {
@@ -164,7 +160,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid refresh token subject');
     }
 
-    return this.validateRefreshIdentity(payload.identity);
+    return payload.identity;
   }
 
   getAccessCookieName(): string {
@@ -262,40 +258,6 @@ export class AuthService {
         return `telegram:${identity.telegramUserId}`;
       default:
         throw new UnauthorizedException('Unsupported access token identity');
-    }
-  }
-
-  private async verifyAccessIdentity(
-    identity: AccessTokenIdentityPayload,
-  ): Promise<VerifiedAccessToken> {
-    switch (identity.kind) {
-      case 'telegram': {
-        if (identity.snapshot.isBot === true) {
-          throw new ForbiddenException('Bots are not allowed');
-        }
-        const isAdmin = await this.authorizationService.isAdmin(
-          identity.telegramUserId,
-        );
-        return { identity, isAdmin };
-      }
-      default:
-        throw new UnauthorizedException('Unsupported access token identity');
-    }
-  }
-
-  private async validateRefreshIdentity(
-    identity: AccessTokenIdentityPayload,
-  ): Promise<AccessTokenIdentityPayload> {
-    switch (identity.kind) {
-      case 'telegram': {
-        if (identity.snapshot.isBot === true) {
-          throw new ForbiddenException('Bots are not allowed');
-        }
-        await this.authorizationService.isAdmin(identity.telegramUserId);
-        return identity;
-      }
-      default:
-        throw new UnauthorizedException('Unsupported refresh token identity');
     }
   }
 

@@ -1,12 +1,19 @@
+import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 import { ConfigService } from '@nestjs/config';
 import { Admin } from '../../shared/schemas/admin.schema';
+import type { AccessTokenIdentityPayload } from '../../shared/types/access-token-identity.types';
+import { AuthService } from './auth.service';
 import { AuthorizationService } from './authorization.service';
 
 describe('AuthorizationService', () => {
   let service: AuthorizationService;
+  let authService: {
+    authenticateAccessToken: ReturnType<typeof vi.fn>;
+    authenticateRefreshToken: ReturnType<typeof vi.fn>;
+  };
 
   const mockAdmins = [
     { telegramId: 123, isActive: true },
@@ -24,9 +31,18 @@ describe('AuthorizationService', () => {
   };
 
   beforeEach(async () => {
+    authService = {
+      authenticateAccessToken: vi.fn(),
+      authenticateRefreshToken: vi.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthorizationService,
+        {
+          provide: AuthService,
+          useValue: authService,
+        },
         {
           provide: getModelToken(Admin.name),
           useValue: adminModelMock,
@@ -101,6 +117,76 @@ describe('AuthorizationService', () => {
       expect(adminModelMock.find).toHaveBeenCalledTimes(1);
       await service.refreshAdminsCache();
       expect(adminModelMock.find).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('verifyAccessToken', () => {
+    const identity: AccessTokenIdentityPayload = {
+      kind: 'telegram',
+      telegramUserId: 123,
+      snapshot: { firstName: 'Ada', isBot: false },
+    };
+
+    it('should authenticate then authorize access token', async () => {
+      authService.authenticateAccessToken.mockResolvedValue(identity);
+      await service.refreshAdminsCache();
+      const result = await service.verifyAccessToken('jwt');
+      expect(authService.authenticateAccessToken).toHaveBeenCalledWith('jwt');
+      expect(result).toEqual({ identity, isAdmin: true });
+    });
+
+    it('should reject bot telegram snapshot', async () => {
+      authService.authenticateAccessToken.mockResolvedValue({
+        ...identity,
+        snapshot: { firstName: 'Bot', isBot: true },
+      });
+      await expect(service.verifyAccessToken('jwt')).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+    });
+
+    it('should reject unsupported identity kind', async () => {
+      authService.authenticateAccessToken.mockResolvedValue({
+        kind: 'oauth',
+      } as unknown as AccessTokenIdentityPayload);
+      await expect(service.verifyAccessToken('jwt')).rejects.toBeInstanceOf(
+        UnauthorizedException,
+      );
+    });
+  });
+
+  describe('verifyRefreshToken', () => {
+    const identity: AccessTokenIdentityPayload = {
+      kind: 'telegram',
+      telegramUserId: 999,
+      snapshot: { firstName: 'Ryu', isBot: false },
+    };
+
+    it('should authenticate then authorize refresh token', async () => {
+      authService.authenticateRefreshToken.mockResolvedValue(identity);
+      await service.refreshAdminsCache();
+      const result = await service.verifyRefreshToken('jwt');
+      expect(authService.authenticateRefreshToken).toHaveBeenCalledWith('jwt');
+      expect(result).toEqual({ identity, isAdmin: false });
+    });
+
+    it('should reject bot telegram snapshot', async () => {
+      authService.authenticateRefreshToken.mockResolvedValue({
+        ...identity,
+        snapshot: { firstName: 'Bot', isBot: true },
+      });
+      await expect(service.verifyRefreshToken('jwt')).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+    });
+
+    it('should reject unsupported identity kind', async () => {
+      authService.authenticateRefreshToken.mockResolvedValue({
+        kind: 'oauth',
+      } as unknown as AccessTokenIdentityPayload);
+      await expect(service.verifyRefreshToken('jwt')).rejects.toBeInstanceOf(
+        UnauthorizedException,
+      );
     });
   });
 });

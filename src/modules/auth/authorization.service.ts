@@ -1,8 +1,18 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Admin, AdminDocument } from '../../shared/schemas/admin.schema';
+import type {
+  AccessTokenIdentityPayload,
+  VerifiedAccessToken,
+} from '../../shared/types/access-token-identity.types';
+import { AuthService } from './auth.service';
 
 /**
  * Admin list from MongoDB (cached). Used for JWT `isAdmin` and webhook checks.
@@ -18,6 +28,7 @@ export class AuthorizationService {
 
   constructor(
     @InjectModel(Admin.name) private readonly adminModel: Model<AdminDocument>,
+    private readonly authService: AuthService,
     private readonly configService: ConfigService,
   ) {
     const raw = this.configService.get<string>('ADMIN_CACHE_TTL_MS');
@@ -68,5 +79,31 @@ export class AuthorizationService {
       throw new Error('Admins cache is empty after refresh');
     }
     return cache.some((admin) => admin.telegramId === telegramId);
+  }
+
+  async verifyAccessToken(token: string): Promise<VerifiedAccessToken> {
+    const identity = await this.authService.authenticateAccessToken(token);
+    return this.authorizeAccessIdentity(identity);
+  }
+
+  async verifyRefreshToken(token: string): Promise<VerifiedAccessToken> {
+    const identity = await this.authService.authenticateRefreshToken(token);
+    return this.authorizeAccessIdentity(identity);
+  }
+
+  private async authorizeAccessIdentity(
+    identity: AccessTokenIdentityPayload,
+  ): Promise<VerifiedAccessToken> {
+    switch (identity.kind) {
+      case 'telegram': {
+        if (identity.snapshot.isBot === true) {
+          throw new ForbiddenException('Bots are not allowed');
+        }
+        const isAdmin = await this.isAdmin(identity.telegramUserId);
+        return { identity, isAdmin };
+      }
+      default:
+        throw new UnauthorizedException('Unsupported access token identity');
+    }
   }
 }

@@ -57,9 +57,13 @@ export class AuthController {
     if (!token) {
       throw new UnauthorizedException('Missing refresh token');
     }
-    const identity = await this.authService.verifyRefreshToken(token);
-    const accessToken = await this.authService.signAccessToken(identity);
-    const newRefresh = await this.authService.signRefreshToken(identity);
+    const verified = await this.authorizationService.verifyRefreshToken(token);
+    const accessToken = await this.authService.signAccessToken(
+      verified.identity,
+    );
+    const newRefresh = await this.authService.signRefreshToken(
+      verified.identity,
+    );
     this.authService.setAccessTokenCookie(
       res,
       accessToken,
@@ -70,12 +74,11 @@ export class AuthController {
       newRefresh,
       this.authService.getRefreshExpiresInSeconds(),
     );
-    const isAdmin =
-      identity.kind === 'telegram'
-        ? await this.authorizationService.isAdmin(identity.telegramUserId)
-        : false;
     return {
-      profile: authClientProfileFromAccessTokenIdentity(identity, isAdmin),
+      profile: authClientProfileFromAccessTokenIdentity(
+        verified.identity,
+        verified.isAdmin,
+      ),
     };
   }
 

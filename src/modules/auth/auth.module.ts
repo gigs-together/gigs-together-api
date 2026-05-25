@@ -34,8 +34,8 @@ import { AuthorizationService } from './authorization.service';
   ],
   controllers: [AuthController],
   providers: [
-    AuthorizationService,
     AuthService,
+    AuthorizationService,
     AccessJwtAuthGuard,
     AuthenticatedUserGuard,
   ],
