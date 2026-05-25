@@ -22,13 +22,13 @@ function telegramIdentity(): AccessTokenIdentityPayload {
 }
 
 describe('RefreshJwtService', () => {
-  let adminService: { isAdmin: ReturnType<typeof vi.fn> };
+  let authorizationService: { isAdmin: ReturnType<typeof vi.fn> };
   let jwtService: JwtService;
   let config: ConfigService;
   let sut: RefreshJwtService;
 
   beforeEach(() => {
-    adminService = { isAdmin: vi.fn().mockResolvedValue(false) };
+    authorizationService = { isAdmin: vi.fn().mockResolvedValue(false) };
     config = mockConfig({
       JWT_REFRESH_SECRET: REFRESH_SECRET,
       JWT_REFRESH_EXPIRES_IN_SEC: '86400',
@@ -37,7 +37,11 @@ describe('RefreshJwtService', () => {
       secret: REFRESH_SECRET,
       signOptions: { expiresIn: 86_400, algorithm: 'HS256' },
     });
-    sut = new RefreshJwtService(jwtService, adminService as never, config);
+    sut = new RefreshJwtService(
+      jwtService,
+      authorizationService as never,
+      config,
+    );
   });
 
   it('getExpiresInSeconds matches auth-jwt-expires for refresh', () => {
@@ -49,14 +53,14 @@ describe('RefreshJwtService', () => {
     const token = await sut.signRefreshToken(identity);
     const out = await sut.verifyRefreshToken(token);
     expect(out).toEqual(identity);
-    expect(adminService.isAdmin).toHaveBeenCalledWith(9001);
+    expect(authorizationService.isAdmin).toHaveBeenCalledWith(9001);
   });
 
   it('throws when JWT_REFRESH_SECRET is missing on sign', () => {
     const badConfig = mockConfig({});
     const service = new RefreshJwtService(
       jwtService,
-      adminService as never,
+      authorizationService as never,
       badConfig,
     );
     return expect(service.signRefreshToken(telegramIdentity())).rejects.toThrow(
@@ -96,7 +100,7 @@ describe('RefreshJwtService', () => {
     } as unknown as JwtService;
     const service = new RefreshJwtService(
       mockJwt,
-      adminService as never,
+      authorizationService as never,
       config,
     );
     return expect(service.verifyRefreshToken('x')).rejects.toBeInstanceOf(
@@ -115,7 +119,7 @@ describe('RefreshJwtService', () => {
     } as unknown as JwtService;
     const service = new RefreshJwtService(
       mockJwt,
-      adminService as never,
+      authorizationService as never,
       config,
     );
     return expect(service.verifyRefreshToken('x')).rejects.toBeInstanceOf(
@@ -138,7 +142,7 @@ describe('RefreshJwtService', () => {
     } as unknown as JwtService;
     const service = new RefreshJwtService(
       mockJwt,
-      adminService as never,
+      authorizationService as never,
       config,
     );
     return expect(service.verifyRefreshToken('x')).rejects.toBeInstanceOf(
@@ -157,7 +161,7 @@ describe('RefreshJwtService', () => {
     } as unknown as JwtService;
     const service = new RefreshJwtService(
       mockJwt,
-      adminService as never,
+      authorizationService as never,
       config,
     );
     return expect(service.verifyRefreshToken('x')).rejects.toBeInstanceOf(

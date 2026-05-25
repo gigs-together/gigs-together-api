@@ -6,7 +6,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { AdminService } from './admin.service';
+import { AuthorizationService } from '../auth/authorization.service';
 
 /**
  * Manual admin-list cache refresh (e.g. after DB migration).
@@ -15,7 +15,7 @@ import { AdminService } from './admin.service';
 @Controller('admin')
 export class AdminController {
   constructor(
-    private readonly adminService: AdminService,
+    private readonly authorizationService: AuthorizationService,
     private readonly configService: ConfigService,
   ) {}
 
@@ -35,7 +35,7 @@ export class AdminController {
     if (!provided || provided !== secret) {
       throw new UnauthorizedException();
     }
-    await this.adminService.refreshAdminsCache();
+    await this.authorizationService.refreshAdminsCache();
     return { ok: true };
   }
 }

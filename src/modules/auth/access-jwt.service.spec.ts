@@ -24,13 +24,13 @@ function telegramIdentity(
 }
 
 describe('AccessJwtService', () => {
-  let adminService: { isAdmin: ReturnType<typeof vi.fn> };
+  let authorizationService: { isAdmin: ReturnType<typeof vi.fn> };
   let jwtService: JwtService;
   let config: ConfigService;
   let sut: AccessJwtService;
 
   beforeEach(() => {
-    adminService = { isAdmin: vi.fn().mockResolvedValue(false) };
+    authorizationService = { isAdmin: vi.fn().mockResolvedValue(false) };
     config = mockConfig({
       JWT_SECRET: ACCESS_SECRET,
       JWT_ACCESS_EXPIRES_IN_SEC: '3600',
@@ -39,7 +39,11 @@ describe('AccessJwtService', () => {
       secret: ACCESS_SECRET,
       signOptions: { expiresIn: 3_600, algorithm: 'HS256' },
     });
-    sut = new AccessJwtService(jwtService, adminService as never, config);
+    sut = new AccessJwtService(
+      jwtService,
+      authorizationService as never,
+      config,
+    );
   });
 
   it('getExpiresInSeconds matches auth-jwt-expires for access', () => {
@@ -47,20 +51,20 @@ describe('AccessJwtService', () => {
   });
 
   it('signAccessToken then verifyAccessToken returns identity and isAdmin', async () => {
-    adminService.isAdmin.mockResolvedValue(true);
+    authorizationService.isAdmin.mockResolvedValue(true);
     const identity = telegramIdentity();
     const token = await sut.signAccessToken(identity);
     const verified = await sut.verifyAccessToken(token);
     expect(verified.identity).toEqual(identity);
     expect(verified.isAdmin).toBe(true);
-    expect(adminService.isAdmin).toHaveBeenCalledWith(4_242);
+    expect(authorizationService.isAdmin).toHaveBeenCalledWith(4_242);
   });
 
   it('throws when JWT_SECRET is missing on sign', () => {
     const badConfig = mockConfig({});
     const service = new AccessJwtService(
       jwtService,
-      adminService as never,
+      authorizationService as never,
       badConfig,
     );
     return expect(service.signAccessToken(telegramIdentity())).rejects.toThrow(
@@ -80,7 +84,7 @@ describe('AccessJwtService', () => {
     });
     const otherSut = new AccessJwtService(
       otherJwt,
-      adminService as never,
+      authorizationService as never,
       otherConfig,
     );
     const token = await otherSut.signAccessToken(telegramIdentity());
@@ -100,7 +104,7 @@ describe('AccessJwtService', () => {
     } as unknown as JwtService;
     const service = new AccessJwtService(
       mockJwt,
-      adminService as never,
+      authorizationService as never,
       config,
     );
     return expect(service.verifyAccessToken('x')).rejects.toBeInstanceOf(
@@ -119,7 +123,7 @@ describe('AccessJwtService', () => {
     } as unknown as JwtService;
     const service = new AccessJwtService(
       mockJwt,
-      adminService as never,
+      authorizationService as never,
       config,
     );
     return expect(service.verifyAccessToken('x')).rejects.toBeInstanceOf(
@@ -138,7 +142,7 @@ describe('AccessJwtService', () => {
     } as unknown as JwtService;
     const service = new AccessJwtService(
       mockJwt,
-      adminService as never,
+      authorizationService as never,
       config,
     );
     return expect(service.verifyAccessToken('x')).rejects.toBeInstanceOf(
@@ -157,7 +161,7 @@ describe('AccessJwtService', () => {
     } as unknown as JwtService;
     const service = new AccessJwtService(
       mockJwt,
-      adminService as never,
+      authorizationService as never,
       config,
     );
     return expect(service.verifyAccessToken('x')).rejects.toBeInstanceOf(
@@ -178,7 +182,7 @@ describe('AccessJwtService', () => {
     } as unknown as JwtService;
     const service = new AccessJwtService(
       mockJwt,
-      adminService as never,
+      authorizationService as never,
       config,
     );
     return expect(service.verifyAccessToken('x')).rejects.toBeInstanceOf(
@@ -193,7 +197,7 @@ describe('AccessJwtService', () => {
     } as unknown as JwtService;
     const service = new AccessJwtService(
       mockJwt,
-      adminService as never,
+      authorizationService as never,
       config,
     );
     return expect(service.verifyAccessToken('x')).rejects.toBeInstanceOf(

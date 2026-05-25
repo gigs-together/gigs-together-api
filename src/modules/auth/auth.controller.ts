@@ -11,7 +11,6 @@ import {
   Version,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import { AdminService } from '../admin/admin.service';
 import { AuthenticatedUser } from './decorators/authenticated-user.decorator';
 import { AccessJwtAuthGuard } from './guards/access-jwt-auth.guard';
 import { RequireAuthenticatedUserGuard } from './guards/require-authenticated-user.guard';
@@ -22,11 +21,12 @@ import { tgUserToTelegramAccessIdentity } from '../telegram/mappers/access-token
 import { AccessJwtService } from './access-jwt.service';
 import { AuthCookiesService } from './auth-cookies.service';
 import { RefreshJwtService } from './refresh-jwt.service';
+import { AuthorizationService } from './authorization.service';
 
 @Controller('auth')
 export class AuthController {
   constructor(
-    private readonly adminService: AdminService,
+    private readonly authorizationService: AuthorizationService,
     private readonly accessJwtService: AccessJwtService,
     private readonly authCookiesService: AuthCookiesService,
     private readonly refreshJwtService: RefreshJwtService,
@@ -76,7 +76,7 @@ export class AuthController {
     );
     const isAdmin =
       identity.kind === 'telegram'
-        ? await this.adminService.isAdmin(identity.telegramUserId)
+        ? await this.authorizationService.isAdmin(identity.telegramUserId)
         : false;
     return {
       profile: authClientProfileFromAccessTokenIdentity(identity, isAdmin),
