@@ -13,7 +13,7 @@ import {
 import type { Request, Response } from 'express';
 import { AuthenticatedUser } from './decorators/authenticated-user.decorator';
 import { AccessJwtAuthGuard } from './guards/access-jwt-auth.guard';
-import { RequireAuthenticatedUserGuard } from './guards/require-authenticated-user.guard';
+import { AuthenticatedUserGuard } from './guards/authenticated-user.guard';
 import { authClientProfileFromAccessTokenIdentity } from '../../shared/mappers/auth-client-profile-from-identity';
 import type { AuthClientProfileResponseBody } from '../../shared/types/auth-client-profile.types';
 import type { User } from '../../shared/types/user.types';
@@ -38,7 +38,7 @@ export class AuthController {
    */
   @Version('1')
   @Get('me')
-  @UseGuards(AccessJwtAuthGuard, RequireAuthenticatedUserGuard)
+  @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard)
   me(@AuthenticatedUser() user: User): AuthClientProfileResponseBody {
     const identity = tgUserToTelegramAccessIdentity(user.tgUser);
     return {

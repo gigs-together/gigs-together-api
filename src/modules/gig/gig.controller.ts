@@ -25,7 +25,7 @@ import { GigLookupBodyPipe } from './pipes/gig-lookup-body.pipe';
 import { V1GigByPublicIdGetRequestParams } from './types/requests/v1-gig-by-public-id-get-request';
 import type { V1GigByPublicIdGetResponseBody } from './types/requests/v1-gig-by-public-id-get-request';
 import type { GigFormDataByPublicId } from './types/gig.types';
-import { RequireAuthenticatedUserGuard } from '../auth/guards/require-authenticated-user.guard';
+import { AuthenticatedUserGuard } from '../auth/guards/authenticated-user.guard';
 import { AccessJwtAuthGuard } from '../auth/guards/access-jwt-auth.guard';
 import { RequireAdminGuard } from '../admin/guards/require-admin.guard';
 
@@ -82,11 +82,7 @@ export class GigController {
    */
   @Version('1')
   @Get(':publicId')
-  @UseGuards(
-    AccessJwtAuthGuard,
-    RequireAuthenticatedUserGuard,
-    RequireAdminGuard,
-  )
+  @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, RequireAdminGuard)
   getGigByPublicId(
     @Param() params: V1GigByPublicIdGetRequestParams,
   ): Promise<GigFormDataByPublicId> {
@@ -100,11 +96,7 @@ export class GigController {
   @Version('1')
   @Post('lookup')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(
-    AccessJwtAuthGuard,
-    RequireAuthenticatedUserGuard,
-    RequireAdminGuard,
-  )
+  @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, RequireAdminGuard)
   async lookupGigV1(
     @Body(GigLookupBodyPipe) fields: V1GigLookupFields,
   ): Promise<V1GigLookupResponseBody> {

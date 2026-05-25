@@ -7,7 +7,7 @@ import { getJwtAccessExpiresInSeconds } from './auth-jwt-expires';
 import { AccessJwtService } from './access-jwt.service';
 import { RefreshJwtService } from './refresh-jwt.service';
 import { AccessJwtAuthGuard } from './guards/access-jwt-auth.guard';
-import { RequireAuthenticatedUserGuard } from './guards/require-authenticated-user.guard';
+import { AuthenticatedUserGuard } from './guards/authenticated-user.guard';
 import { AuthCookiesService } from './auth-cookies.service';
 import { AuthController } from './auth.controller';
 import { AuthorizationService } from './authorization.service';
@@ -41,7 +41,7 @@ import { AuthorizationService } from './authorization.service';
     RefreshJwtService,
     AuthCookiesService,
     AccessJwtAuthGuard,
-    RequireAuthenticatedUserGuard,
+    AuthenticatedUserGuard,
   ],
   exports: [
     AuthorizationService,
@@ -49,7 +49,7 @@ import { AuthorizationService } from './authorization.service';
     RefreshJwtService,
     AuthCookiesService,
     AccessJwtAuthGuard,
-    RequireAuthenticatedUserGuard,
+    AuthenticatedUserGuard,
     JwtModule,
   ],
 })

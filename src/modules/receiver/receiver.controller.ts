@@ -28,7 +28,7 @@ import { AuthenticatedUser } from '../auth/decorators/authenticated-user.decorat
 import type { User } from '../../shared/types/user.types';
 import type { V1ReceiverCreateGigRequestBody } from './types/requests/v1-receiver-create-gig-request';
 import type { V1ReceiverUpdateGigByPublicIdResponseBody } from './types/requests/v1-receiver-gig-by-public-id-request';
-import { RequireAuthenticatedUserGuard } from '../auth/guards/require-authenticated-user.guard';
+import { AuthenticatedUserGuard } from '../auth/guards/authenticated-user.guard';
 
 const PosterFileInterceptor = FileInterceptor('posterFile', {
   storage: memoryStorage(),
@@ -74,11 +74,7 @@ export class ReceiverController {
   @Version('1')
   @Post('gig')
   @HttpCode(201)
-  @UseGuards(
-    AccessJwtAuthGuard,
-    RequireAuthenticatedUserGuard,
-    RequireAdminGuard,
-  )
+  @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, RequireAdminGuard)
   @UseInterceptors(PosterFileInterceptor)
   createGig(
     @UploadedFile() posterFile: Express.Multer.File | undefined,
@@ -91,11 +87,7 @@ export class ReceiverController {
   @Version('1')
   @Patch('gig/:publicId')
   @HttpCode(200)
-  @UseGuards(
-    AccessJwtAuthGuard,
-    RequireAuthenticatedUserGuard,
-    RequireAdminGuard,
-  )
+  @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, RequireAdminGuard)
   @UseInterceptors(PosterFileInterceptor)
   updateGigByPublicId(
     @Param('publicId') publicId: string,
