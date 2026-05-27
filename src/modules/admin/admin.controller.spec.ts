@@ -3,10 +3,10 @@ import type { AdminService } from './admin.service';
 
 describe('AdminController', () => {
   const adminService = {
-    getDashboard: vi.fn().mockReturnValue({
+    getDashboard: vi.fn().mockResolvedValue({
       summary: {
-        pendingGigsCount: 0,
-        publishedGigsCount: 0,
+        pendingGigsCount: 3,
+        publishedGigsCount: 12,
       },
     }),
   } satisfies Pick<AdminService, 'getDashboard'>;
@@ -20,17 +20,17 @@ describe('AdminController', () => {
   };
 
   const controller = new AdminController(
-    adminService as AdminService,
+    adminService as unknown as AdminService,
     authorizationService as never,
     configService as never,
   );
 
   describe('getDashboard', () => {
-    it('should return placeholder summary counts', () => {
-      expect(controller.getDashboard()).toEqual({
+    it('should return dashboard summary counts from admin service', async () => {
+      await expect(controller.getDashboard()).resolves.toEqual({
         summary: {
-          pendingGigsCount: 0,
-          publishedGigsCount: 0,
+          pendingGigsCount: 3,
+          publishedGigsCount: 12,
         },
       });
     });

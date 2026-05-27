@@ -17,10 +17,12 @@ describe('GigService', () => {
   const sortMock = vi.fn().mockReturnValue({ exec: execMock });
   const collationMock = vi.fn().mockReturnValue({ sort: sortMock });
   const findMock = vi.fn().mockReturnValue({ collation: collationMock });
+  const countDocumentsMock = vi.fn();
 
   beforeEach(async () => {
     vi.clearAllMocks();
     execMock.mockResolvedValue([]);
+    countDocumentsMock.mockReturnValue({ exec: vi.fn().mockResolvedValue(0) });
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -29,6 +31,7 @@ describe('GigService', () => {
           provide: getModelToken(Gig.name),
           useValue: {
             find: findMock,
+            countDocuments: countDocumentsMock,
           },
         },
         {
@@ -70,6 +73,22 @@ describe('GigService', () => {
         strength: 2,
       });
       expect(sortMock).toHaveBeenCalledWith({ date: 1, _id: 1 });
+    });
+  });
+
+  describe('getGigCountByStatus', () => {
+    it('should return gig count for the given status', async () => {
+      const countExecMock = vi.fn().mockResolvedValue(7);
+      countDocumentsMock.mockReturnValue({ exec: countExecMock });
+
+      await expect(service.getGigCountByStatus(Status.Pending)).resolves.toBe(
+        7,
+      );
+
+      expect(countDocumentsMock).toHaveBeenCalledWith({
+        status: Status.Pending,
+      });
+      expect(countExecMock).toHaveBeenCalledTimes(1);
     });
   });
 });

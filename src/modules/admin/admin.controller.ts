@@ -31,7 +31,7 @@ export class AdminController {
   @Version('1')
   @Get('dashboard')
   @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
-  getDashboard(): V1AdminDashboardResponseBody {
+  getDashboard(): Promise<V1AdminDashboardResponseBody> {
     return this.adminService.getDashboard();
   }
 

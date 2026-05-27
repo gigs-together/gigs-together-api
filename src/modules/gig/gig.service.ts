@@ -299,6 +299,10 @@ export class GigService {
     return gig;
   }
 
+  getGigCountByStatus(status: Status): Promise<number> {
+    return this.gigModel.countDocuments({ status }).exec();
+  }
+
   async updateGigByPublicId(
     payload: UpdateGigByPublicIdPayload,
   ): Promise<GigDocument> {
