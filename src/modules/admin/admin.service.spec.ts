@@ -16,4 +16,15 @@ describe('AdminService', () => {
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
+
+  describe('getDashboard', () => {
+    it('should return zeroed dashboard summary until metrics are implemented', () => {
+      expect(service.getDashboard()).toEqual({
+        summary: {
+          pendingGigsCount: 0,
+          publishedGigsCount: 0,
+        },
+      });
+    });
+  });
 });

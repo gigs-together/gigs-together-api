@@ -1,12 +1,20 @@
 import {
   Controller,
+  Get,
   Headers,
   Post,
   ServiceUnavailableException,
   UnauthorizedException,
+  UseGuards,
+  Version,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { AccessJwtAuthGuard } from '../auth/guards/access-jwt-auth.guard';
+import { AuthenticatedUserGuard } from '../auth/guards/authenticated-user.guard';
 import { AuthorizationService } from '../auth/authorization.service';
+import { AdminService } from './admin.service';
+import { RequireAdminGuard } from './guards/require-admin.guard';
+import type { V1AdminDashboardResponseBody } from './types/requests/v1-admin-dashboard-response';
 
 /**
  * Manual admin-list cache refresh (e.g. after DB migration).
@@ -15,9 +23,17 @@ import { AuthorizationService } from '../auth/authorization.service';
 @Controller('admin')
 export class AdminController {
   constructor(
+    private readonly adminService: AdminService,
     private readonly authorizationService: AuthorizationService,
     private readonly configService: ConfigService,
   ) {}
+
+  @Version('1')
+  @Get('dashboard')
+  @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, RequireAdminGuard)
+  getDashboard(): V1AdminDashboardResponseBody {
+    return this.adminService.getDashboard();
+  }
 
   @Post('revalidate')
   async revalidateAdmins(
