@@ -19,7 +19,7 @@ import { ReceiverExceptionFilter } from './filters/receiver-exception.filter';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { ReceiverWebhookGuard } from './guards/receiver-webhook.guard';
-import { RequireAdminGuard } from '../admin/guards/require-admin.guard';
+import { AdminGuard } from '../auth/guards/admin.guard';
 import { AccessJwtAuthGuard } from '../auth/guards/access-jwt-auth.guard';
 import { ReceiverWebhookExceptionFilter } from './filters/receiver-webhook-exception.filter';
 import type { ReceiverWebhookRequest } from './guards/receiver-webhook.guard';
@@ -74,7 +74,7 @@ export class ReceiverController {
   @Version('1')
   @Post('gig')
   @HttpCode(201)
-  @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, RequireAdminGuard)
+  @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
   @UseInterceptors(PosterFileInterceptor)
   createGig(
     @UploadedFile() posterFile: Express.Multer.File | undefined,
@@ -87,7 +87,7 @@ export class ReceiverController {
   @Version('1')
   @Patch('gig/:publicId')
   @HttpCode(200)
-  @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, RequireAdminGuard)
+  @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
   @UseInterceptors(PosterFileInterceptor)
   updateGigByPublicId(
     @Param('publicId') publicId: string,

@@ -13,7 +13,7 @@ import { AccessJwtAuthGuard } from '../auth/guards/access-jwt-auth.guard';
 import { AuthenticatedUserGuard } from '../auth/guards/authenticated-user.guard';
 import { AuthorizationService } from '../auth/authorization.service';
 import { AdminService } from './admin.service';
-import { RequireAdminGuard } from './guards/require-admin.guard';
+import { AdminGuard } from '../auth/guards/admin.guard';
 import type { V1AdminDashboardResponseBody } from './types/requests/v1-admin-dashboard-response';
 
 /**
@@ -30,7 +30,7 @@ export class AdminController {
 
   @Version('1')
   @Get('dashboard')
-  @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, RequireAdminGuard)
+  @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
   getDashboard(): V1AdminDashboardResponseBody {
     return this.adminService.getDashboard();
   }

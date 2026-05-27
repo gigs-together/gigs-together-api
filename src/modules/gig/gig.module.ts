@@ -8,7 +8,6 @@ import { CalendarModule } from '../calendar/calendar.module';
 import { BucketModule } from '../bucket/bucket.module';
 import { HttpModule } from '@nestjs/axios';
 import { GigPosterService } from './gig.poster.service';
-import { AdminModule } from '../admin/admin.module';
 import { AuthModule } from '../auth/auth.module';
 import { TelegramModule } from '../telegram/telegram.module';
 import { GigLookupBodyPipe } from './pipes/gig-lookup-body.pipe';
@@ -21,7 +20,6 @@ import { GigLookupBodyPipe } from './pipes/gig-lookup-body.pipe';
     BucketModule,
     HttpModule,
     AuthModule,
-    AdminModule,
     TelegramModule,
   ],
   providers: [GigService, GigPosterService, GigLookupBodyPipe],

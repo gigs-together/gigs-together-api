@@ -6,6 +6,7 @@ import { Admin, AdminSchema } from '../../shared/schemas/admin.schema';
 import { AuthenticationService } from './authentication.service';
 import { AccessJwtAuthGuard } from './guards/access-jwt-auth.guard';
 import { AuthenticatedUserGuard } from './guards/authenticated-user.guard';
+import { AdminGuard } from './guards/admin.guard';
 import { AuthController } from './auth.controller';
 import { AuthorizationService } from './authorization.service';
 
@@ -38,12 +39,14 @@ import { AuthorizationService } from './authorization.service';
     AuthorizationService,
     AccessJwtAuthGuard,
     AuthenticatedUserGuard,
+    AdminGuard,
   ],
   exports: [
     AuthorizationService,
     AuthenticationService,
     AccessJwtAuthGuard,
     AuthenticatedUserGuard,
+    AdminGuard,
     JwtModule,
   ],
 })

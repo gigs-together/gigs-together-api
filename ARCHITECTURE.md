@@ -161,7 +161,7 @@ Main files:
 Responsibilities:
 
 - loads active admins from MongoDB (cached) and answers `isAdmin(telegramId)`
-- provides `RequireAdminGuard` for routes that require admin privileges
+- provides AdminGuard` for routes that require admin privileges
 
 Main files:
 
