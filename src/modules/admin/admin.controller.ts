@@ -1,7 +1,10 @@
 import {
+  Body,
   Controller,
   Get,
   Headers,
+  Param,
+  Patch,
   Post,
   ServiceUnavailableException,
   UnauthorizedException,
@@ -15,6 +18,9 @@ import { AuthorizationService } from '../auth/authorization.service';
 import { AdminService } from './admin.service';
 import { AdminGuard } from '../auth/guards/admin.guard';
 import type { V1AdminDashboardResponseBody } from './types/requests/v1-admin-dashboard-response';
+import { V1AdminLanguagePatchBodyDto } from './types/requests/v1-admin-language-patch-body';
+import { LanguageService } from '../language/language.service';
+import type { SupportedLanguage } from '../language/types/language.types';
 
 /**
  * Manual admin-list cache refresh (e.g. after DB migration).
@@ -26,6 +32,7 @@ export class AdminController {
     private readonly adminService: AdminService,
     private readonly authorizationService: AuthorizationService,
     private readonly configService: ConfigService,
+    private readonly languageService: LanguageService,
   ) {}
 
   @Version('1')
@@ -33,6 +40,23 @@ export class AdminController {
   @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
   getDashboard(): Promise<V1AdminDashboardResponseBody> {
     return this.adminService.getDashboard();
+  }
+
+  @Version('1')
+  @Get('languages')
+  @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
+  getLanguages(): Promise<readonly SupportedLanguage[]> {
+    return this.languageService.getAllLanguagesOrdered();
+  }
+
+  @Version('1')
+  @Patch('languages/:iso')
+  @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
+  patchLanguage(
+    @Param('iso') iso: string,
+    @Body() body: V1AdminLanguagePatchBodyDto,
+  ): Promise<SupportedLanguage> {
+    return this.languageService.updateLanguageByIso({ iso, ...body });
   }
 
   @Post('revalidate')

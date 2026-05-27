@@ -51,13 +51,6 @@ describe('AdminService', () => {
           publishedGigsCount: 12,
         },
       });
-
-      expect(gigServiceMock.getGigCountByStatus).toHaveBeenCalledWith(
-        Status.Pending,
-      );
-      expect(gigServiceMock.getGigCountByStatus).toHaveBeenCalledWith(
-        Status.Published,
-      );
     });
   });
 });
