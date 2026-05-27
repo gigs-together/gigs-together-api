@@ -18,7 +18,10 @@ import { AuthorizationService } from '../auth/authorization.service';
 import { AdminService } from './admin.service';
 import { AdminGuard } from '../auth/guards/admin.guard';
 import type { V1AdminDashboardResponseBody } from './types/requests/v1-admin-dashboard-response';
-import { V1AdminLanguagePatchBodyDto } from './types/requests/v1-admin-language-patch-body';
+import {
+  V1AdminLanguagePatchBodyDto,
+  V1AdminLanguagesOrderPatchBodyDto,
+} from './types/requests/v1-admin-language-patch-body';
 import { LanguageService } from '../language/language.service';
 import type { SupportedLanguage } from '../language/types/language.types';
 
@@ -47,6 +50,17 @@ export class AdminController {
   @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
   getLanguages(): Promise<readonly SupportedLanguage[]> {
     return this.languageService.getAllLanguagesOrdered();
+  }
+
+  @Version('1')
+  @Patch('languages/order')
+  @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
+  patchLanguagesOrder(
+    @Body() body: V1AdminLanguagesOrderPatchBodyDto,
+  ): Promise<readonly SupportedLanguage[]> {
+    return this.languageService.updateLanguagesOrder({
+      languages: body.languages,
+    });
   }
 
   @Version('1')

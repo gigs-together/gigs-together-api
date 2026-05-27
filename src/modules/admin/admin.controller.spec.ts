@@ -24,9 +24,13 @@ describe('AdminController', () => {
       isActive: false,
       order: 0,
     }),
+    updateLanguagesOrder: vi.fn().mockResolvedValue([
+      { iso: 'es', name: 'Español', isActive: true, order: 0 },
+      { iso: 'en', name: 'English', isActive: true, order: 1 },
+    ]),
   } satisfies Pick<
     LanguageService,
-    'getAllLanguagesOrdered' | 'updateLanguageByIso'
+    'getAllLanguagesOrdered' | 'updateLanguageByIso' | 'updateLanguagesOrder'
   >;
 
   const authorizationService = {
@@ -78,6 +82,29 @@ describe('AdminController', () => {
       expect(languageService.updateLanguageByIso).toHaveBeenCalledWith({
         iso: 'en',
         isActive: false,
+      });
+    });
+  });
+
+  describe('patchLanguagesOrder', () => {
+    it('should batch update language order via language service', async () => {
+      await expect(
+        controller.patchLanguagesOrder({
+          languages: [
+            { iso: 'es', order: 0 },
+            { iso: 'en', order: 1 },
+          ],
+        }),
+      ).resolves.toEqual([
+        { iso: 'es', name: 'Español', isActive: true, order: 0 },
+        { iso: 'en', name: 'English', isActive: true, order: 1 },
+      ]);
+
+      expect(languageService.updateLanguagesOrder).toHaveBeenCalledWith({
+        languages: [
+          { iso: 'es', order: 0 },
+          { iso: 'en', order: 1 },
+        ],
       });
     });
   });

@@ -14,3 +14,12 @@ export interface UpdateLanguageByIsoParams {
   readonly isActive?: boolean;
   readonly order?: number;
 }
+
+export interface LanguageOrderUpdate {
+  readonly iso: string;
+  readonly order: number;
+}
+
+export interface UpdateLanguagesOrderParams {
+  readonly languages: readonly LanguageOrderUpdate[];
+}

@@ -6,6 +6,7 @@ import {
 import type {
   SupportedLanguage,
   UpdateLanguageByIsoParams,
+  UpdateLanguagesOrderParams,
 } from './types/language.types';
 import { InjectModel } from '@nestjs/mongoose';
 import { LanguageDocument, Language } from './language.schema';
@@ -170,6 +171,61 @@ export class LanguageService {
     }
 
     return updated;
+  }
+
+  async updateLanguagesOrder(
+    params: UpdateLanguagesOrderParams,
+  ): Promise<readonly SupportedLanguage[]> {
+    const updates = params.languages;
+
+    if (updates.length < 2) {
+      throw new BadRequestException('At least two languages must be updated');
+    }
+
+    const normalizedUpdates = updates.map((update) => {
+      const order = update.order;
+      if (!Number.isInteger(order) || order < 0) {
+        throw new BadRequestException('order must be a non-negative integer');
+      }
+      return {
+        iso: LanguageService.normalizeLanguageIsoParam(update.iso),
+        order,
+      };
+    });
+
+    const isos = normalizedUpdates.map((update) => update.iso);
+    if (new Set(isos).size !== isos.length) {
+      throw new BadRequestException('Duplicate iso values in request');
+    }
+
+    const orders = normalizedUpdates.map((update) => update.order);
+    if (new Set(orders).size !== orders.length) {
+      throw new BadRequestException('Duplicate order values in request');
+    }
+
+    const existing = await this.languageModel
+      .find({ iso: { $in: isos } }, { iso: 1 })
+      .lean<Array<{ readonly iso: string }>>()
+      .exec();
+
+    if (existing.length !== isos.length) {
+      const existingIsos = new Set(existing.map((language) => language.iso));
+      const missingIsos = isos.filter((iso) => !existingIsos.has(iso));
+      throw new NotFoundException(
+        `Language(s) not found: ${missingIsos.join(', ')}`,
+      );
+    }
+
+    await this.languageModel.bulkWrite(
+      normalizedUpdates.map((update) => ({
+        updateOne: {
+          filter: { iso: update.iso },
+          update: { $set: { order: update.order } },
+        },
+      })),
+    );
+
+    return this.getAllLanguagesOrdered();
   }
 
   async getTranslationsV1(

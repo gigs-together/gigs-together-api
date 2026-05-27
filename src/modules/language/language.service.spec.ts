@@ -12,12 +12,14 @@ describe('LanguageService', () => {
   const languageFindMock = vi.fn();
   const languageFindOneAndUpdateMock = vi.fn();
   const languageCountDocumentsMock = vi.fn();
+  const languageBulkWriteMock = vi.fn();
   const translationFindMock = vi.fn();
 
   beforeEach(async () => {
     languageFindMock.mockReset();
     languageFindOneAndUpdateMock.mockReset();
     languageCountDocumentsMock.mockReset();
+    languageBulkWriteMock.mockReset();
     translationFindMock.mockReset();
 
     const module: TestingModule = await Test.createTestingModule({
@@ -29,6 +31,7 @@ describe('LanguageService', () => {
             find: languageFindMock,
             findOneAndUpdate: languageFindOneAndUpdateMock,
             countDocuments: languageCountDocumentsMock,
+            bulkWrite: languageBulkWriteMock,
           },
         },
         {
@@ -122,6 +125,74 @@ describe('LanguageService', () => {
 
       await expect(
         service.updateLanguageByIso({ iso: 'en', name: 'English' }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe('updateLanguagesOrder', () => {
+    it('should bulk update language orders and return ordered list', async () => {
+      languageBulkWriteMock.mockResolvedValue({ ok: 1 });
+      languageFindMock
+        .mockReturnValueOnce({
+          lean: vi.fn().mockReturnValue({
+            exec: vi.fn().mockResolvedValue([{ iso: 'en' }, { iso: 'es' }]),
+          }),
+        })
+        .mockReturnValueOnce({
+          sort: vi.fn().mockReturnValue({
+            lean: vi.fn().mockReturnValue({
+              exec: vi.fn().mockResolvedValue([
+                { iso: 'es', name: 'Español', isActive: true, order: 0 },
+                { iso: 'en', name: 'English', isActive: true, order: 1 },
+              ]),
+            }),
+          }),
+        });
+
+      await expect(
+        service.updateLanguagesOrder({
+          languages: [
+            { iso: 'es', order: 0 },
+            { iso: 'en', order: 1 },
+          ],
+        }),
+      ).resolves.toEqual([
+        { iso: 'es', name: 'Español', isActive: true, order: 0 },
+        { iso: 'en', name: 'English', isActive: true, order: 1 },
+      ]);
+
+      expect(languageBulkWriteMock).toHaveBeenCalledWith([
+        {
+          updateOne: { filter: { iso: 'es' }, update: { $set: { order: 0 } } },
+        },
+        {
+          updateOne: { filter: { iso: 'en' }, update: { $set: { order: 1 } } },
+        },
+      ]);
+    });
+
+    it('should throw when fewer than two languages are provided', async () => {
+      await expect(
+        service.updateLanguagesOrder({
+          languages: [{ iso: 'en', order: 0 }],
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('should throw when a language iso is not found', async () => {
+      languageFindMock.mockReturnValue({
+        lean: vi.fn().mockReturnValue({
+          exec: vi.fn().mockResolvedValue([{ iso: 'en' }]),
+        }),
+      });
+
+      await expect(
+        service.updateLanguagesOrder({
+          languages: [
+            { iso: 'en', order: 0 },
+            { iso: 'es', order: 1 },
+          ],
+        }),
       ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
