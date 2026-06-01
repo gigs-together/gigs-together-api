@@ -224,7 +224,13 @@ export class GigService {
       venue: body.gig.venue,
       ticketsUrl: body.gig.ticketsUrl,
       poster,
-      suggestedBy: { userId: user.tgUser.id },
+      suggestedBy: {
+        userId: user.tgUser.id,
+        username: user.tgUser.username,
+        name: [user.tgUser.firstName, user.tgUser.lastName]
+          .filter(Boolean)
+          .join(' '),
+      },
     };
 
     if (body.gig.endDate && body.gig.endDate !== body.gig.date) {

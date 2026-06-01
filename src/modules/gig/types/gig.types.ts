@@ -36,6 +36,8 @@ export interface CreateGigInput {
 
 export interface GigSuggestedBy {
   userId: TGUser['id'];
+  name?: string;
+  username?: TGUser['username'];
   feedbackMessageId?: TGMessage['message_id'];
 }
 
