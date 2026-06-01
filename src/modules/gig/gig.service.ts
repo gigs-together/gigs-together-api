@@ -309,6 +309,34 @@ export class GigService {
     return this.gigModel.countDocuments({ status }).exec();
   }
 
+  resolveGigPosterPublicUrl(poster: GigDocument['poster']): string | undefined {
+    const externalFallbackEnabled = envBool(
+      'EXTERNAL_POSTER_URL_FALLBACK_ENABLED',
+      true,
+    );
+
+    return (
+      (poster?.bucketPath
+        ? this.bucketService.getPublicFileUrl(poster.bucketPath)
+        : undefined) ??
+      (externalFallbackEnabled ? poster?.externalUrl : undefined)
+    );
+  }
+
+  resolvePublishedPostUrl(
+    posts: GigDocument['posts'],
+  ): Promise<string | undefined> {
+    const publishedPost = this.telegramService.pickTgPost(
+      posts,
+      PostType.Publish,
+    );
+
+    return this.getPostUrl({
+      postId: publishedPost?.id,
+      chatId: publishedPost?.chatId,
+    });
+  }
+
   async updateGigByPublicId(
     payload: UpdateGigByPublicIdPayload,
   ): Promise<GigDocument> {
@@ -368,11 +396,6 @@ export class GigService {
   async getGigByPublicId(publicId: string): Promise<GigFormDataByPublicId> {
     const gig = await this.getGigByPublicIdOrThrow(publicId);
 
-    const externalFallbackEnabled = envBool(
-      'EXTERNAL_POSTER_URL_FALLBACK_ENABLED',
-      true,
-    );
-
     const msToYmd = (ms?: number): string | undefined => {
       if (!ms) return undefined;
       const d = new Date(ms);
@@ -380,11 +403,7 @@ export class GigService {
       return d.toISOString().slice(0, 10);
     };
 
-    const posterUrl =
-      (gig.poster?.bucketPath
-        ? this.bucketService.getPublicFileUrl(gig.poster.bucketPath)
-        : undefined) ??
-      (externalFallbackEnabled ? gig.poster?.externalUrl : undefined);
+    const posterUrl = this.resolveGigPosterPublicUrl(gig.poster);
 
     return {
       publicId: gig.publicId,
@@ -438,15 +457,7 @@ export class GigService {
 
     const mapped: V1GetGigsResponseBody['gigs'] = [];
     for (const gig of gigs) {
-      const publishedPost = this.telegramService.pickTgPost(
-        gig.posts,
-        PostType.Publish,
-      );
-
-      const postUrl = await this.getPostUrl({
-        postId: publishedPost?.id,
-        chatId: publishedPost?.chatId,
-      });
+      const postUrl = await this.resolvePublishedPostUrl(gig.posts);
 
       const calendarPayload = this.gigToCalendarPayload(gig);
       const calendarUrl =
