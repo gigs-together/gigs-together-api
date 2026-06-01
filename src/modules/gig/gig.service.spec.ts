@@ -8,15 +8,22 @@ import { CalendarService } from '../calendar/calendar.service';
 import { GigPosterService } from './gig.poster.service';
 import { TelegramService } from '../telegram/telegram.service';
 import { BucketService } from '../bucket/bucket.service';
+import { Types } from 'mongoose';
+
 import { Status } from './types/status.enum';
 
 describe('GigService', () => {
   let service: GigService;
 
   const execMock = vi.fn();
-  const sortMock = vi.fn().mockReturnValue({ exec: execMock });
-  const collationMock = vi.fn().mockReturnValue({ sort: sortMock });
-  const findMock = vi.fn().mockReturnValue({ collation: collationMock });
+  const limitMock = vi.fn().mockReturnValue({ exec: execMock });
+  const sortForLimitMock = vi.fn().mockReturnValue({ limit: limitMock });
+  const sortForCollationMock = vi.fn().mockReturnValue({ exec: execMock });
+  const collationMock = vi.fn().mockReturnValue({ sort: sortForCollationMock });
+  const findMock = vi.fn().mockReturnValue({
+    sort: sortForLimitMock,
+    collation: collationMock,
+  });
   const countDocumentsMock = vi.fn();
 
   beforeEach(async () => {
@@ -72,7 +79,23 @@ describe('GigService', () => {
         locale: 'en',
         strength: 2,
       });
-      expect(sortMock).toHaveBeenCalledWith({ date: 1, _id: 1 });
+      expect(sortForCollationMock).toHaveBeenCalledWith({ date: 1, _id: 1 });
+    });
+  });
+
+  describe('getGigsByStatus', () => {
+    it('should query gigs by status sorted by _id ascending with limit', async () => {
+      execMock.mockResolvedValue([{ _id: new Types.ObjectId() }]);
+
+      const result = await service.getGigsByStatus({
+        status: Status.Pending,
+        limit: 25,
+      });
+
+      expect(findMock).toHaveBeenCalledWith({ status: Status.Pending });
+      expect(sortForLimitMock).toHaveBeenCalledWith({ _id: 1 });
+      expect(limitMock).toHaveBeenCalledWith(25);
+      expect(result).toHaveLength(1);
     });
   });
 

@@ -47,6 +47,7 @@ import { Messenger } from './types/messenger.enum';
 import { decodeGigCursorOrThrow, encodeGigCursor } from './utils/gig-cursor';
 import type { User } from '../../shared/types/user.types';
 import type { V1ReceiverCreateGigRequestBody } from '../receiver/types/requests/v1-receiver-create-gig-request';
+import { msToYmd } from '../../shared/utils/date-formatter';
 
 interface GetPostUrlPayload {
   postId?: number;
@@ -81,6 +82,11 @@ interface GigPublishedBaseFilterParams {
 interface GigPublishedInclusiveMsRangeParams {
   readonly fromMs: number;
   readonly toMs: number;
+}
+
+export interface GetGigsByStatusParams {
+  readonly status: Status;
+  readonly limit: number;
 }
 
 // TODO: add allowing only specific status transitions
@@ -309,6 +315,18 @@ export class GigService {
     return this.gigModel.countDocuments({ status }).exec();
   }
 
+  // TODO: limit|infinite scroll
+  getGigsByStatus(params: GetGigsByStatusParams): Promise<GigDocument[]> {
+    const limit = Math.min(Math.max(1, params.limit), GigService.MAX_LIMIT);
+
+    // oldest submissions first (`_id` asc)
+    return this.gigModel
+      .find({ status: params.status })
+      .sort({ _id: 1 })
+      .limit(limit)
+      .exec();
+  }
+
   resolveGigPosterPublicUrl(poster: GigDocument['poster']): string | undefined {
     const externalFallbackEnabled = envBool(
       'EXTERNAL_POSTER_URL_FALLBACK_ENABLED',
@@ -395,13 +413,6 @@ export class GigService {
   /** Full gig form fields by public id (any status). */
   async getGigByPublicId(publicId: string): Promise<GigFormDataByPublicId> {
     const gig = await this.getGigByPublicIdOrThrow(publicId);
-
-    const msToYmd = (ms?: number): string | undefined => {
-      if (!ms) return undefined;
-      const d = new Date(ms);
-      if (Number.isNaN(d.getTime())) return undefined;
-      return d.toISOString().slice(0, 10);
-    };
 
     const posterUrl = this.resolveGigPosterPublicUrl(gig.poster);
 

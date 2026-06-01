@@ -10,7 +10,8 @@ describe('AdminController', () => {
         publishedGigsCount: 12,
       },
     }),
-  } satisfies Pick<AdminService, 'getDashboard'>;
+    getGigsList: vi.fn().mockResolvedValue({ gigs: [] }),
+  } satisfies Pick<AdminService, 'getDashboard' | 'getGigsList'>;
 
   const languageService = {
     getAllLanguagesOrdered: vi
@@ -55,6 +56,19 @@ describe('AdminController', () => {
           pendingGigsCount: 3,
           publishedGigsCount: 12,
         },
+      });
+    });
+  });
+
+  describe('getGigs', () => {
+    it('should return gigs list from admin service', async () => {
+      await expect(
+        controller.getGigs({ status: 'pending', limit: 20 }),
+      ).resolves.toEqual({ gigs: [] });
+
+      expect(adminService.getGigsList).toHaveBeenCalledWith({
+        status: 'pending',
+        limit: 20,
       });
     });
   });

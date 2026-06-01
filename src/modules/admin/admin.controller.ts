@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   ServiceUnavailableException,
   UnauthorizedException,
   UseGuards,
@@ -18,6 +19,8 @@ import { AuthorizationService } from '../auth/authorization.service';
 import { AdminService } from './admin.service';
 import { AdminGuard } from '../auth/guards/admin.guard';
 import type { V1AdminDashboardResponseBody } from './types/requests/v1-admin-dashboard-response';
+import { V1AdminGigsGetQueryDto } from './types/requests/v1-admin-gigs-get-query';
+import type { V1AdminGigsListResponseBody } from './types/requests/v1-admin-gigs-list-response';
 import {
   V1AdminLanguagePatchBodyDto,
   V1AdminLanguagesOrderPatchBodyDto,
@@ -43,6 +46,15 @@ export class AdminController {
   @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
   getDashboard(): Promise<V1AdminDashboardResponseBody> {
     return this.adminService.getDashboard();
+  }
+
+  @Version('1')
+  @Get('gigs')
+  @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
+  getGigs(
+    @Query() query: V1AdminGigsGetQueryDto,
+  ): Promise<V1AdminGigsListResponseBody> {
+    return this.adminService.getGigsList(query);
   }
 
   @Version('1')
